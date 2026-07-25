@@ -159,6 +159,7 @@ def build_prompt_for_job(job_id: str) -> tuple[dict[str, Any], str]:
         business=result.get("business", {}),
         topic=result.get("topic", ""),
         image_count=max(1, len(result.get("assets", {}).get("images", []))),
+        weather_snapshot=result.get("weather_snapshot"),
     )
     return result, beta_build_prompt(payload)
 
