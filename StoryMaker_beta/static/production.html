@@ -92,17 +92,49 @@
   const status = document.getElementById('beta-thumbnail-16-status');
   if (!section || !frame) return;
   let openedJobId = '';
-  function openThumbnailStudio(jobId) {
-    const safeJobId = String(jobId || '').trim();
+  let pendingThumbnailData = null;
+  // 썸네일 카드 상단을 현재 대시보드 본문 상단에 맞춥니다.
+  function alignThumbnailStudioTop() {
+    section.scrollIntoView({ behavior: 'auto', block: 'start' });
+    window.setTimeout(() => {
+      try {
+        let targetWindow = window;
+        let top = section.getBoundingClientRect().top;
+        while (targetWindow !== targetWindow.parent) {
+          const ownerFrame = targetWindow.frameElement;
+          if (!ownerFrame) break;
+          top += ownerFrame.getBoundingClientRect().top;
+          targetWindow = targetWindow.parent;
+        }
+        targetWindow.scrollTo({ top: Math.max(0, targetWindow.scrollY + top - 12), behavior: 'smooth' });
+      } catch (_) {
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 120);
+  }
+  function sendCurrentDataToThumbnailFrame() {
+    if (!pendingThumbnailData || !frame.contentWindow) return;
+    frame.contentWindow.postMessage({ type: 'storymaker:thumbnail-current-data', data: pendingThumbnailData }, location.origin);
+  }
+  function openThumbnailStudio(detail = {}) {
+    const data = typeof detail === 'string' ? { jobId: detail } : (detail || {});
+    const safeJobId = String(data.jobId || '').trim();
     const query = safeJobId ? `?embed=1&job_id=${encodeURIComponent(safeJobId)}` : '?embed=1';
+    pendingThumbnailData = { ...data, jobId: safeJobId };
     if (openedJobId !== safeJobId || frame.src === 'about:blank') frame.src = `/static/v1/four-thumbnail/index.html${query}`;
     openedJobId = safeJobId;
     section.hidden = false;
     if (status) status.textContent = safeJobId ? `현재 작업 자동 연결 · ${safeJobId}` : '최근 작업 자동 연결';
-    requestAnimationFrame(() => section.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    frame.addEventListener('load', () => { sendCurrentDataToThumbnailFrame(); alignThumbnailStudioTop(); }, { once: true });
+    window.setTimeout(() => { sendCurrentDataToThumbnailFrame(); alignThumbnailStudioTop(); }, 180);
   }
-  window.addEventListener('storymaker:shortform-complete', event => openThumbnailStudio(event.detail?.jobId));
+  window.addEventListener('storymaker:shortform-complete', event => openThumbnailStudio(event.detail || {}));
   window.addEventListener('message', event => {
+    if (event.data?.type === 'storymaker:thumbnail-ready') {
+      sendCurrentDataToThumbnailFrame();
+      alignThumbnailStudioTop();
+      return;
+    }
     if (event.data?.type !== 'storymaker:thumbnail-frame-height') return;
     const height = Number(event.data.height || 0);
     if (height >= 1200 && height <= 6000) frame.style.height = `${Math.ceil(height)}px`;

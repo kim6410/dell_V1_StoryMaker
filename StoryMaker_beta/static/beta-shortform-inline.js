@@ -387,12 +387,19 @@
       if (!state.savedToArchive) throw new Error('MP4 보관함 자동 저장에 실패했습니다.');
       setProgress(100, 'MP4 제작 및 보관함 자동 저장 완료');
       if (fields.sceneBadge) fields.sceneBadge.textContent = '제작 완료 · Play로 확인하세요';
+      // MP4 완료 시 현재 작업 데이터와 사용자가 선택한 이미지 목록을 16종 썸네일 영역에 전달합니다.
+      window.dispatchEvent(new CustomEvent('storymaker:shortform-complete', {
+        detail: {
+          jobId: state.jobId,
+          title1: fields.title1?.value || '',
+          title2: fields.title2?.value || '',
+          business: fields.business?.value || '',
+          phone: fields.phone?.value || '',
+          script: fields.script?.value || '',
+          images: state.mediaUrls.length ? state.mediaUrls.slice() : (Array.isArray(state.context?.images) ? state.context.images.slice() : [])
+        }
+      }));
       preview.play().catch(() => {});
-      // 완료 후 미리보기·저장 UI가 펼쳐져도 최종 화면은 항상 페이지 최하단에 유지합니다.
-      requestAnimationFrame(() => {
-        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
-        window.setTimeout(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'auto' }), 350);
-      });
     } catch (error) {
       if (stopHeartbeat) {
         stopHeartbeat();
