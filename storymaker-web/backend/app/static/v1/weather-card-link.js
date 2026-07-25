@@ -12,8 +12,22 @@
   const clean = (value = '') => String(value).replace(/\s+/g, ' ').trim();
   const normalizeRegion = (text = '') => REGIONS.find((region) => text.includes(region)) || '';
 
-  function getInlineBody() {
-    return window.StoryMakerV1InlinePanels?.open?.('weather', '기상정보 DB');
+  const WEATHER_PANEL_ID = 'storymaker-v1-weather-panel';
+
+  function closeWeather() {
+    document.getElementById(WEATHER_PANEL_ID)?.remove();
+  }
+
+  function sidebarRight(target) {
+    let node = target;
+    while (node && node !== document.body) {
+      const rect = node.getBoundingClientRect?.();
+      if (rect && rect.height >= window.innerHeight * 0.72 && rect.width >= 180 && rect.width <= 430 && rect.left <= 20) {
+        return Math.max(0, Math.round(rect.right));
+      }
+      node = node.parentElement;
+    }
+    return 0;
   }
 
   function getBusinessRegion() {
@@ -29,29 +43,30 @@
     return normalizeRegion(bodyText);
   }
 
-  function openWeather(region = '') {
-    const body = getInlineBody();
-    if (!body) {
-      console.warn('[StoryMaker V1] inline panel host is not ready');
-      return;
-    }
+  function openWeather(region = '', trigger = null) {
+    closeWeather();
 
-    const src = `/static/v1/weather.html?embed=1&region=${encodeURIComponent(region || '')}`;
-    body.innerHTML = '';
+    const panel = document.createElement('section');
+    panel.id = WEATHER_PANEL_ID;
+    panel.setAttribute('aria-label', '기상정보 DB');
+    panel.style.cssText = [
+      'position:fixed',
+      'top:0',
+      'right:0',
+      'bottom:0',
+      `left:${sidebarRight(trigger)}px`,
+      'z-index:2147483000',
+      'background:#071126',
+      'overflow:hidden',
+    ].join(';');
 
     const frame = document.createElement('iframe');
     frame.title = '기상정보 DB';
-    frame.src = src;
+    frame.src = `/static/v1/weather.html?embed=1&region=${encodeURIComponent(region || '')}`;
     frame.loading = 'eager';
-    frame.style.cssText = [
-      'display:block',
-      'width:100%',
-      'height:min(760px,calc(100vh - 210px))',
-      'min-height:620px',
-      'border:0',
-      'background:#071126',
-    ].join(';');
-    body.appendChild(frame);
+    frame.style.cssText = 'display:block;width:100%;height:100%;border:0;background:#071126';
+    panel.appendChild(frame);
+    document.body.appendChild(panel);
   }
 
   function bestCard(start, needle) {
@@ -84,7 +99,7 @@
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
-    openWeather(trigger.dataset.storymakerWeatherRegion || getBusinessRegion());
+    openWeather(trigger.dataset.storymakerWeatherRegion || getBusinessRegion(), trigger);
   }
 
   document.addEventListener('click', captureWeatherActivation, true);
@@ -107,11 +122,19 @@
 
   window.addEventListener('message', (event) => {
     if (event.origin === window.location.origin && event.data?.type === 'storymaker-close-weather') {
-      window.StoryMakerV1InlinePanels?.close?.();
+      closeWeather();
     }
   });
 
-  window.StoryMakerV1Weather = { open: openWeather };
+  document.addEventListener('pointerdown', (event) => {
+    const panel = document.getElementById(WEATHER_PANEL_ID);
+    if (!panel || panel.contains(event.target)) return;
+    if (event.target?.closest?.('[data-storymaker-weather-inline-trigger="1"]')) return;
+    const clickable = event.target?.closest?.('button,a,[role="button"]');
+    if (clickable) closeWeather();
+  }, true);
+
+  window.StoryMakerV1Weather = { open: openWeather, close: closeWeather };
 
   refreshTriggers();
   new MutationObserver(refreshTriggers).observe(document.documentElement, {
