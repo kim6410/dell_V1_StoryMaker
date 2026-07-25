@@ -52,6 +52,10 @@
   }
 
   function showScene(index) {
+    if (state.readyToSave || state.savedToArchive) {
+      stopScenePreview();
+      return;
+    }
     if (!state.mediaUrls.length || !fields.liveImage) return;
     state.sceneIndex = Math.max(0, Math.min(state.mediaUrls.length - 1, index));
     const url = state.mediaUrls[state.sceneIndex];
@@ -65,6 +69,8 @@
 
   function startScenePreview() {
     clearInterval(state.sceneTimer);
+    state.sceneTimer = null;
+    if (state.readyToSave || state.savedToArchive) return;
     if (!state.mediaUrls.length) return;
     showScene(0);
     state.sceneTimer = setInterval(() => showScene((state.sceneIndex + 1) % state.mediaUrls.length), 2600);
@@ -380,10 +386,11 @@
       preview.currentTime = 0;
       phone?.classList.add('has-final');
       state.readyToSave = true;
+      state.savedToArchive = Boolean(result.saved);
       stopScenePreview();
-      setProgress(96, 'MP4 제작 완료 · 보관함에 자동 저장하는 중...');
-      appendLog(`브라우저 제작 완료 · ${result.musicName || '음악 없음'} · 보관함 자동 저장 시작`);
-      await saveCurrentToArchive();
+      setProgress(96, state.savedToArchive ? 'MP4 제작 완료 · 보관함 자동 저장 확인 중...' : 'MP4 제작 완료 · 보관함에 자동 저장하는 중...');
+      appendLog(`브라우저 제작 완료 · ${result.musicName || '음악 없음'} · ${state.savedToArchive ? '렌더러 자동 저장 완료' : '보관함 자동 저장 시작'}`);
+      if (!state.savedToArchive) await saveCurrentToArchive();
       if (!state.savedToArchive) throw new Error('MP4 보관함 자동 저장에 실패했습니다.');
       setProgress(100, 'MP4 제작 및 보관함 자동 저장 완료');
       if (fields.sceneBadge) fields.sceneBadge.textContent = '제작 완료 · Play로 확인하세요';
