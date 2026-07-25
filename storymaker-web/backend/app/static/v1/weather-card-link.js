@@ -27,7 +27,7 @@
     for (const [canonical, aliases] of REGION_ALIASES) {
       if (aliases.some((alias) => value.includes(alias))) return canonical;
     }
-    return value;
+    return '';
   };
 
   const WEATHER_PANEL_ID = 'storymaker-v1-weather-panel';
@@ -36,22 +36,36 @@
     document.getElementById(WEATHER_PANEL_ID)?.remove();
   }
 
-  function sidebarRight() {
-    const candidates = Array.from(document.querySelectorAll('aside,nav,div'));
-    const sidebar = candidates.find((node) => {
+  function findDashboardContent() {
+    const candidates = Array.from(document.querySelectorAll('main,section,div'));
+    const scored = candidates.map((node) => {
+      if (node.id === WEATHER_PANEL_ID || node.closest?.(`#${WEATHER_PANEL_ID}`)) return null;
       const rect = node.getBoundingClientRect?.();
-      if (!rect) return false;
-      const visible = rect.width > 0 && rect.height > 0;
-      const leftDocked = rect.left >= 0 && rect.left <= 24;
-      const sidebarSize = rect.width >= 220 && rect.width <= 340;
-      const tallEnough = rect.height >= window.innerHeight * 0.72;
-      return visible && leftDocked && sidebarSize && tallEnough;
-    });
-    return sidebar ? Math.max(240, Math.round(sidebar.getBoundingClientRect().right)) : 260;
+      if (!rect || rect.width < 520 || rect.height < 360) return null;
+      if (rect.right < window.innerWidth * 0.72 || rect.bottom < window.innerHeight * 0.72) return null;
+      const className = String(node.className || '');
+      let score = rect.width * rect.height;
+      if (className.includes('flex-1')) score += 100000000;
+      if (node.tagName === 'MAIN') score += 50000000;
+      if (rect.left >= 120) score += 25000000;
+      if (rect.top >= 48) score += 10000000;
+      return { node, rect, score };
+    }).filter(Boolean).sort((a, b) => b.score - a.score);
+    return scored[0]?.node || document.querySelector('main') || document.getElementById('root');
+  }
+
+  function syncPanelBounds(panel) {
+    const content = findDashboardContent();
+    const rect = content?.getBoundingClientRect?.();
+    if (!rect) return;
+    panel.style.left = `${Math.max(0, Math.round(rect.left))}px`;
+    panel.style.top = `${Math.max(0, Math.round(rect.top))}px`;
+    panel.style.width = `${Math.max(320, Math.round(rect.width))}px`;
+    panel.style.height = `${Math.max(420, Math.round(rect.height))}px`;
   }
 
   function getBusinessRegion() {
-    const synced = clean(window.StoryMakerV1UserRegionWeather?.getRegion?.() || window.StoryMakerV1SelectedRegion || '');
+    const synced = normalizeRegion(window.StoryMakerV1UserRegionWeather?.getRegion?.() || window.StoryMakerV1SelectedRegion || '');
     if (synced) return synced;
 
     const bodyText = document.body?.innerText || '';
@@ -71,14 +85,12 @@
     panel.setAttribute('aria-label', '기상정보 DB');
     panel.style.cssText = [
       'position:fixed',
-      'top:0',
-      'right:0',
-      'bottom:0',
-      `left:${sidebarRight()}px`,
       'z-index:2147483000',
       'background:#071126',
       'overflow:hidden',
+      'border-radius:0',
     ].join(';');
+    syncPanelBounds(panel);
 
     const frame = document.createElement('iframe');
     frame.title = '기상정보 DB';
@@ -87,6 +99,7 @@
     frame.style.cssText = 'display:block;width:100%;height:100%;border:0;background:#071126';
     panel.appendChild(frame);
     document.body.appendChild(panel);
+    requestAnimationFrame(() => syncPanelBounds(panel));
   }
 
   function bestCard(start, needle) {
@@ -139,6 +152,11 @@
       .find((node) => /^\d{1,2}\s*\/\s*\d{1,2}/.test(clean(node.textContent || '')));
     if (dateLabel) bindTrigger(bestCard(dateLabel, clean(dateLabel.textContent || '')), getBusinessRegion());
   }
+
+  window.addEventListener('resize', () => {
+    const panel = document.getElementById(WEATHER_PANEL_ID);
+    if (panel) syncPanelBounds(panel);
+  }, { passive: true });
 
   window.addEventListener('message', (event) => {
     if (event.origin === window.location.origin && event.data?.type === 'storymaker-close-weather') {
