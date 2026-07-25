@@ -334,6 +334,7 @@
     state.savedToArchive = false;
     const preview = fields.finalVideo;
     const phone = preview?.closest('.sf-phone');
+    let stopHeartbeat = null;
     try {
       await saveDefaults();
       stopScenePreview();
@@ -352,7 +353,7 @@
       const renderer = await waitForRenderer();
       const currentValues = values();
       currentValues.one_time_music_file = fields.bgmMode.value === 'one_time' ? fields.bgmUpload.files?.[0] || null : null;
-      let stopHeartbeat = startWorkingHeartbeat('TTS·SRT·MP3 준비', 12, 36);
+      stopHeartbeat = startWorkingHeartbeat('TTS·SRT·MP3 준비', 12, 36);
       let lastProgressLog = '';
       const result = await renderer.createVideoOnly(state.jobId, currentValues, (percent, message, detail) => {
         const cleanMessage = String(message || '제작 진행 중');
@@ -388,10 +389,18 @@
       if (fields.sceneBadge) fields.sceneBadge.textContent = '제작 완료 · Play로 확인하세요';
       preview.play().catch(() => {});
     } catch (error) {
+      if (stopHeartbeat) {
+        stopHeartbeat();
+        stopHeartbeat = null;
+      }
       state.readyToSave = false;
       setProgress(0, `제작 실패: ${error.message}`);
       appendLog(`오류 · ${error.message}`);
     } finally {
+      if (stopHeartbeat) {
+        stopHeartbeat();
+        stopHeartbeat = null;
+      }
       fields.make.disabled = false;
     }
   }
