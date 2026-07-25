@@ -78,6 +78,38 @@
     <div class="sf-preview-shell"><div class="sf-phone"><img id="sf-live-image" class="sf-live-image" alt="현재 장면 미리보기" hidden><canvas id="sf-live-canvas" class="sf-live-canvas" width="720" height="1280" hidden></canvas><div id="sf-scene-badge" class="sf-scene-badge">장면 준비 중</div><div class="sf-preview-top"><div id="sf-preview-brand" class="sf-preview-brand">스토리메이커 연구소</div><div id="sf-preview-title" class="sf-preview-title">설치 없는 AI 숏폼</div><div class="sf-preview-line"></div></div><div id="sf-preview-subtitle" class="sf-preview-subtitle">팟캐스트 50 대사가 이곳에 표시됩니다.</div><div class="sf-preview-watermark"><div id="sf-preview-business">상호명</div><div id="sf-preview-phone">010-0000-0000</div></div><video id="sf-final-video" class="sf-final-video" controls playsinline hidden></video></div><div class="sf-preview-actions"><button id="sf-play" type="button">Play</button><button id="sf-stop" type="button" class="stop">Stop</button><a id="sf-archive" href="/beta/archive">보관함 바로가기</a></div><div id="sf-thumbnail-preview" class="sf-thumbnail-preview" hidden><div class="sf-thumbnail-preview-head"><strong>썸네일 미리보기</strong><span id="sf-thumbnail-status">Gemini 썸네일 저장을 확인하는 중...</span></div><a id="sf-thumbnail-link" href="#" target="_blank"><img id="sf-thumbnail-image" alt="Gemini 제작 썸네일"></a><a id="sf-thumbnail-archive" class="sf-thumbnail-archive-button" href="/beta/archive">보관함 바로가기</a></div></div>
   </div>
 </section>
+<section id="beta-thumbnail-16-integrated" class="card" hidden>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;">
+    <div><div class="badge">AUTO THUMBNAIL STUDIO</div><h2 style="margin:4px 0 0">16종 썸네일 자동 생성</h2></div>
+    <span id="beta-thumbnail-16-status" style="color:#8fdcff;font-size:13px;font-weight:800;">MP4 제작 완료 후 자동으로 펼쳐집니다.</span>
+  </div>
+  <iframe id="beta-thumbnail-16-frame" title="16종 썸네일 자동 생성기" loading="lazy" style="display:block;width:100%;height:2260px;border:1px solid #24466f;border-radius:18px;background:#050a14;" src="about:blank"></iframe>
+</section>
+<script>
+(() => {
+  const section = document.getElementById('beta-thumbnail-16-integrated');
+  const frame = document.getElementById('beta-thumbnail-16-frame');
+  const status = document.getElementById('beta-thumbnail-16-status');
+  if (!section || !frame) return;
+  let openedJobId = '';
+  function openThumbnailStudio(jobId) {
+    const safeJobId = String(jobId || '').trim();
+    const query = safeJobId ? `?embed=1&job_id=${encodeURIComponent(safeJobId)}` : '?embed=1';
+    if (openedJobId !== safeJobId || frame.src === 'about:blank') frame.src = `/static/v1/four-thumbnail/index.html${query}`;
+    openedJobId = safeJobId;
+    section.hidden = false;
+    if (status) status.textContent = safeJobId ? `현재 작업 자동 연결 · ${safeJobId}` : '최근 작업 자동 연결';
+    requestAnimationFrame(() => section.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
+  window.addEventListener('storymaker:shortform-complete', event => openThumbnailStudio(event.detail?.jobId));
+  window.addEventListener('message', event => {
+    if (event.data?.type !== 'storymaker:thumbnail-frame-height') return;
+    const height = Number(event.data.height || 0);
+    if (height >= 1200 && height <= 6000) frame.style.height = `${Math.ceil(height)}px`;
+  });
+  window.storymakerOpenThumbnail16 = openThumbnailStudio;
+})();
+</script>
 <div id="beta-engine-host" hidden aria-hidden="true">
   <button id="beta-prepare-browser" type="button" tabindex="-1"></button>
   <input id="job" readonly tabindex="-1">
@@ -99,6 +131,6 @@
 </main>
 <script src="/beta-static/vendor/WasmMediaEncoder.min.js"></script>
 <script type="module" src="/beta-static/beta-browser-render.js?v=20260726-finish-bottom-focus-1"></script>
-<script src="/beta-static/beta-shortform-inline.js?v=20260726-finish-bottom-focus-1"></script>
+<script src="/beta-static/beta-shortform-inline.js?v=20260726-hide-loaded-message-1"></script>
 <script src="/beta-static/beta-production.js?v=20260726-api-only-1"></script>
 </body></html>

@@ -234,7 +234,7 @@
     applySettings(state.settings);
     refreshPreview();
     root.hidden = false;
-    setProgress(0, '팟캐스트50·업체정보·미디어를 불러왔습니다.');
+    setProgress(0, '');
     appendLog(`작업 연결 완료 · ${jobId}`);
     appendLog(`이미지 ${data.context.image_count}장 · 동영상 ${data.context.video_count}개`);
     startThumbnailWatch();
