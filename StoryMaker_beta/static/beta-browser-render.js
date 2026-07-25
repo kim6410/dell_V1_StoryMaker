@@ -495,7 +495,7 @@ async function loadBetaRenderBrowserShortform() {
 
   function getBrowserPodcastWorker() {
     if (browserPodcastWorker) return browserPodcastWorker;
-    browserPodcastWorker = new Worker('/static/v1/assets/browserPodcast.worker-nPEw1MVN.js', {
+    browserPodcastWorker = new Worker('/static/v1/assets/browserPodcast.worker-nPEw1MVN.js?v=20260726-phone-tts-srt-original-1', {
       type:'module',
       name:'storymaker-beta-browser-podcast'
     });
@@ -513,6 +513,8 @@ async function loadBetaRenderBrowserShortform() {
       function finish() {
         window.clearTimeout(timeout);
         worker.removeEventListener('message', onMessage);
+        worker.terminate();
+        if (browserPodcastWorker === worker) browserPodcastWorker = null;
       }
       function onMessage(event) {
         const msg=event.data || {};
@@ -537,8 +539,8 @@ async function loadBetaRenderBrowserShortform() {
           speed:Number(settings.voice_speed || 1.05),
           voiceVolume:Number(settings.voice_volume || 1),
           pauseSeconds:0.47,
-          inferenceSteps:navigator.gpu ? 6 : 8,
-          preferredProvider:'auto'
+          inferenceSteps:8,
+          preferredProvider:'wasm'
         }
       });
     });

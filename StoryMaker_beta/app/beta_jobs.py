@@ -4,6 +4,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+import base64
 import json
 import re
 import secrets
@@ -512,6 +513,78 @@ def beta_list_jobs() -> JSONResponse:
 @beta_jobs_router.get("/jobs/{beta_job_id}")
 def beta_get_job(beta_job_id: str) -> JSONResponse:
     return JSONResponse({"ok": True, "job": beta_read_json(beta_job_dir(beta_job_id) / "result.json")})
+
+
+THUMBNAIL_STUDIO_IDS = {f"v{i}" for i in range(1, 9)} | {f"h{i}" for i in range(1, 9)}
+
+
+def beta_thumbnail_studio_dir(beta_job_id: str) -> Path:
+    path = beta_job_dir(beta_job_id) / "output" / "thumbnail_studio"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def beta_update_thumbnail_studio_assets(beta_job_id: str, representative: Path | None = None) -> None:
+    result_path = beta_job_dir(beta_job_id) / "result.json"
+    result = beta_read_json(result_path)
+    assets = result.setdefault("assets", {})
+    assets["thumbnail_studio_dir"] = str(beta_thumbnail_studio_dir(beta_job_id))
+    if representative and representative.exists():
+        assets["thumbnail_16_representative"] = str(representative)
+    beta_write_json(result_path, result)
+
+
+@beta_jobs_router.get("/jobs/{beta_job_id}/thumbnail-studio")
+def beta_thumbnail_studio_status(beta_job_id: str) -> JSONResponse:
+    directory = beta_thumbnail_studio_dir(beta_job_id)
+    settings_path = directory / "settings.json"
+    settings = beta_read_json(settings_path) if settings_path.exists() else {}
+    saved = [item_id for item_id in sorted(THUMBNAIL_STUDIO_IDS) if (directory / f"{item_id}.png").exists()]
+    representative_url = f"/beta-api/jobs/{beta_job_id}/thumbnail-studio/v1" if (directory / "v1.png").exists() else None
+    return JSONResponse({"ok": True, "settings": settings, "saved": saved, "representative_url": representative_url})
+
+
+@beta_jobs_router.post("/jobs/{beta_job_id}/thumbnail-studio/settings")
+async def beta_thumbnail_studio_save_settings(beta_job_id: str, request: Request) -> JSONResponse:
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="설정 형식이 올바르지 않습니다.")
+    directory = beta_thumbnail_studio_dir(beta_job_id)
+    representative_data = str(payload.pop("representative_data_url", "") or "")
+    payload["saved_at"] = beta_now()
+    beta_write_json(directory / "settings.json", payload)
+    representative = directory / "v1.png"
+    if representative_data.startswith("data:image/png;base64,"):
+        try:
+            representative.write_bytes(base64.b64decode(representative_data.split(",", 1)[1]))
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"대표 썸네일 저장 실패: {exc}")
+    beta_update_thumbnail_studio_assets(beta_job_id, representative if representative.exists() else None)
+    return JSONResponse({"ok": True, "saved_at": payload["saved_at"]})
+
+
+@beta_jobs_router.post("/jobs/{beta_job_id}/thumbnail-studio/{template_id}")
+async def beta_thumbnail_studio_save_image(beta_job_id: str, template_id: str, file: UploadFile = File(...)) -> JSONResponse:
+    if template_id not in THUMBNAIL_STUDIO_IDS:
+        raise HTTPException(status_code=404, detail="지원하지 않는 썸네일 템플릿입니다.")
+    data = await file.read()
+    if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise HTTPException(status_code=400, detail="PNG 파일만 저장할 수 있습니다.")
+    target = beta_thumbnail_studio_dir(beta_job_id) / f"{template_id}.png"
+    target.write_bytes(data)
+    representative = beta_thumbnail_studio_dir(beta_job_id) / "v1.png"
+    beta_update_thumbnail_studio_assets(beta_job_id, target if template_id == "v1" else representative)
+    return JSONResponse({"ok": True, "template_id": template_id, "bytes": len(data)})
+
+
+@beta_jobs_router.get("/jobs/{beta_job_id}/thumbnail-studio/{template_id}")
+def beta_thumbnail_studio_get_image(beta_job_id: str, template_id: str) -> FileResponse:
+    if template_id not in THUMBNAIL_STUDIO_IDS:
+        raise HTTPException(status_code=404, detail="지원하지 않는 썸네일 템플릿입니다.")
+    path = beta_thumbnail_studio_dir(beta_job_id) / f"{template_id}.png"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="저장된 썸네일이 없습니다.")
+    return FileResponse(path, media_type="image/png", filename=f"{beta_job_id}_{template_id}.png")
 
 
 @beta_jobs_router.delete("/jobs/{beta_job_id}")
