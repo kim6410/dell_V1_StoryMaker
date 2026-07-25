@@ -491,21 +491,91 @@ async function loadBetaRenderBrowserShortform() {
     }
   }
 
-  async function ensurePodcastReady(settings = {}) {
+  let browserPodcastWorker=null;
+
+  function getBrowserPodcastWorker() {
+    if (browserPodcastWorker) return browserPodcastWorker;
+    browserPodcastWorker = new Worker('/static/v1/assets/browserPodcast.worker-nPEw1MVN.js', {
+      type:'module',
+      name:'storymaker-beta-browser-podcast'
+    });
+    return browserPodcastWorker;
+  }
+
+  function generateBrowserPodcast(script, settings = {}, onProgress = () => {}) {
+    return new Promise((resolve, reject) => {
+      const worker=getBrowserPodcastWorker();
+      const id=`beta-podcast-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const timeout=window.setTimeout(() => {
+        worker.removeEventListener('message', onMessage);
+        reject(new Error('브라우저 음성 생성이 90초 동안 진행되지 않았습니다.'));
+      }, 90000);
+      function finish() {
+        window.clearTimeout(timeout);
+        worker.removeEventListener('message', onMessage);
+      }
+      function onMessage(event) {
+        const msg=event.data || {};
+        if (msg.id !== id) return;
+        if (msg.type === 'progress') {
+          const progress=msg.progress || {};
+          onProgress(Number(progress.percent || 0), [progress.stage, progress.detail].filter(Boolean).join(' · '));
+          return;
+        }
+        finish();
+        if (msg.type === 'result') resolve(msg.result);
+        else reject(new Error(msg.message || '브라우저 음성 생성 실패'));
+      }
+      worker.addEventListener('message', onMessage);
+      worker.postMessage({
+        id,
+        type:'generate',
+        options:{
+          script,
+          maleVoice:settings.male_voice && settings.male_voice !== 'random' ? settings.male_voice : 'M1',
+          femaleVoice:settings.female_voice && settings.female_voice !== 'random' ? settings.female_voice : 'F1',
+          speed:Number(settings.voice_speed || 1.05),
+          voiceVolume:Number(settings.voice_volume || 1),
+          pauseSeconds:0.47,
+          inferenceSteps:navigator.gpu ? 6 : 8,
+          preferredProvider:'auto'
+        }
+      });
+    });
+  }
+
+  async function uploadBrowserPodcast(currentJobId, result) {
+    const form=new FormData();
+    form.append('browser_mp3', result.mp3Blob, 'browser_podcast.mp3');
+    form.append('browser_srt', result.srtBlob, 'browser_podcast.srt');
+    form.append('diagnostics', JSON.stringify({
+      source:'v1-browser-podcast-worker',
+      provider:result.provider || 'browser',
+      duration_seconds:Number(result.durationSeconds || 0),
+      webgpu:Boolean(navigator.gpu)
+    }));
+    return await request(`/beta-api/browser/jobs/${encodeURIComponent(currentJobId)}/upload`, {method:'POST', body:form});
+  }
+
+  async function ensurePodcastReady(settings = {}, onProgress = () => {}) {
     const currentJobId=ui.job.value.trim();
     if (!currentJobId) throw new Error('현재 작업 ID가 없습니다.');
     manifest=null; mp3Blob=null; mp4Blob=null; subtitles=[];
     ui.audio.pause(); ui.video.pause();
     ui.audio.removeAttribute('src'); ui.video.removeAttribute('src');
     ui.audio.hidden=true; ui.video.hidden=true; ui.upload.disabled=true; ui.mp4.disabled=true;
-    ui.status.textContent='현재 PODCAST_50 대본을 정리하고 TTS 음성을 만드는 중...';
-    await request(`/beta-api/steps/jobs/${encodeURIComponent(currentJobId)}/supertonic`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(settings || {})
+    const context=await request(`/beta-api/shortform/jobs/${encodeURIComponent(currentJobId)}/context`);
+    const script=String(context?.context?.script || '').trim();
+    if (!script) throw new Error('PODCAST_50 대본이 없습니다.');
+    ui.status.textContent='사용자 브라우저 WebGPU·WASM 음성 엔진을 준비하는 중...';
+    const generated=await generateBrowserPodcast(script, settings, (percent, detail) => {
+      ui.status.textContent=detail || `브라우저 음성 생성 중 · ${Math.round(percent)}%`;
+      onProgress(percent, detail);
     });
     if (ui.job.value.trim()!==currentJobId) throw new Error('음성 생성 중 작업이 변경되었습니다.');
-    ui.status.textContent='TTS 음성 생성 완료 · 매니페스트와 자막을 불러오는 중...';
+    ui.status.textContent='브라우저 MP3·SRT를 Beta 작업에 저장하는 중...';
+    await uploadBrowserPodcast(currentJobId, generated);
+    ui.status.textContent=`브라우저 음성 생성 완료 · ${(generated.provider || 'browser').toUpperCase()} · 매니페스트 불러오는 중...`;
     await loadJob();
   }
 
@@ -557,8 +627,10 @@ async function loadBetaRenderBrowserShortform() {
       ui.job.value = String(jobId || '');
       manifest = null; mp3Blob = null; mp4Blob = null; subtitles = [];
       await request(`/beta-api/shortform/jobs/${encodeURIComponent(jobId)}/reset-generated`, {method:'POST'});
-      onProgress(12, '현재 설정으로 TTS 음성과 SRT를 새로 만드는 중...');
-      await ensurePodcastReady(settings);
+      onProgress(12, '사용자 브라우저 WebGPU·WASM으로 MP3와 SRT를 만드는 중...');
+      await ensurePodcastReady(settings, (percent, detail) => {
+        onProgress(12 + Math.max(0, Math.min(100, Number(percent || 0))) * 0.22, detail || '브라우저 음성 생성 중...');
+      });
       onProgress(36, '새 랜덤 배경음악을 선택하고 음성과 믹싱하는 중...', {type:'media', images:[...(manifest?.images || [])], videos:[...(manifest?.videos || [])]});
       let prepared;
       if (settings.bgm_mode === 'one_time' && settings.one_time_music_file) {
