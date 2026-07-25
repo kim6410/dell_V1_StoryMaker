@@ -39,6 +39,7 @@
 
   let betaCurrentJobId = sessionStorage.getItem('storymaker_beta_current_job') || '';
   let betaPromptAnimation = null;
+  let betaAiCompletionState = false;
   let betaGeminiWatchTimer = null;
   let betaGeminiLockedUntil = 0;
   const BETA_GEMINI_LOCK_MS = 60000;
@@ -78,6 +79,7 @@
 
   async function betaStartPromptAnimation() {
     betaStopPromptAnimation();
+    betaAiCompletionState = false;
     if (!betaCurrentJobId) return;
     try {
       const data = await betaRequest(`/beta-api/gemini-worker/prompt/${encodeURIComponent(betaCurrentJobId)}`);
@@ -87,15 +89,29 @@
         .filter(Boolean);
       if (!lines.length) return;
       let index = 0;
-      const interval = Math.max(240, Math.floor(30000 / lines.length));
-      betaSetStatus(`AI 프롬프트 · ${lines[index]}`, 19);
+      const interval = 50; // 50ms 간격으로 한줄씩
+      betaSetStatus(`AI 프롬프트 전송 시작 · ${lines[index]}`, 19);
+      
       betaPromptAnimation = setInterval(() => {
         index += 1;
         if (index >= lines.length) {
           betaStopPromptAnimation();
+          if (betaAiCompletionState) {
+            betaSetStatus('AI 원고 생성이 완료되었습니다. 채널별 결과를 확인하세요.', 100);
+          }
           return;
         }
-        betaSetStatus(`AI 프롬프트 · ${lines[index]}`, Math.min(32, 19 + Math.round(index / lines.length * 13)));
+        
+        // 프롬프트 애니메이션 진행률 20~99%
+        const progress = Math.min(99, 19 + Math.round((index / lines.length) * 80));
+        
+        if (betaAiCompletionState) {
+          // AI가 먼저 완료되었어도 프롬프트 애니메이션을 끝까지 보여줌
+          betaSetStatus(`[AI 응답 완료] 프롬프트 확인 중 · ${lines[index]}`, 100);
+        } else {
+          // AI 생성 중에는 번쩍이는 프로그레스 바와 함께 보여줌
+          betaSetStatus(`AI 프롬프트 전송 중 · ${lines[index]}`, progress);
+        }
       }, interval);
     } catch (_) {
       betaStopPromptAnimation();
@@ -280,8 +296,7 @@
     });
     betaUi.slots.innerHTML = `
       <h3>${betaEscapeHtml(item.label || key)}</h3>
-      <div class="slot-meta" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between;">
-        <span>저장 키 ${betaEscapeHtml(key)} · V1 서식 적용</span>
+      <div class="slot-meta" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end;">
         <button type="button" class="slot-copy-button" style="border:1px solid #42d9c8;background:#0b3b36;color:#e9fffb;border-radius:999px;padding:8px 14px;font-weight:800;cursor:pointer;min-width:118px;">복사</button>
       </div>
       <div class="slot-script rich-channel-content">${betaChannelHtml(item, key)}</div>`;
@@ -456,10 +471,12 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
 
 
   async function betaCompleteGeminiUi() {
-    betaStopPromptAnimation();
+    betaAiCompletionState = true;
     const data = await betaRequest(`/beta-api/jobs/${encodeURIComponent(betaCurrentJobId)}`);
     betaShowContent(data.job);
-    betaSetStatus('AI 원고 생성이 완료되었습니다. 채널별 결과를 확인하세요.', 100);
+    if (!betaPromptAnimation) {
+      betaSetStatus('AI 원고 생성이 완료되었습니다. 채널별 결과를 확인하세요.', 100);
+    }
     betaGeminiLockedUntil = 0;
     betaSetGeminiButtons({ promptDisabled: false, aiDisabled: true });
     requestAnimationFrame(() => {
@@ -482,10 +499,9 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
       const workerStatus = worker.status || '대기 중';
       if (workerStatus === 'sent' && !sentAt) {
         sentAt = Date.now();
-        betaStopPromptAnimation();
       }
       const progress = workerStatus === 'sent' ? 42 : workerStatus === 'claimed' ? 30 : workerStatus === 'pending' ? 22 : 18;
-      if (!betaPromptAnimation || workerStatus === 'sent') {
+      if (!betaPromptAnimation) {
         const statusLabel = worker.worker_id === 'backend-gemini-api' ? 'AI API 상태' : 'AI 웹 Worker 상태';
         betaSetStatus(`${statusLabel}: ${workerStatus}`, progress);
       }
@@ -516,7 +532,7 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
     try {
       const endpoint = provider === 'api' ? 'api' : 'queue';
       await betaRequest(`/beta-api/gemini-worker/jobs/${encodeURIComponent(betaCurrentJobId)}/${endpoint}`, { method: 'POST' });
-      if (provider === 'browser') await betaStartPromptAnimation();
+      await betaStartPromptAnimation();
       await betaWaitForGemini();
     } catch (error) {
       betaGeminiLockedUntil = 0;

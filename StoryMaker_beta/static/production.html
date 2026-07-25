@@ -36,12 +36,12 @@
 </div>
 </form>
 </section>
-<section id="beta-channel-results" class="card" tabindex="-1"><div class="badge">SNS 8 CHANNELS</div><h2>SNS 채널별 콘텐츠</h2><p class="muted">AI 결과를 블로그·플레이스·구글·인스타·당근·카드뉴스·팟캐스트50s·팟캐스트80s로 분리해 저장합니다.</p><div id="beta-slot-tabs" class="slot-tabs"><button type="button" class="slot-tab active" disabled>채널 대기</button></div><div id="beta-slots" class="slot-panel"><div class="slot-empty">AI SNS 8채널 작성이 완료되면 이곳에 결과가 표시됩니다.</div></div></section>
+<section id="beta-channel-results" class="card" tabindex="-1"><div class="badge">SNS 8 CHANNELS</div><h2>SNS 채널별 콘텐츠</h2><div id="beta-slot-tabs" class="slot-tabs"><button type="button" class="slot-tab active" disabled>채널 대기</button></div><div id="beta-slots" class="slot-panel"><div class="slot-empty">AI SNS 8채널 작성이 완료되면 이곳에 결과가 표시됩니다.</div></div></section>
 <section id="beta-shortform-integrated" class="card shortform-integrated" hidden>
-  <div class="shortform-integrated-head">
-    <div><div class="badge">BETA SHORTFORM STUDIO</div><h2 style="margin:6px 0 0">팟캐스트50 기반 숏폼 제작</h2></div>
+  <div class="shortform-integrated-head" style="display:flex;justify-content:flex-start;align-items:center;gap:24px;margin-bottom:14px;">
+    <div><div class="badge">BETA SHORTFORM STUDIO</div><h2 style="margin:4px 0 0">숏폼/숏츠 제작</h2></div>
     <span id="beta-shortform-integrated-status" hidden></span>
-    <button id="sf-make" type="button" class="sf-make" style="width:auto;min-width:240px;padding:14px 28px;margin:0;">영상 만들기</button>
+    <button id="sf-make" type="button" class="sf-make" style="width:auto;min-width:300px;padding:12px 40px;font-size:16px;white-space:nowrap;margin:0;box-shadow:0 4px 14px rgba(59,130,246,0.35);">영상 만들기</button>
   </div>
   <div id="beta-shortform-inline" class="sf-layout">
     <div class="sf-panel">
@@ -49,7 +49,21 @@
         <div><label>상단 1줄</label><input id="sf-title-1"></div><div><label>상단 2줄</label><input id="sf-title-2"></div>
         <div><label>상호명</label><input id="sf-business"></div><div><label>전화번호</label><input id="sf-phone"></div>
       </div>
-      <div class="sf-upload"><strong>이미지·동영상</strong><div id="sf-media-summary" class="sf-media-summary">이전 단계 미디어를 불러오는 중...</div><div class="sf-grid2"><div><input id="sf-images" type="file" accept="image/*" multiple><div id="sf-image-connected" class="muted" style="margin-top:8px">이전 단계 이미지 연결 확인 중...</div></div><div><input id="sf-videos" type="file" accept="video/*" multiple><div id="sf-video-connected" class="muted" style="margin-top:8px">이전 단계 동영상 연결 확인 중...</div></div></div></div>
+      <div class="sf-upload" style="padding:14px 18px;margin:14px 0;border-radius:16px;">
+        <strong style="display:block;margin-bottom:10px;font-size:14px;color:#7fe8ff;">미디어 설정 (이미지·동영상)</strong>
+        <div class="sf-grid2" style="gap:14px;">
+          <div>
+            <label style="font-size:13px;margin-bottom:4px;color:#b9c9df;">이미지 파일</label>
+            <input id="sf-images" type="file" accept="image/*" multiple>
+            <div id="sf-image-connected" style="margin-top:6px;font-size:12px;"></div>
+          </div>
+          <div>
+            <label style="font-size:13px;margin-bottom:4px;color:#b9c9df;">동영상 파일 (선택)</label>
+            <input id="sf-videos" type="file" accept="video/*" multiple>
+            <div id="sf-video-connected" style="margin-top:6px;font-size:12px;"></div>
+          </div>
+        </div>
+      </div>
       <label style="margin-top:16px">팟캐스트 50</label><textarea id="sf-script" class="sf-script"></textarea>
       <div class="sf-accordion-grid">
         <div class="sf-accordion"><button type="button" data-accordion="sf-audio-panel">음성 설정</button><div id="sf-audio-panel" class="sf-accordion-panel" hidden><div class="sf-settings-grid"><div><label>여성 음성</label><select id="sf-female-voice"><option value="random">랜덤</option><option>F1</option><option>F2</option><option>F3</option><option>F4</option><option>F5</option></select></div><div><label>남성 음성</label><select id="sf-male-voice"><option value="random">랜덤</option><option>M1</option><option>M2</option><option>M3</option><option>M4</option><option>M5</option></select></div><div><label>음성 속도</label><input id="sf-voice-speed" type="number" min="0.7" max="1.8" step="0.05"></div><div><label>음성 볼륨</label><input id="sf-voice-volume" type="number" min="0" max="1" step="0.05"></div></div></div></div>

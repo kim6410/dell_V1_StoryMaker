@@ -227,9 +227,9 @@
     fields.business.value = data.context.business_name || '';
     fields.phone.value = data.context.business_phone || '';
     fields.script.value = stripSpeakerLabels(data.context.script || '');
-    fields.media.textContent = `이전 단계 미디어 · 이미지 ${data.context.image_count}장 · 동영상 ${data.context.video_count}개`;
-    fields.imageConnected.textContent = `이전 단계 미디어 · 이미지 ${data.context.image_count}장`;
-    fields.videoConnected.textContent = `이전 단계 미디어 · 동영상 ${data.context.video_count}개`;
+    if (fields.media) fields.media.textContent = `이미지 ${data.context.image_count}장 · 동영상 ${data.context.video_count}개`;
+    if (fields.imageConnected) fields.imageConnected.innerHTML = `<span style="color:#75edce;font-weight:bold;">✔ 이전 이미지 ${data.context.image_count}장 연동 적용됨</span>`;
+    if (fields.videoConnected) fields.videoConnected.innerHTML = `<span style="color:${data.context.video_count > 0 ? '#75edce' : '#9cb0cc'};font-weight:bold;">${data.context.video_count > 0 ? `✔ 이전 동영상 ${data.context.video_count}개 연동 적용됨` : '동영상 없음 (이미지 슬라이드 구성)'}</span>`;
     await loadMusicLibrary();
     applySettings(state.settings);
     refreshPreview();
@@ -238,6 +238,25 @@
     appendLog(`작업 연결 완료 · ${jobId}`);
     appendLog(`이미지 ${data.context.image_count}장 · 동영상 ${data.context.video_count}개`);
     startThumbnailWatch();
+  }
+
+  if (fields.images && !fields.images._hasListener) {
+    fields.images._hasListener = true;
+    fields.images.addEventListener('change', () => {
+      const count = fields.images.files ? fields.images.files.length : 0;
+      if (count > 0 && fields.imageConnected) {
+        fields.imageConnected.innerHTML = `<span style="display:inline-block;padding:6px 12px;border-radius:8px;background:rgba(255,196,0,0.15);border:1px solid #ffc400;color:#ffe680;font-weight:bold;margin-top:6px;">📂 사용자 지정 선택 이미지 ${count}장 교체 적용</span>`;
+      }
+    });
+  }
+  if (fields.videos && !fields.videos._hasListener) {
+    fields.videos._hasListener = true;
+    fields.videos.addEventListener('change', () => {
+      const count = fields.videos.files ? fields.videos.files.length : 0;
+      if (count > 0 && fields.videoConnected) {
+        fields.videoConnected.innerHTML = `<span style="display:inline-block;padding:6px 12px;border-radius:8px;background:rgba(255,196,0,0.15);border:1px solid #ffc400;color:#ffe680;font-weight:bold;margin-top:6px;">📂 사용자 지정 선택 동영상 ${count}개 교체 적용</span>`;
+      }
+    });
   }
 
   async function waitForRenderer(timeoutMs = 15000) {
@@ -310,6 +329,7 @@
   async function makeVideo() {
     if (!state.jobId) return;
     fields.make.disabled = true;
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     state.readyToSave = false;
     state.savedToArchive = false;
     const preview = fields.finalVideo;
@@ -438,8 +458,12 @@
     fields.finalVideo?.pause();
     stopScenePreview();
   });
-  const openArchive = (event) => {
+  const openArchive = async (event) => {
     event?.preventDefault();
+    if (state.readyToSave && !state.savedToArchive && !state.saving) {
+      fields.status.textContent = '보관함 이동 전 MP3·MP4를 저장하는 중...';
+      await saveCurrentToArchive();
+    }
     location.href = '/beta/archive';
   };
   fields.archive?.addEventListener('click', openArchive);
