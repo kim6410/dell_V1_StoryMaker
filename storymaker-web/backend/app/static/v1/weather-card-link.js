@@ -68,23 +68,27 @@
   function bindTrigger(node, region = '') {
     if (!node || node.dataset.storymakerWeatherInlineTrigger === '1') return;
     node.dataset.storymakerWeatherInlineTrigger = '1';
+    node.dataset.storymakerWeatherRegion = region || '';
     node.style.cursor = 'pointer';
     node.setAttribute('role', 'button');
     node.setAttribute('tabindex', '0');
     node.setAttribute('aria-label', '기상정보 DB 열기');
-
-    const activate = (event) => {
-      if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
-      const interactive = event.target?.closest?.('button,a,input,select,textarea,[role="button"]');
-      if (interactive && interactive !== node) return;
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-      openWeather(region || getBusinessRegion());
-    };
-    node.addEventListener('click', activate, true);
-    node.addEventListener('keydown', activate, true);
   }
+
+  function captureWeatherActivation(event) {
+    if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+    const trigger = event.target?.closest?.('[data-storymaker-weather-inline-trigger="1"]');
+    if (!trigger) return;
+    const interactive = event.target?.closest?.('button,a,input,select,textarea,[role="button"]');
+    if (interactive && interactive !== trigger) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    openWeather(trigger.dataset.storymakerWeatherRegion || getBusinessRegion());
+  }
+
+  document.addEventListener('click', captureWeatherActivation, true);
+  document.addEventListener('keydown', captureWeatherActivation, true);
 
   function refreshTriggers() {
     document.querySelectorAll('[data-weather-menu-live]').forEach((node) => node.remove());
