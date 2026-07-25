@@ -22,6 +22,8 @@ JOBS_DIR = ROOT / "data" / "jobs"
 QUEUE_DIR = ROOT / "data" / "gemini_queue"
 THUMB_STATE_PATH = ROOT / "data" / "beta_thumbnail_worker_state.json"
 LOCK = threading.Lock()
+# Firefox/Tampermonkey 브라우저 Worker 송수신은 임시 중지한다.
+BROWSER_WORKER_ENABLED = False
 REQUIRED_WORKER_ID = "tampermonkey-beta-v2-2.1.17"
 ALLOWED_WORKER_IDS = {
     "tampermonkey-beta-v2-2.1.2",
@@ -640,6 +642,8 @@ def queue_thumbnail(job_id: str) -> dict[str, Any]:
 
 @beta_gemini_worker_router.get("/thumbnail/status")
 def thumbnail_status() -> dict[str, Any]:
+    if not BROWSER_WORKER_ENABLED:
+        return {"ok": True, "data": {"status": "idle", "action": None, "updated_at": now_iso()}}
     with LOCK:
         gemini_state = next_worker_state()
         if gemini_state.get("action") == "GENERATE_BETA_GEMINI" and gemini_state.get("status") in ACTIVE_STATUSES:

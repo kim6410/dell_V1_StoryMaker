@@ -46,19 +46,22 @@
   const BETA_AI_PROVIDER_STORAGE_KEY = 'storymaker_beta_ai_provider';
 
   function betaGetAiProvider() {
-    return betaUi.aiProviderApi?.checked ? 'api' : 'browser';
+    // Firefox/Tampermonkey 브라우저 Worker 전송은 임시 중지한다.
+    return 'api';
   }
 
-  function betaSetAiProvider(provider) {
-    const safeProvider = provider === 'api' ? 'api' : 'browser';
-    if (betaUi.aiProviderBrowser) betaUi.aiProviderBrowser.checked = safeProvider === 'browser';
-    if (betaUi.aiProviderApi) betaUi.aiProviderApi.checked = safeProvider === 'api';
+  function betaSetAiProvider(_provider) {
+    const safeProvider = 'api';
+    if (betaUi.aiProviderBrowser) {
+      betaUi.aiProviderBrowser.checked = false;
+      betaUi.aiProviderBrowser.disabled = true;
+    }
+    if (betaUi.aiProviderApi) betaUi.aiProviderApi.checked = true;
     localStorage.setItem(BETA_AI_PROVIDER_STORAGE_KEY, safeProvider);
   }
 
   function betaInitAiProvider() {
-    betaSetAiProvider(localStorage.getItem(BETA_AI_PROVIDER_STORAGE_KEY) || 'browser');
-    betaUi.aiProviderBrowser?.addEventListener('change', () => betaSetAiProvider('browser'));
+    betaSetAiProvider('api');
     betaUi.aiProviderApi?.addEventListener('change', () => betaSetAiProvider('api'));
   }
 
@@ -463,9 +466,8 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
   window.StoryMakerBetaPrepareVoice = betaCreateSupertonicVoice;
 
   async function betaQueueThumbnail() {
-    if (!betaCurrentJobId) return false;
-    await betaRequest(`/beta-api/gemini-worker/jobs/${encodeURIComponent(betaCurrentJobId)}/thumbnail/queue`, { method: 'POST' });
-    return true;
+    // Firefox/Tampermonkey 썸네일 송수신은 임시 중지한다.
+    return false;
   }
   window.StoryMakerBetaQueueThumbnail = betaQueueThumbnail;
 
