@@ -22,7 +22,7 @@ JOBS_DIR = ROOT / "data" / "jobs"
 QUEUE_DIR = ROOT / "data" / "gemini_queue"
 THUMB_STATE_PATH = ROOT / "data" / "beta_thumbnail_worker_state.json"
 LOCK = threading.Lock()
-REQUIRED_WORKER_ID = "tampermonkey-beta-v2-2.1.10"
+REQUIRED_WORKER_ID = "tampermonkey-beta-v2-2.1.17"
 ALLOWED_WORKER_IDS = {
     "tampermonkey-beta-v2-2.1.2",
     "tampermonkey-beta-v2-2.1.3",
@@ -76,7 +76,7 @@ def seconds_since(value: str | None) -> float:
 
 
 def validate_worker(worker_id: str) -> None:
-    if worker_id not in ALLOWED_WORKER_IDS:
+    if worker_id != REQUIRED_WORKER_ID and worker_id not in ALLOWED_WORKER_IDS:
         raise HTTPException(status_code=426, detail=f"구형 Beta Worker는 차단되었습니다. {REQUIRED_WORKER_ID}를 설치하세요.")
 
 
@@ -615,18 +615,21 @@ def queue_thumbnail(job_id: str) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="AI 썸네일 프롬프트가 없습니다.")
     full_prompt = (
         prompt
-        + "\n\n위 지시대로 실제 9:16 세로형 썸네일 이미지를 생성하세요. "
+        + "\n\n첨부된 실제 현장 이미지를 참고하여 위 지시대로 9:16 세로형 썸네일 이미지를 생성하세요. "
           "설명문이나 코드 없이 이미지 결과만 생성하세요."
     )
+    source_images = list((result.get("assets") or {}).get("images") or [])[:3]
+    image_urls = [f"/beta-api/browser/jobs/{job_id}/image/{index}" for index in range(1, len(source_images) + 1)]
     with LOCK:
         current = read_thumb_state()
-        if current.get("job_id") == job_id and current.get("status") in {"pending", "claimed", "sent", "completed"}:
+        if current.get("job_id") == job_id and current.get("status") in {"pending", "claimed", "uploaded", "sent", "completed"}:
             return {"ok": True, "state": {k: v for k, v in current.items() if k != "prompt"}}
         state = {
             "action": "GENERATE_BETA_THUMBNAIL",
             "job_id": job_id,
             "status": "pending",
             "prompt": full_prompt,
+            "image_urls": image_urls,
             "worker_id": None,
             "error": None,
             "queued_at": now_iso(),
