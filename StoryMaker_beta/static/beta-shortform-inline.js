@@ -388,6 +388,11 @@
       setProgress(100, 'MP4 제작 및 보관함 자동 저장 완료');
       if (fields.sceneBadge) fields.sceneBadge.textContent = '제작 완료 · Play로 확인하세요';
       preview.play().catch(() => {});
+      // 완료 후 미리보기·저장 UI가 펼쳐져도 최종 화면은 항상 페이지 최하단에 유지합니다.
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+        window.setTimeout(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'auto' }), 350);
+      });
     } catch (error) {
       if (stopHeartbeat) {
         stopHeartbeat();

@@ -295,7 +295,7 @@ async function loadBetaRenderBrowserShortform() {
     mp3Blob=new Blob(parts,{type:'audio/mpeg'});
     if(mp3Blob.size<128) throw new Error('WASM MP3 결과가 비어 있습니다.');
     ui.audio.src=URL.createObjectURL(mp3Blob); ui.audio.hidden=false; ui.audio.controls=true; ui.audio.currentTime=0; ui.upload.disabled=!mp4Blob;
-    ui.audio.scrollIntoView({behavior:'smooth',block:'nearest'});
+    // 내부 렌더용 audio 요소로 화면 포커스를 이동하지 않습니다.
     ui.audio.pause();
     ui.audio.currentTime=0;
     setProgress('podcast', 100, 'complete');
@@ -444,7 +444,7 @@ async function loadBetaRenderBrowserShortform() {
     mp4Blob = result.mp4Blob;
     if (!mp4Blob || mp4Blob.size < 1024) throw new Error('WebCodecs MP4 결과가 비어 있습니다.');
     ui.video.src=URL.createObjectURL(mp4Blob);ui.video.hidden=false;ui.video.controls=true;ui.upload.disabled=!mp3Blob;
-    ui.video.scrollIntoView({behavior:'smooth',block:'nearest'});
+    // 내부 렌더용 video 요소로 화면 포커스를 이동하지 않습니다.
     setProgress('slideshow', 100, 'complete');
     detailCallback?.({type:'complete', size:mp4Blob.size, seconds:(performance.now()-startedAt)/1000});
     ui.status.textContent=`슬라이드쇼 생성 완료 · Mediabunny/WebCodecs · ${(mp4Blob.size/1024/1024).toFixed(2)}MB · ${((performance.now()-startedAt)/1000).toFixed(1)}초`;
