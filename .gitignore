@@ -1,0 +1,41 @@
+# Secrets and local environments
+.env
+.env.*
+!.env.example
+**/.venv/
+**/venv/
+**/node_modules/
+
+# Runtime databases and generated data
+database/
+output_results/
+tts_cache/
+uploads/
+exports/
+logs/
+backups/
+Backup/
+Windows_Backup/
+
+# Models, caches and imported archives
+Supertonic3/
+**/model_cache/
+**/__pycache__/
+*.pyc
+*.tar
+*.tar.gz
+*.zip
+.slideshow_stage_*/
+.supertonic_data_stage_*/
+
+# Generated media
+*.mp3
+*.mp4
+*.wav
+*.srt
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
