@@ -2,6 +2,37 @@
 
 이 문서는 `/home/bourne/StoryMaker_1`에서 작업하는 사람과 AI가 가장 먼저 읽어야 하는 최상위 작업 규칙입니다.
 
+## 최우선: GitHub SSH 푸시 운영 기준
+
+Dell 서버의 StoryMaker V1 저장소는 GitHub SSH 인증이 완료된 상태입니다.
+
+- 로컬 저장소: `/home/bourne/StoryMaker_1`
+- 원격 저장소: `git@github.com:kim6410/dell_V1_StoryMaker.git`
+- 원격 이름: `origin`
+- 기본 브랜치: `main`
+- SSH 인증 계정: `kim6410`
+- 인증 확인 완료: `ssh -T git@github.com`
+- Push 성공 확인 완료: `main -> origin/main`
+
+앞으로 AI는 사용자가 GitHub Push를 요청하면 HTTPS 비밀번호나 Personal Access Token을 요구하지 말고, 먼저 아래 상태를 확인한 뒤 SSH로 직접 Push합니다.
+
+```bash
+cd /home/bourne/StoryMaker_1
+git status
+git branch --show-current
+git remote -v
+git log --oneline --decorate -5
+git push origin main
+```
+
+Push 전에는 반드시 미커밋 변경, 미추적 파일, 현재 브랜치, Push 대상 커밋을 확인합니다.
+
+사용자가 승인하지 않은 파일을 임의로 `git add .` 하거나 커밋하지 않습니다.
+
+이미 커밋된 정상 변경만 Push하는 경우에는 작업 트리의 다른 미커밋·미추적 파일을 건드리지 않습니다.
+
+Push 후에는 로컬 `HEAD`, `origin/main`, `git ls-remote --heads origin main`의 커밋이 일치하는지 확인하고 성공 여부를 사용자에게 보고합니다.
+
 이 문서의 규칙은 다른 임시 메모, 채팅 내용, 실험 스크립트보다 우선합니다.
 
 
