@@ -76,6 +76,12 @@
   }
 
   function installDashboardButtons() {
+    {
+      const existingDashboardCard = document.getElementById('storymaker-beta-dashboard-actions');
+      if (existingDashboardCard) existingDashboardCard.remove();
+      return;
+    }
+
     const section = findContentSection();
     if (!section) return;
 
