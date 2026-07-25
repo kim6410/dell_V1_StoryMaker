@@ -1,0 +1,167 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>기상정보 DB</title>
+  <style>
+    :root{color-scheme:dark;--bg:#020817;--panel:#0b1428;--panel2:#0d1930;--line:#1d304c;--text:#f7f9ff;--muted:#91a4c1;--cyan:#4de2f3;--cyan2:#12cbe3}
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Pretendard,"Noto Sans KR",Arial,sans-serif}
+    button,input{font:inherit}
+    .page{min-height:100vh;padding:24px 26px 40px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px 22px;border:1px solid #172641;border-radius:22px;background:var(--panel);margin-bottom:16px}
+    .eyebrow{font-size:13px;font-weight:800;color:var(--cyan);margin-bottom:7px}
+    h1{font-size:23px;line-height:1.2;margin:0}
+    .back,.btn{border:1px solid #263a59;background:#081126;color:#eaf2ff;border-radius:12px;padding:11px 16px;font-weight:800;cursor:pointer}
+    .back:hover,.btn:hover{border-color:#3c607e}
+    .board{border:1px solid #172641;border-radius:22px;background:var(--panel);padding:20px;overflow:hidden}
+    .board-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:16px}
+    .board-title{font-size:19px;font-weight:900;margin:0 0 7px}
+    .board-desc{font-size:13px;color:var(--muted)}
+    .count{font-size:13px;color:var(--cyan);font-weight:800;white-space:nowrap}
+    .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+    .search{width:min(420px,100%);height:44px;border:1px solid #263a59;border-radius:12px;background:#050d20;color:#fff;padding:0 14px;outline:none}
+    .search:focus{border-color:var(--cyan2)}
+    .btn.primary{border-color:#0fbfd8;background:linear-gradient(180deg,#12cfe7,#079db7);color:#00101a}
+    .table-wrap{border:1px solid #1b2e49;border-radius:14px;overflow:auto;background:#030a1b}
+    table{width:100%;border-collapse:collapse;min-width:760px}
+    th{height:43px;padding:0 15px;background:#0d1a32;color:#8fa8ca;font-size:12px;text-align:left;white-space:nowrap}
+    td{height:48px;padding:0 15px;border-top:1px solid #172841;color:#edf4ff;font-size:13px;white-space:nowrap}
+    td:first-child{color:var(--cyan);font-weight:800}
+    .region{border:0;background:transparent;padding:0;color:#61eafa;font-weight:900;cursor:pointer;text-decoration:none}
+    .region:hover{text-decoration:underline}
+    .temperature{font-weight:900}
+    .empty{text-align:center;color:var(--muted);padding:50px 16px}
+    .pagination{display:flex;justify-content:center;gap:7px;flex-wrap:wrap;margin-top:18px}
+    .page-btn{min-width:36px;height:36px;border:1px solid #263a59;border-radius:9px;background:#071126;color:#dce9fa;font-weight:800;cursor:pointer}
+    .page-btn.active{background:var(--cyan);border-color:var(--cyan);color:#00101a}
+    .page-btn:disabled{opacity:.35;cursor:default}
+    @media(max-width:760px){.page{padding:14px}.topbar{border-radius:16px;padding:16px}.board{border-radius:16px;padding:14px}.back{padding:9px 11px}.board-head{align-items:flex-start;flex-direction:column}.toolbar{align-items:stretch}.search{width:100%}.btn{flex:1}}
+  </style>
+<style>
+  tbody td, tbody td *, .weather-table tbody td, .weather-table tbody td * {
+    font-weight: 400 !important;
+  }
+</style>
+<style>
+/* 기상정보 표 본문 굵기 제거 */
+tbody td,
+tbody td *,
+.weather-table tbody td,
+.weather-table tbody td *,
+table tbody tr td,
+table tbody tr td * {
+  font-weight: 400 !important;
+}
+</style>
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">현재 화면</div>
+        <h1>기상정보 DB</h1>
+      </div>
+      <button class="back" id="backButton" type="button">대시보드로 돌아가기</button>
+    </header>
+
+    <section class="board">
+      <div class="board-head">
+        <div>
+          <div class="board-title"></div>
+          <div class="board-desc"></div>
+        </div>
+        <div class="count" id="countText">불러오는 중</div>
+      </div>
+
+      <form class="toolbar" id="searchForm">
+        <input class="search" id="regionInput" type="search" placeholder="지역명 검색 예: 울산, 서울, 부산" autocomplete="off" />
+        <button class="btn primary" type="submit">검색</button>
+        <button class="btn" id="allButton" type="button">전체보기</button>
+        <button class="btn" id="refreshButton" type="button">새로고침</button>
+      </form>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>번호</th><th>지역</th><th>날씨</th><th>기온</th><th>관측 시각</th></tr></thead>
+          <tbody id="rows"><tr><td colspan="5" class="empty">기상정보를 불러오는 중입니다.</td></tr></tbody>
+        </table>
+      </div>
+      <nav class="pagination" id="pagination" aria-label="페이지 이동"></nav>
+    </section>
+  </main>
+
+  <script>
+    (function(){
+      const REGION_ALIASES=[
+        ['서울',['서울특별시','서울']],['부산',['부산광역시','부산']],['대구',['대구광역시','대구']],
+        ['인천',['인천광역시','인천']],['광주',['광주광역시','광주']],['대전',['대전광역시','대전']],
+        ['울산',['울산광역시','울산']],['세종',['세종특별자치시','세종']],['경기',['경기도','경기']],
+        ['강원',['강원특별자치도','강원도','강원']],['충북',['충청북도','충북']],['충남',['충청남도','충남']],
+        ['전북',['전북특별자치도','전라북도','전북']],['전남',['전라남도','전남']],
+        ['경북',['경상북도','경북']],['경남',['경상남도','경남']],['제주',['제주특별자치도','제주도','제주']]
+      ];
+      function normalizeRegion(value){
+        const text=String(value||'').replace(/\s+/g,' ').trim();
+        for(const pair of REGION_ALIASES){if(pair[1].some(function(alias){return text.includes(alias);}))return pair[0];}
+        return text;
+      }
+      const requestedRegion=normalizeRegion(new URLSearchParams(window.location.search).get('region')||'');
+      const state={page:1,pageSize:15,region:requestedRegion};
+      const rows=document.getElementById('rows');
+      const pagination=document.getElementById('pagination');
+      const input=document.getElementById('regionInput');
+      const countText=document.getElementById('countText');
+      input.value=requestedRegion;
+
+      function esc(v){return String(v??'').replace(/[&<>'"]/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]);});}
+      function formatTime(v){if(!v)return '-';return String(v).replace('T',' ').replace(/\+09:00$/,'');}
+      function apiUrl(){return '/api/weather/snapshots?page='+state.page+'&page_size='+state.pageSize+'&region='+encodeURIComponent(state.region);}
+
+      async function load(){
+        rows.innerHTML='<tr><td colspan="5" class="empty">기상정보를 불러오는 중입니다.</td></tr>';
+        try{
+          const res=await fetch(apiUrl(),{cache:'no-store'});
+          if(!res.ok)throw new Error('HTTP '+res.status);
+          const data=await res.json();
+          const items=Array.isArray(data.items)?data.items:[];
+          countText.textContent=(state.region?'“'+state.region+'” 검색 · ':'')+'총 '+Number(data.total||0).toLocaleString()+'건 · '+Number(data.total_pages||1).toLocaleString()+'페이지';
+          if(!items.length){rows.innerHTML='<tr><td colspan="5" class="empty">검색된 기상정보가 없습니다.</td></tr>';}
+          else{
+            rows.innerHTML=items.map(function(item){
+              const temp=(item.temperature===null||item.temperature===undefined)?'-':esc(item.temperature)+'℃';
+              return '<tr><td>'+esc(item.id)+'</td><td><button class="region" type="button" data-region="'+esc(item.region)+'">'+esc(item.region)+'</button></td><td>'+esc(item.weather||'-')+'</td><td class="temperature">'+temp+'</td><td>'+esc(formatTime(item.observed_at))+'</td></tr>';
+            }).join('');
+          }
+          renderPagination(Number(data.page||1),Number(data.total_pages||1));
+        }catch(err){
+          countText.textContent='조회 실패';
+          rows.innerHTML='<tr><td colspan="5" class="empty">기상정보를 불러오지 못했습니다.</td></tr>';
+          pagination.innerHTML='';
+        }
+      }
+
+      function renderPagination(current,total){
+        const start=Math.max(1,Math.min(current-4,Math.max(1,total-8)));
+        const end=Math.min(total,start+8);
+        let html='<button class="page-btn" data-page="'+(current-1)+'" '+(current<=1?'disabled':'')+'>이전</button>';
+        for(let p=start;p<=end;p++)html+='<button class="page-btn '+(p===current?'active':'')+'" data-page="'+p+'">'+p+'</button>';
+        html+='<button class="page-btn" data-page="'+(current+1)+'" '+(current>=total?'disabled':'')+'>다음</button>';
+        pagination.innerHTML=html;
+      }
+
+      document.getElementById('searchForm').addEventListener('submit',function(e){e.preventDefault();state.region=normalizeRegion(input.value);input.value=state.region;state.page=1;load();});
+      document.getElementById('allButton').addEventListener('click',function(){input.value='';state.region='';state.page=1;load();});
+      document.getElementById('refreshButton').addEventListener('click',load);
+      rows.addEventListener('click',function(e){const btn=e.target.closest('[data-region]');if(!btn)return;state.region=normalizeRegion(btn.dataset.region||'');input.value=state.region;state.page=1;load();});
+      pagination.addEventListener('click',function(e){const btn=e.target.closest('[data-page]');if(!btn||btn.disabled)return;state.page=Math.max(1,Number(btn.dataset.page)||1);load();window.scrollTo({top:0,behavior:'smooth'});});
+      document.getElementById('backButton').addEventListener('click',function(){
+        if(window.parent!==window){window.parent.postMessage({type:'storymaker-close-weather'},window.location.origin);}
+        else{window.location.href='/v1/';}
+      });
+      load();
+    })();
+  </script>
+</body>
+</html>
