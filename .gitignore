@@ -34,6 +34,24 @@ Supertonic3/
 *.wav
 *.srt
 
+# StoryMaker Beta runtime and private data
+StoryMaker_beta/.env
+StoryMaker_beta/data/*.db
+StoryMaker_beta/data/*.db-wal
+StoryMaker_beta/data/*.db-shm
+StoryMaker_beta/data/jobs/
+StoryMaker_beta/data/gemini_queue/
+StoryMaker_beta/data/chrome-debug/
+StoryMaker_beta/data/chrome-test/
+StoryMaker_beta/data/*worker_state.json
+StoryMaker_beta/data/*test*.png
+StoryMaker_beta/data/*verify*.png
+StoryMaker_beta/data/*.tmp
+StoryMaker_beta/app/*.bak_*
+StoryMaker_beta/app/*.root_backup
+StoryMaker_beta/static/*.bak_*
+StoryMaker_beta/tools/*.exe
+
 # Editor and OS files
 .DS_Store
 Thumbs.db

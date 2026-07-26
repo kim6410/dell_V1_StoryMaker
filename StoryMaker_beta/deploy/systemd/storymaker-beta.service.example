@@ -1,0 +1,17 @@
+[Unit]
+Description=StoryMaker Beta Independent Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bourne
+WorkingDirectory=/home/bourne/StoryMaker_1/StoryMaker_beta
+Environment=STORYMAKER_BETA_ROOT=/home/bourne/StoryMaker_1/StoryMaker_beta
+EnvironmentFile=/home/bourne/StoryMaker_1/StoryMaker_beta/.env
+ExecStart=/home/bourne/StoryMaker_1/StoryMaker_beta/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8021
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

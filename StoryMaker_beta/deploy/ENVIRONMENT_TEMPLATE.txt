@@ -1,0 +1,20 @@
+# StoryMaker Beta runtime environment template
+# Restore server: copy this file to .env and fill values locally.
+# Never commit the real .env file.
+
+STORYMAKER_BETA_ROOT=/home/bourne/StoryMaker_1/StoryMaker_beta
+STORYMAKER_BETA_FFMPEG=/usr/bin/ffmpeg
+
+AI_FALLBACK_ENABLED=true
+
+GEMINI_API_KEY=
+GEMINI_MODEL=
+BETA_GEMINI_API_KEY=
+BETA_GEMINI_MODEL=
+
+DEEPSEEK_API_KEY=
+DEEPSEEK_MODEL=
+
+NVIDIA_API_KEY=
+NVIDIA_API_BASE=
+NEMOTRON_MODEL=
