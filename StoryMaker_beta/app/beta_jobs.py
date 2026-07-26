@@ -627,8 +627,8 @@ async def beta_save_thumbnail_studio_png(
     beta_write_json(result_path, result)
     with beta_connect() as connection:
         connection.execute(
-            "UPDATE beta_jobs SET result_json=?, selected_thumbnail_template=?, selected_thumbnail_path=? WHERE beta_job_id=?",
-            (json.dumps(result, ensure_ascii=False), template_id, str(target), beta_job_id),
+            "UPDATE beta_jobs SET selected_thumbnail_template=?, selected_thumbnail_path=? WHERE beta_job_id=?",
+            (template_id, str(target), beta_job_id),
         )
         connection.commit()
     return JSONResponse({

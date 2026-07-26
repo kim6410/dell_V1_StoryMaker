@@ -119,7 +119,7 @@
   function openThumbnailStudio(detail = {}) {
     const data = typeof detail === 'string' ? { jobId: detail } : (detail || {});
     const safeJobId = String(data.jobId || '').trim();
-    const query = safeJobId ? `?embed=1&job_id=${encodeURIComponent(safeJobId)}&v=20260726-confirm-save-3` : '?embed=1&v=20260726-confirm-save-3';
+    const query = safeJobId ? `?embed=1&job_id=${encodeURIComponent(safeJobId)}&v=20260726-confirm-save-4` : '?embed=1&v=20260726-confirm-save-4';
     pendingThumbnailData = { ...data, jobId: safeJobId };
     if (openedJobId !== safeJobId || frame.src === 'about:blank') frame.src = `/static/v1/four-thumbnail/index.html${query}`;
     openedJobId = safeJobId;
@@ -128,8 +128,55 @@
     frame.addEventListener('load', () => { sendCurrentDataToThumbnailFrame(); alignThumbnailStudioTop(); }, { once: true });
     window.setTimeout(() => { sendCurrentDataToThumbnailFrame(); alignThumbnailStudioTop(); }, 180);
   }
+  async function saveThumbnailFromFrame(event) {
+    const data = event.data || {};
+    if (event.source !== frame.contentWindow || data.type !== 'storymaker:thumbnail-save-request') return false;
+    const requestId = String(data.requestId || '');
+    const jobId = String(data.jobId || '').trim();
+    const templateId = String(data.templateId || '').trim();
+    const reply = payload => event.source?.postMessage({ type: 'storymaker:thumbnail-save-response', requestId, ...payload }, '*');
+    try {
+      if (!jobId || !/^beta_[0-9A-Za-z_-]+$/.test(jobId)) throw new Error('작업 번호가 올바르지 않습니다.');
+      if (!/^v[1-8]$/.test(templateId)) throw new Error('썸네일 선택값이 올바르지 않습니다.');
+      const bytes = data.pngBuffer instanceof ArrayBuffer ? new Uint8Array(data.pngBuffer) : null;
+      if (!bytes?.length) throw new Error('저장할 PNG 데이터가 없습니다.');
+      const settingsRes = await fetch(`/beta-api/jobs/${encodeURIComponent(jobId)}/thumbnail-studio/settings`, {
+        method: 'POST', credentials: 'include', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data.settings || {})
+      });
+      const settingsData = await settingsRes.json().catch(() => ({}));
+      if (!settingsRes.ok || !settingsData.ok) throw new Error(settingsData.detail || '편집 설정 저장 실패');
+      const form = new FormData();
+      form.append('file', new Blob([bytes], { type: 'image/png' }), `${templateId}.png`);
+      const saveRes = await fetch(`/beta-api/jobs/${encodeURIComponent(jobId)}/thumbnail-studio/${encodeURIComponent(templateId)}`, {
+        method: 'POST', credentials: 'include', cache: 'no-store', body: form
+      });
+      const saveData = await saveRes.json().catch(() => ({}));
+      if (!saveRes.ok || !saveData.ok || String(saveData.template_id || '') !== templateId || Number(saveData.size || 0) <= 0) {
+        throw new Error(saveData.detail || saveData.message || '대표 썸네일 저장 실패');
+      }
+      const stateRes = await fetch(`/beta-api/jobs/${encodeURIComponent(jobId)}/thumbnail-studio?t=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
+      const stateData = await stateRes.json().catch(() => ({}));
+      if (!stateRes.ok || String(stateData.selected_template_id || '') !== templateId || !stateData.files?.[templateId]) {
+        throw new Error(stateData.detail || '서버 선택 정보 확인 실패');
+      }
+      const fileRes = await fetch(`/beta-api/jobs/${encodeURIComponent(jobId)}/file/thumbnail?t=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
+      if (!fileRes.ok) throw new Error('대표 썸네일 파일 확인 실패');
+      const savedBlob = await fileRes.blob();
+      if (!savedBlob.size || savedBlob.size !== Number(saveData.size || 0)) throw new Error('저장 파일 크기 검증 실패');
+      reply({ ok: true, templateId, size: savedBlob.size, fileUrl: saveData.file_url });
+    } catch (error) {
+      reply({ ok: false, error: error instanceof Error ? error.message : String(error) });
+    }
+    return true;
+  }
   window.addEventListener('storymaker:shortform-complete', event => openThumbnailStudio(event.detail || {}));
   window.addEventListener('message', event => {
+    if (event.data?.type === 'storymaker:thumbnail-save-request') {
+      saveThumbnailFromFrame(event);
+      return;
+    }
     if (event.data?.type === 'storymaker:thumbnail-ready') {
       sendCurrentDataToThumbnailFrame();
       alignThumbnailStudioTop();
