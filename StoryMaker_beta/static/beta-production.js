@@ -481,6 +481,9 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
       betaCurrentJobId = data.job.beta_job_id;
       sessionStorage.setItem('storymaker_beta_current_job', betaCurrentJobId);
       betaUi.jobId.textContent = betaCurrentJobId;
+      if (window.StoryMakerBetaBrowserRenderer) {
+        window.StoryMakerBetaBrowserRenderer.prime(betaCurrentJobId);
+      }
       betaShowContent(data.job);
       await betaRequest(`/beta-api/gemini-worker/jobs/${encodeURIComponent(betaCurrentJobId)}/prepare`, { method: 'POST' });
       betaSetStatus('프롬프트 준비 완료. ④ AI원고 생성을 눌러주세요.', 15);

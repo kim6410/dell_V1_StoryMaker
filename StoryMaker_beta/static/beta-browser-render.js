@@ -455,7 +455,7 @@ async function loadBetaRenderBrowserShortform() {
     const body=new FormData();
     if (mp3Blob) body.append('browser_mp3',mp3Blob,'browser_podcast.mp3');
     body.append('browser_mp4',mp4Blob,'browser_final.mp4');
-    body.append('diagnostics',JSON.stringify(refreshDiag()));
+    body.append('diagnostics',JSON.stringify(podcastDiagnostics({ source: 'beta-manual-browser-upload' })));
     const data=await request(`/beta-api/browser/jobs/${manifest.beta_job_id}/upload`,{method:'POST',body});
     ui.status.textContent=`Beta 보관함 저장 완료 · ${Object.keys(data.saved).join(', ')} · 보관함으로 이동합니다.`;
     await new Promise((resolve)=>setTimeout(resolve,700));
@@ -492,9 +492,12 @@ async function loadBetaRenderBrowserShortform() {
   }
 
   let browserPodcastWorker = null;
+  let browserPodcastPreparePromise = null;
+  let preparedPodcastProvider = '';
   let renderInProgress = false;
   let lastPodcastProvider = 'unknown';
   let lastPodcastSeconds = 0;
+  let lastPodcastPerf = null;
 
   function getBrowserPodcastWorker() {
     if (browserPodcastWorker) return browserPodcastWorker;
@@ -505,20 +508,82 @@ async function loadBetaRenderBrowserShortform() {
     return browserPodcastWorker;
   }
 
-  function generateBrowserPodcast(script, settings = {}, onProgress = () => {}) {
-    return new Promise((resolve, reject) => {
+  function releaseBrowserPodcastWorker() {
+    if (browserPodcastWorker) {
+      try { browserPodcastWorker.terminate(); } catch (_) {}
+    }
+    browserPodcastWorker = null;
+    browserPodcastPreparePromise = null;
+    preparedPodcastProvider = '';
+  }
+
+  function prepareBrowserPodcast(onProgress = () => {}) {
+    if (browserPodcastPreparePromise) return browserPodcastPreparePromise;
+    const worker = getBrowserPodcastWorker();
+    const id = `beta-podcast-prepare-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    browserPodcastPreparePromise = new Promise((resolve, reject) => {
+      const timeout = window.setTimeout(() => {
+        worker.removeEventListener('message', onMessage);
+        reject(new Error('브라우저 음성 엔진 사전 준비가 120초를 초과했습니다.'));
+      }, 120000);
+
+      function cleanup() {
+        window.clearTimeout(timeout);
+        worker.removeEventListener('message', onMessage);
+      }
+
+      function onMessage(event) {
+        const msg = event.data || {};
+        if (msg.id !== id) return;
+        if (msg.type === 'progress') {
+          const progress = msg.progress || {};
+          onProgress(Number(progress.percent || 0), [progress.stage, progress.detail].filter(Boolean).join(' · '));
+          return;
+        }
+        cleanup();
+        if (msg.type === 'prepared') {
+          preparedPodcastProvider = String(msg.provider || 'wasm').toLowerCase();
+          resolve(msg);
+          return;
+        }
+        reject(new Error(msg.message || '브라우저 음성 엔진 사전 준비 실패'));
+      }
+
+      worker.addEventListener('message', onMessage);
+      worker.postMessage({ id, type: 'prepare', preferredProvider: 'auto' });
+    }).catch((error) => {
+      releaseBrowserPodcastWorker();
+      throw error;
+    });
+
+    return browserPodcastPreparePromise;
+  }
+
+  function podcastDiagnostics(extra = {}) {
+    return {
+      ...refreshDiag(),
+      podcast_provider: lastPodcastProvider,
+      podcast_generation_seconds: lastPodcastSeconds,
+      podcast_perf: lastPodcastPerf,
+      ...extra
+    };
+  }
+
+  async function generateBrowserPodcast(script, settings = {}, onProgress = () => {}) {
+    await prepareBrowserPodcast(onProgress);
+    return await new Promise((resolve, reject) => {
       const worker = getBrowserPodcastWorker();
       const id = `beta-podcast-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const timeout = window.setTimeout(() => {
         worker.removeEventListener('message', onMessage);
+        releaseBrowserPodcastWorker();
         reject(new Error('브라우저 음성 생성이 120초 동안 완료되지 않았습니다.'));
       }, 120000);
 
       function finish() {
         window.clearTimeout(timeout);
         worker.removeEventListener('message', onMessage);
-        worker.terminate();
-        if (browserPodcastWorker === worker) browserPodcastWorker = null;
       }
 
       function onMessage(event) {
@@ -531,7 +596,10 @@ async function loadBetaRenderBrowserShortform() {
         }
         finish();
         if (msg.type === 'result') resolve(msg.result);
-        else reject(new Error(msg.message || '브라우저 음성 생성 실패'));
+        else {
+          releaseBrowserPodcastWorker();
+          reject(new Error(msg.message || '브라우저 음성 생성 실패'));
+        }
       }
 
       worker.addEventListener('message', onMessage);
@@ -545,7 +613,7 @@ async function loadBetaRenderBrowserShortform() {
           speed: Number(settings.voice_speed || 1.05),
           voiceVolume: Number(settings.voice_volume || 1),
           pauseSeconds: 0.47,
-          inferenceSteps: 8,
+          inferenceSteps: preparedPodcastProvider === 'webgpu' ? 6 : 8,
           preferredProvider: 'auto'
         }
       });
@@ -556,13 +624,12 @@ async function loadBetaRenderBrowserShortform() {
     const form = new FormData();
     form.append('browser_mp3', result.mp3Blob, 'browser_podcast.mp3');
     form.append('browser_srt', result.srtBlob, 'browser_podcast.srt');
-    form.append('diagnostics', JSON.stringify({
-      source: 'v1-browser-podcast-worker',
+    form.append('diagnostics', JSON.stringify(podcastDiagnostics({
+      source: 'beta-browser-podcast-worker',
       provider: result.provider || 'browser',
       duration_seconds: Number(result.durationSeconds || 0),
-      generation_seconds: lastPodcastSeconds,
-      webgpu: Boolean(navigator.gpu)
-    }));
+      tts_perf: result.perf || lastPodcastPerf
+    })));
     return await request(`/beta-api/browser/jobs/${encodeURIComponent(currentJobId)}/upload`, { method: 'POST', body: form });
   }
 
@@ -588,6 +655,7 @@ async function loadBetaRenderBrowserShortform() {
       if (ui.job.value.trim() !== currentJobId) throw new Error('음성 생성 중 작업이 변경되었습니다.');
       lastPodcastSeconds = (performance.now() - startedAt) / 1000;
       lastPodcastProvider = String(generated.provider || 'browser').toLowerCase();
+      lastPodcastPerf = generated.perf || null;
       ui.status.textContent = `브라우저 음성 완료 · ${lastPodcastProvider.toUpperCase()} · Beta 작업에 저장하는 중...`;
       await uploadBrowserPodcast(currentJobId, generated);
     } catch (browserError) {
@@ -652,6 +720,13 @@ async function loadBetaRenderBrowserShortform() {
       ui.audio.hidden=true; ui.video.hidden=true; ui.upload.disabled=true; ui.mp4.disabled=true;
       ui.mp3.disabled=!nextJobId;
       ui.status.textContent=nextJobId?'현재 작업의 PODCAST_50 음성을 새로 만들 준비가 됐습니다.':'작업을 준비 중입니다.';
+      if (nextJobId) {
+        prepareBrowserPodcast().then((prepared) => {
+          console.info('Beta browser podcast engine prepared', prepared?.provider, prepared?.perf || {});
+        }).catch((error) => {
+          console.warn('Beta browser podcast engine prewarm failed; generation will retry.', error);
+        });
+      }
     },
     loadJob: () => loadJob(),
     async createVideoOnly(jobId, settings = {}, onProgress = () => {}) {
@@ -692,6 +767,7 @@ async function loadBetaRenderBrowserShortform() {
         };
       } finally {
         renderInProgress = false;
+        releaseBrowserPodcastWorker();
       }
     },
     async saveCurrentToArchive(jobId) {
@@ -699,7 +775,7 @@ async function loadBetaRenderBrowserShortform() {
       const body = new FormData();
       body.append('browser_mp3', mp3Blob, 'browser_podcast.mp3');
       body.append('browser_mp4', mp4Blob, 'browser_final.mp4');
-      body.append('diagnostics', JSON.stringify(refreshDiag()));
+      body.append('diagnostics', JSON.stringify(podcastDiagnostics({ source: 'beta-final-browser-upload' })));
       return await request(`/beta-api/browser/jobs/${encodeURIComponent(jobId)}/upload`, {method:'POST', body});
     },
     refreshDiag: () => refreshDiag()
