@@ -17,6 +17,8 @@ import uuid
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 
+from app.beta_storage import canonical_audio_path
+
 ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
 DB_PATH = ROOT / "data" / "storymaker_beta.db"
 JOBS_DIR = ROOT / "data" / "jobs"
@@ -287,7 +289,7 @@ def reset_generated_assets(job_id: str) -> JSONResponse:
     job_dir = safe_job_dir(job_id)
     output = job_dir / "output"
     targets = [
-        output / "voice.wav", output / "voice.mp3", output / "subtitle.srt",
+        canonical_audio_path(job_dir), output / "voice.wav", output / "voice.mp3", output / "subtitle.srt",
         output / "dialogue_segments.json", output / "shortform" / "mixed_voice_music.wav",
         output / "browser" / "browser_podcast.mp3", output / "browser" / "browser_final.mp4",
         output / "browser" / "diagnostics.json",
@@ -322,7 +324,7 @@ async def prepare_shortform_audio(job_id: str, request: Request) -> JSONResponse
     else:
         payload = await request.json()
     output = job_dir / "output"
-    voice = output / "voice.wav"
+    voice = canonical_audio_path(job_dir)
     if not voice.exists():
         raise HTTPException(status_code=409, detail="먼저 PODCAST_50 음성을 준비해야 합니다.")
     music_root = (ROOT / "media" / "music").resolve()
@@ -357,22 +359,25 @@ async def prepare_shortform_audio(job_id: str, request: Request) -> JSONResponse
             raise HTTPException(status_code=404, detail="Beta 랜덤 배경음악 파일이 없습니다.")
         selected = random.choice(music_candidates)
         mode = "shuffle"
-    mixed = shortform_dir / "mixed_voice_music.wav"
+    mixed_temp = shortform_dir / "_mixed_audio.wav"
+    mixed = canonical_audio_path(job_dir)
     ffmpeg = Path(os.getenv("STORYMAKER_BETA_FFMPEG", "/usr/bin/ffmpeg"))
     voice_seconds = wav_duration(voice)
     total_seconds = voice_seconds + (2.0 if selected else 0.0)
     try:
         if selected:
             fade_out_start = voice_seconds + 0.5
-            command = [str(ffmpeg), "-hide_banner", "-loglevel", "error", "-y", "-i", str(voice), "-stream_loop", "-1", "-i", str(selected), "-filter_complex", f"[0:a]apad=pad_dur=2,atrim=0:{total_seconds:.3f}[voice];[1:a]volume={volume},atrim=0:{total_seconds:.3f},afade=t=in:st=0:d=1,afade=t=out:st={fade_out_start:.3f}:d=1.5[bg];[voice][bg]amix=inputs=2:duration=longest:normalize=0,atrim=0:{total_seconds:.3f}[a]", "-map", "[a]", "-c:a", "pcm_s16le", str(mixed)]
+            command = [str(ffmpeg), "-hide_banner", "-loglevel", "error", "-y", "-i", str(voice), "-stream_loop", "-1", "-i", str(selected), "-filter_complex", f"[0:a]apad=pad_dur=2,atrim=0:{total_seconds:.3f}[voice];[1:a]volume={volume},atrim=0:{total_seconds:.3f},afade=t=in:st=0:d=1,afade=t=out:st={fade_out_start:.3f}:d=1.5[bg];[voice][bg]amix=inputs=2:duration=longest:normalize=0,atrim=0:{total_seconds:.3f}[a]", "-map", "[a]", "-c:a", "pcm_s16le", str(mixed_temp)]
         else:
-            command = [str(ffmpeg), "-hide_banner", "-loglevel", "error", "-y", "-i", str(voice), "-filter:a", "volume=1.0", "-c:a", "pcm_s16le", str(mixed)]
+            command = [str(ffmpeg), "-hide_banner", "-loglevel", "error", "-y", "-i", str(voice), "-filter:a", "volume=1.0", "-c:a", "pcm_s16le", str(mixed_temp)]
         completed = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
     finally:
         if temp_music:
             temp_music.unlink(missing_ok=True)
-    if completed.returncode != 0 or not mixed.exists() or mixed.stat().st_size < 1024:
+    if completed.returncode != 0 or not mixed_temp.exists() or mixed_temp.stat().st_size < 1024:
+        mixed_temp.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=completed.stderr.strip() or "배경음악 믹싱 실패")
+    mixed_temp.replace(mixed)
     result_path = job_dir / "result.json"
     result = read_json(result_path)
     music_name = Path(getattr(upload, "filename", "")).name if mode == "one_time" else (selected.name if selected else "음악 없음")
@@ -385,7 +390,7 @@ async def prepare_shortform_audio(job_id: str, request: Request) -> JSONResponse
 @beta_shortform_router.get("/jobs/{job_id}/mixed-audio")
 def shortform_mixed_audio(job_id: str):
     from fastapi.responses import FileResponse
-    path = safe_job_dir(job_id) / "output" / "shortform" / "mixed_voice_music.wav"
+    path = canonical_audio_path(safe_job_dir(job_id))
     if not path.exists():
         raise HTTPException(status_code=404, detail="믹싱 오디오가 없습니다.")
     return FileResponse(path, media_type="audio/wav")

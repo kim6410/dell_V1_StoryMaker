@@ -8,6 +8,7 @@ import json
 import re
 import secrets
 import shutil
+import hashlib
 import sqlite3
 import subprocess
 import urllib.request
@@ -21,6 +22,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.beta_auth import current_user_id, current_user_role
+from app.beta_storage import canonical_audio_path, prune_unreferenced_shared_images, store_normalized_image
 
 KST = ZoneInfo("Asia/Seoul")
 
@@ -476,13 +478,14 @@ async def beta_create_job(
     input_dir.mkdir(parents=True)
     output_dir.mkdir(parents=True)
     saved_images: list[str] = []
-    for index, upload in enumerate(images, start=1):
+    for upload in images:
         suffix = Path(upload.filename or "").suffix.lower()
         if suffix not in {".jpg", ".jpeg", ".png", ".webp"}:
             raise HTTPException(status_code=400, detail=f"지원하지 않는 이미지 형식: {suffix}")
-        target = input_dir / f"image_{index:03d}{suffix}"
-        with target.open("wb") as stream:
-            shutil.copyfileobj(upload.file, stream)
+        try:
+            target = store_normalized_image(upload.file)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"이미지 축소 저장 실패: {exc}") from exc
         saved_images.append(str(target))
     saved_videos: list[str] = []
     for index, upload in enumerate(videos or [], start=1):
@@ -539,7 +542,7 @@ def beta_render_job(beta_job_id: str, music_volume: float = Form(0.16)) -> JSONR
     try:
         beta_update_job(beta_job_id, status="creating_voice", progress=20)
         script = result.get("content", {}).get("podcast_80") or result.get("content", {}).get("podcast_script") or result.get("content", {}).get("script", "")
-        voice_wav = output_dir / "voice.wav"
+        voice_wav = canonical_audio_path(job_dir)
         beta_make_tts(script, voice_wav, job_dir)
         duration = beta_probe_duration(voice_wav, job_dir)
         voice_mp3 = output_dir / "voice.mp3"
@@ -562,7 +565,7 @@ def beta_render_job(beta_job_id: str, music_volume: float = Form(0.16)) -> JSONR
         if preferred_mixed_value:
             preferred_mixed_candidates.append(Path(str(preferred_mixed_value)))
         preferred_mixed_candidates.extend([
-            output_dir / "shortform" / "mixed_voice_music.wav",
+            canonical_audio_path(job_dir),
             output_dir / "shortform" / "mixed_audio.m4a",
             output_dir / "mixed_audio.m4a",
         ])
@@ -611,8 +614,12 @@ def beta_render_job(beta_job_id: str, music_volume: float = Form(0.16)) -> JSONR
         if not video.exists() or video.stat().st_size == 0:
             raise RuntimeError("최종 MP4가 생성되지 않았습니다.")
         completed_at = beta_now()
-        result["assets"].update({"audio": str(voice_mp3), "mixed_audio": str(mixed_audio), "subtitle": str(subtitle), "thumbnail": str(thumbnail), "video": str(video)})
+        result["assets"].update({"audio": str(voice_mp3), "mixed_audio": str(canonical_audio_path(job_dir)), "subtitle": str(subtitle), "thumbnail": str(thumbnail), "video": str(video)})
         result.update({"status": "completed", "progress": 100, "completed_at": completed_at, "duration_seconds": round(duration, 3)})
+        silent_video.unlink(missing_ok=True)
+        mixed_audio.unlink(missing_ok=True)
+        for clip in output_dir.glob("clip_*.mp4"):
+            clip.unlink(missing_ok=True)
         beta_write_json(job_dir / "result.json", result)
         beta_update_job(beta_job_id, status="completed", progress=100, completed_at=completed_at)
         return JSONResponse({"ok": True, "job": result, "video_url": f"/beta-api/jobs/{beta_job_id}/file/video"})
@@ -845,7 +852,8 @@ def beta_delete_job(beta_job_id: str) -> JSONResponse:
     ]
     if leftovers:
         raise HTTPException(status_code=500, detail="삭제 후 잔여 파일이 발견되었습니다.")
-    return JSONResponse({"ok": True, "deleted": beta_job_id, "db_deleted": True, "files_deleted": files_deleted})
+    pruned_images, pruned_bytes = prune_unreferenced_shared_images(jobs_root)
+    return JSONResponse({"ok": True, "deleted": beta_job_id, "db_deleted": True, "files_deleted": files_deleted, "shared_images_pruned": pruned_images, "shared_bytes_pruned": pruned_bytes})
 
 
 @beta_jobs_router.get("/jobs/{beta_job_id}/file/{asset_name}")

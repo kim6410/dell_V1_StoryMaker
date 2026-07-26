@@ -5,6 +5,7 @@ import json
 import hashlib
 import re
 import random
+import shutil
 import subprocess
 import urllib.request
 from pathlib import Path
@@ -12,6 +13,8 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
+
+from app.beta_storage import canonical_audio_path
 
 ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
 JOBS = ROOT / "data" / "jobs"
@@ -184,7 +187,7 @@ def inspect_job(job_id: str) -> JSONResponse:
             "checks": {
                 "result_json": (path / "result.json").exists(),
                 "podcast_script": (path / "podcast_script.txt").exists(),
-                "voice_wav": (output / "voice.wav").exists(),
+                "voice_wav": canonical_audio_path(path).exists(),
                 "voice_mp3": (output / "voice.mp3").exists(),
                 "subtitle_srt": (output / "subtitle.srt").exists(),
                 "dialogue_manifest": (output / "dialogue_segments.json").exists(),
@@ -254,7 +257,7 @@ async def create_supertonic_voice(job_id: str, request: Request) -> JSONResponse
             segment["duration"] = round(probe_duration(part_path), 3)
             segment["file"] = str(part_path)
             part_paths.append(part_path)
-        wav_path = output / "voice.wav"
+        wav_path = canonical_audio_path(path)
         concatenate_wavs(part_paths, wav_path)
         if abs(voice_volume - 1.0) > 0.001:
             adjusted = output / "voice_adjusted.wav"
@@ -271,7 +274,10 @@ async def create_supertonic_voice(job_id: str, request: Request) -> JSONResponse
     subtitle_path = output / "subtitle.srt"
     write_dialogue_srt(segments, subtitle_path)
     duration = probe_duration(wav_path)
+    for segment in segments:
+        segment.pop("file", None)
     (output / "dialogue_segments.json").write_text(json.dumps(segments, ensure_ascii=False, indent=2), encoding="utf-8")
+    shutil.rmtree(parts_dir, ignore_errors=True)
 
     script_hash = hashlib.sha256(script.encode("utf-8")).hexdigest()
     result.setdefault("assets", {})["audio"] = str(mp3_path)

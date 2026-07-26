@@ -11,8 +11,10 @@ import zipfile
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
+from starlette.background import BackgroundTask
 
 from app.beta_image_download import _clean_name, _watermark_image, build_download_package
+from app.beta_storage import canonical_audio_path, remove_tree
 
 BETA_ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
 BETA_JOBS = BETA_ROOT / "data" / "jobs"
@@ -108,7 +110,7 @@ def beta_browser_manifest(beta_job_id: str) -> JSONResponse:
         "voice_script_hash": result.get("assets", {}).get("voice_script_hash"),
         "images": [f"/beta-api/browser/jobs/{beta_job_id}/image/{index}" for index in range(1, len(images) + 1)],
         "videos": [f"/beta-api/browser/jobs/{beta_job_id}/video/{index}" for index in range(1, len(videos) + 1)],
-        "voice_wav": (f"/beta-api/shortform/jobs/{beta_job_id}/mixed-audio" if (output / "shortform" / "mixed_voice_music.wav").exists() else (f"/beta-api/browser/jobs/{beta_job_id}/voice-wav" if (output / "voice.wav").exists() else None)),
+        "voice_wav": (f"/beta-api/shortform/jobs/{beta_job_id}/mixed-audio" if canonical_audio_path(job_dir).exists() else None),
         "music": f"/beta-api/browser/jobs/{beta_job_id}/music" if result.get("assets", {}).get("music") else None,
         "subtitle": f"/beta-api/browser/jobs/{beta_job_id}/subtitle" if (output / "subtitle.srt").exists() else None,
         "music_volume": float((result.get("shortform") or {}).get("bgm_volume", 0.15) or 0.15),
@@ -146,7 +148,7 @@ def beta_browser_source_video(beta_job_id: str, video_index: int) -> FileRespons
 
 @beta_browser_router.get("/jobs/{beta_job_id}/voice-wav")
 def beta_browser_voice_wav(beta_job_id: str) -> FileResponse:
-    path = beta_browser_job_dir(beta_job_id) / "output" / "voice.wav"
+    path = canonical_audio_path(beta_browser_job_dir(beta_job_id))
     if not path.exists():
         raise HTTPException(status_code=404, detail="브라우저 인코딩용 WAV가 없습니다. 먼저 대본 음성을 준비하세요.")
     return FileResponse(path, media_type="audio/wav")
@@ -190,7 +192,7 @@ async def beta_browser_upload(
         if target.stat().st_size < 128:
             raise HTTPException(status_code=400, detail="브라우저 MP3가 비어 있습니다.")
         voice_mp3 = job_dir / "output" / "voice.mp3"
-        voice_wav = job_dir / "output" / "voice.wav"
+        voice_wav = canonical_audio_path(job_dir)
         shutil.copy2(target, voice_mp3)
         ffmpeg = Path(os.getenv("STORYMAKER_BETA_FFMPEG", "/usr/bin/ffmpeg"))
         converted = subprocess.run(
@@ -264,6 +266,7 @@ def beta_browser_images_download(beta_job_id: str) -> FileResponse:
         media_type="application/zip",
         filename=f"{company_name}_{title}_이미지.zip",
         headers={"Cache-Control": "no-store"},
+        background=BackgroundTask(remove_tree, download_dir),
     )
 
 
@@ -279,6 +282,7 @@ def beta_browser_download_package(beta_job_id: str) -> FileResponse:
         media_type="application/zip",
         filename=download_name,
         headers={"Cache-Control": "no-store"},
+        background=BackgroundTask(remove_tree, package_path.parent),
     )
 
 
