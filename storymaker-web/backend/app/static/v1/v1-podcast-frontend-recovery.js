@@ -9,6 +9,9 @@
   let browserPodcastWorker = null;
   let activeLatestJobId = '';
   const EXPERIENCE_SESSION_KEY = 'storymaker_experience_lab_session_v1';
+  const EXPERIENCE_PREPARING_STYLE_ID = 'v1-experience-preparing-progress-style';
+  let experiencePreparingTimer = 0;
+  let experiencePreparingTrack = null;
 
   function currentPageName() {
     return new URLSearchParams(window.location.search).get('page') || '';
@@ -48,6 +51,124 @@
   }
 
   seedExperienceLabDefaults();
+
+  function installExperiencePreparingStyle() {
+    if (document.getElementById(EXPERIENCE_PREPARING_STYLE_ID)) return;
+    const style = document.createElement('style');
+    style.id = EXPERIENCE_PREPARING_STYLE_ID;
+    style.textContent = `
+      .v1-experience-preparing-track {
+        position: relative;
+      }
+      .v1-experience-preparing-track::after {
+        content: '';
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: var(--v1-experience-preparing-width, 2%);
+        border-radius: inherit;
+        background: linear-gradient(90deg, #67e8f9 0%, #22d3ee 42%, #3b82f6 70%, #67e8f9 100%);
+        background-size: 220% 100%;
+        animation: v1-experience-preparing-shimmer 1.1s linear infinite;
+        transition: width .28s ease-out;
+        pointer-events: none;
+      }
+      @keyframes v1-experience-preparing-shimmer {
+        from { background-position: 100% 0; }
+        to { background-position: -120% 0; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function stopExperiencePreparingProgress() {
+    if (experiencePreparingTimer) {
+      window.clearInterval(experiencePreparingTimer);
+      experiencePreparingTimer = 0;
+    }
+    if (experiencePreparingTrack) {
+      experiencePreparingTrack.classList.remove('v1-experience-preparing-track');
+      experiencePreparingTrack.style.removeProperty('--v1-experience-preparing-width');
+      experiencePreparingTrack = null;
+    }
+  }
+
+  function startExperiencePreparingProgress(button) {
+    if (!isExperienceLabContext() || !button) return;
+    window.setTimeout(() => {
+      const track = button.nextElementSibling;
+      const actualFill = track && track.firstElementChild;
+      if (!track || !actualFill || !track.classList.contains('h-2')) return;
+
+      stopExperiencePreparingProgress();
+      installExperiencePreparingStyle();
+      experiencePreparingTrack = track;
+      track.classList.add('v1-experience-preparing-track');
+
+      const startedAt = performance.now();
+      const update = () => {
+        const actualPercent = Number.parseFloat(actualFill.style.width) || 0;
+        const stillRunning = /만드는 중/.test(compactText(button));
+        if (!stillRunning || actualPercent >= 28) {
+          stopExperiencePreparingProgress();
+          return;
+        }
+
+        const elapsedSeconds = Math.max(0, (performance.now() - startedAt) / 1000);
+        const preparingPercent = Math.min(18, 2 + (16 * (1 - Math.exp(-elapsedSeconds / 9))));
+        track.style.setProperty(
+          '--v1-experience-preparing-width',
+          `${Math.max(actualPercent, preparingPercent).toFixed(2)}%`
+        );
+      };
+
+      update();
+      experiencePreparingTimer = window.setInterval(update, 250);
+    }, 0);
+  }
+
+  function arrangeExperienceGenerationControls() {
+    if (!isExperienceLabContext()) return;
+    const buttons = Array.from(document.querySelectorAll('button'));
+    const detailsButton = buttons.find((button) => compactText(button).startsWith('상세 설정'));
+    const createButton = buttons.find((button) => /^(영상 만들기|만드는 중\.\.\.)$/.test(compactText(button)));
+    if (!detailsButton || !createButton) return;
+
+    const detailsGroup = detailsButton.parentElement;
+    const parent = detailsGroup && detailsGroup.parentElement;
+    const track = createButton.nextElementSibling;
+    const status = track && track.nextElementSibling;
+    if (!parent || createButton.parentElement !== parent || detailsGroup.parentElement !== parent) return;
+    if (!track || !status || !track.classList.contains('h-2')) return;
+    if (detailsGroup.previousElementSibling === status) return;
+
+    parent.insertBefore(createButton, detailsGroup);
+    parent.insertBefore(track, detailsGroup);
+    parent.insertBefore(status, detailsGroup);
+  }
+
+  function startExperienceLabUiBridge() {
+    if (!isExperienceLabContext()) return;
+    arrangeExperienceGenerationControls();
+    const observer = new MutationObserver(arrangeExperienceGenerationControls);
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    document.addEventListener('click', (event) => {
+      const button = event.target && event.target.closest
+        ? event.target.closest('button')
+        : null;
+      if (!button || button.disabled || compactText(button) !== '영상 만들기') return;
+      startExperiencePreparingProgress(button);
+    }, true);
+  }
+
+  function correctedExperienceMusicUrl(url) {
+    if (!isExperienceLabContext()) return url;
+    return url.replace(
+      /(^https?:\/\/[^/]+)?\/api\/podcast\/public\/music\/file\//,
+      '$1/v1-api/podcast/public/music/file/'
+    );
+  }
+
+  startExperienceLabUiBridge();
 
   function normalizedUrl(input) {
     if (typeof input === 'string') return input;
@@ -526,6 +647,7 @@
 
   window.fetch = async function v1PodcastOneOpenFetch(input, init) {
     const originalUrl = normalizedUrl(input);
+    const musicCorrectedUrl = correctedExperienceMusicUrl(originalUrl);
     const progressMatch = originalUrl.match(/\/v1-api\/mobile\/one-shot\/jobs\/(mob-[^/?]+)\/progress/);
     const shouldAdoptLatest = Boolean(
       isOneShotAutomationContext()
@@ -534,12 +656,16 @@
       && progressMatch[1] !== activeLatestJobId
     );
     const correctedUrl = shouldAdoptLatest
-      ? originalUrl.replace(progressMatch[1], activeLatestJobId)
-      : originalUrl;
+      ? musicCorrectedUrl.replace(progressMatch[1], activeLatestJobId)
+      : musicCorrectedUrl;
     let requestInput = input;
     if (correctedUrl !== originalUrl) {
       requestInput = typeof input === 'string' ? correctedUrl : new Request(correctedUrl, input);
-      console.info(PREFIX, 'progress job adopted from DB', progressMatch[1], activeLatestJobId);
+      if (musicCorrectedUrl !== originalUrl) {
+        console.info(PREFIX, 'experience lab music URL corrected', originalUrl, correctedUrl);
+      } else {
+        console.info(PREFIX, 'progress job adopted from DB', progressMatch[1], activeLatestJobId);
+      }
     }
     const response = await nativeFetch(requestInput, init);
 
