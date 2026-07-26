@@ -15,6 +15,8 @@ import urllib.error
 import urllib.parse
 from zoneinfo import ZoneInfo
 
+from PIL import Image, ImageDraw, ImageFont
+
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -288,16 +290,55 @@ def beta_write_srt(script: str, duration: float, target: Path) -> None:
     sentences = [s.strip() for s in re.split(r"(?<=[.!?。])\s+|(?<=요\.)\s+", script) if s.strip()]
     if not sentences:
         sentences = [script.strip() or "Beta 제작"]
-    weights = [max(len(s), 8) for s in sentences]
+
+    # 긴 문장 하나가 화면 전체를 덮지 않도록 최대 18자 x 2줄 단위로 나눕니다.
+    cues: list[str] = []
+    for sentence in sentences:
+        subtitle_sentence = re.sub(
+            r"^\s*(?:\[(?:여성|남성|여자|남자)\]|(?:여성|남성|여자|남자)\s*:)\s*",
+            "",
+            sentence,
+            flags=re.IGNORECASE,
+        )
+        compact = re.sub(r"\s+", " ", subtitle_sentence).strip()
+        while compact:
+            take = min(36, len(compact))
+            if take < len(compact):
+                split_at = compact.rfind(" ", 18, take + 1)
+                if split_at >= 18:
+                    take = split_at
+            chunk = compact[:take].strip()
+            compact = compact[take:].strip()
+            if len(chunk) > 18:
+                left = chunk[:18].rstrip()
+                right = chunk[18:].lstrip()
+                chunk = f"{left}\n{right}" if right else left
+            if chunk:
+                cues.append(chunk)
+
+    if not cues:
+        cues = ["Beta 제작"]
+    weights = [max(len(cue.replace("\n", "")), 8) for cue in cues]
     total_weight = sum(weights)
     cursor = 0.0
     blocks: list[str] = []
-    for index, (sentence, weight) in enumerate(zip(sentences, weights), start=1):
+    for index, (cue, weight) in enumerate(zip(cues, weights), start=1):
         segment = duration * weight / total_weight
-        end = duration if index == len(sentences) else min(duration, cursor + segment)
-        blocks.append(f"{index}\n{beta_srt_time(cursor)} --> {beta_srt_time(end)}\n{sentence}\n")
+        end = duration if index == len(cues) else min(duration, cursor + segment)
+        blocks.append(f"{index}\n{beta_srt_time(cursor)} --> {beta_srt_time(end)}\n{cue}\n")
         cursor = end
     target.write_text("\n".join(blocks), encoding="utf-8")
+
+
+def beta_prepare_render_srt(source: Path, target: Path) -> Path:
+    raw = source.read_text(encoding="utf-8-sig", errors="replace")
+    cleaned = raw
+    for label in ("[여성]", "[남성]", "[여자]", "[남자]", "여성:", "남성:", "여자:", "남자:"):
+        cleaned = cleaned.replace(label, "")
+    if not cleaned.strip():
+        raise RuntimeError("렌더링용 자막 파일이 비어 있습니다.")
+    target.write_text(cleaned, encoding="utf-8")
+    return target
 
 
 def beta_make_tts(script: str, wav_path: Path, job_dir: Path) -> None:
@@ -347,6 +388,74 @@ def beta_make_video(images: list[Path], duration: float, output_dir: Path, job_d
     silent_video = output_dir / "silent_video.mp4"
     beta_run_ffmpeg(["-f", "concat", "-safe", "0", "-i", str(concat), "-c", "copy", str(silent_video)], job_dir)
     return silent_video
+
+
+def beta_make_watermark_png(result: dict[str, Any], output_dir: Path) -> Path:
+    business = result.get("business", {}) if isinstance(result.get("business"), dict) else {}
+    company = str(business.get("name") or "").strip()
+    phone = str(business.get("phone") or "").strip()
+    watermark = output_dir / "video_watermark.png"
+
+    canvas = Image.new("RGBA", (1080, 1920), (0, 0, 0, 0))
+    if not company and not phone:
+        canvas.save(watermark, "PNG")
+        return watermark
+
+    font_path = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
+    company_font = ImageFont.truetype(font_path, 72)
+    phone_font = ImageFont.truetype(font_path, 48)
+    draw = ImageDraw.Draw(canvas)
+
+    lines: list[tuple[str, ImageFont.FreeTypeFont, tuple[int, int, int, int]]] = []
+    if company:
+        lines.append((company, company_font, (255, 220, 0, 255)))
+    if phone:
+        lines.append((phone, phone_font, (255, 255, 255, 250)))
+
+    padding_x, padding_y, gap = 44, 30, 12
+    widths: list[int] = []
+    heights: list[int] = []
+    for text, font, _fill in lines:
+        box = draw.textbbox((0, 0), text, font=font, stroke_width=5)
+        widths.append(box[2] - box[0])
+        heights.append(box[3] - box[1])
+    box_w = max(widths) + padding_x * 2
+    box_h = sum(heights) + gap * max(0, len(lines) - 1) + padding_y * 2
+    x = max(24, (1080 - box_w) // 2)
+    y = 1920 - box_h - 72
+    draw.rounded_rectangle(
+        (x, y, x + box_w, y + box_h),
+        radius=28,
+        fill=(0, 0, 0, 150),
+        outline=(255, 255, 255, 55),
+        width=2,
+    )
+
+    cursor_y = y + padding_y
+    for index, (text, font, fill) in enumerate(lines):
+        text_box = draw.textbbox((0, 0), text, font=font, stroke_width=5)
+        text_w = text_box[2] - text_box[0]
+        text_x = (1080 - text_w) // 2
+        draw.text(
+            (text_x + 6, cursor_y + 7),
+            text,
+            font=font,
+            fill=(0, 0, 0, 235),
+            stroke_width=7,
+            stroke_fill=(0, 0, 0, 245),
+        )
+        draw.text(
+            (text_x, cursor_y),
+            text,
+            font=font,
+            fill=fill,
+            stroke_width=5,
+            stroke_fill=(0, 0, 0, 245),
+        )
+        cursor_y += heights[index] + gap
+
+    canvas.save(watermark, "PNG")
+    return watermark
 
 
 beta_init()
@@ -438,15 +547,43 @@ def beta_render_job(beta_job_id: str, music_volume: float = Form(0.16)) -> JSONR
 
         beta_update_job(beta_job_id, status="creating_subtitles", progress=40)
         subtitle = output_dir / "subtitle.srt"
-        beta_write_srt(script, duration, subtitle)
+        if not subtitle.exists() or subtitle.stat().st_size < 32:
+            beta_write_srt(script, duration, subtitle)
+        render_subtitle = beta_prepare_render_srt(subtitle, output_dir / "subtitle_render.srt")
         thumbnail = output_dir / "thumbnail.jpg"
         beta_run_ffmpeg(["-i", str(images[0]), "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920", "-frames:v", "1", str(thumbnail)], job_dir)
 
         beta_update_job(beta_job_id, status="creating_video", progress=60)
-        silent_video = beta_make_video(images, duration, output_dir, job_dir)
+        preferred_mixed_value = (
+            result.get("assets", {}).get("shortform_mixed_audio")
+            or (result.get("shortform") or {}).get("mixed_audio")
+        )
+        preferred_mixed_candidates: list[Path] = []
+        if preferred_mixed_value:
+            preferred_mixed_candidates.append(Path(str(preferred_mixed_value)))
+        preferred_mixed_candidates.extend([
+            output_dir / "shortform" / "mixed_voice_music.wav",
+            output_dir / "shortform" / "mixed_audio.m4a",
+            output_dir / "mixed_audio.m4a",
+        ])
+        preferred_mixed = next(
+            (
+                candidate
+                for candidate in preferred_mixed_candidates
+                if candidate.exists() and candidate.is_file() and candidate.stat().st_size >= 1024
+            ),
+            None,
+        )
+        render_duration = beta_probe_duration(preferred_mixed, job_dir) if preferred_mixed is not None else duration
+        silent_video = beta_make_video(images, render_duration, output_dir, job_dir)
+
         music_value = result.get("assets", {}).get("music")
         mixed_audio = output_dir / "mixed_audio.m4a"
-        if music_value and Path(music_value).exists() and music_volume > 0:
+        if preferred_mixed is not None:
+            beta_run_ffmpeg([
+                "-i", str(preferred_mixed), "-c:a", "aac", "-b:a", "192k", str(mixed_audio)
+            ], job_dir)
+        elif music_value and Path(music_value).exists() and music_volume > 0:
             beta_run_ffmpeg([
                 "-i", str(voice_wav), "-stream_loop", "-1", "-i", str(music_value),
                 "-filter_complex", f"[1:a]volume={music_volume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=2[a]",
@@ -457,9 +594,19 @@ def beta_render_job(beta_job_id: str, music_volume: float = Form(0.16)) -> JSONR
 
         beta_update_job(beta_job_id, status="muxing_final", progress=85)
         video = output_dir / "final.mp4"
+        watermark = beta_make_watermark_png(result, output_dir)
+        subtitle_filter_path = render_subtitle.as_posix().replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
+        video_filter = (
+            f"[0:v]subtitles='{subtitle_filter_path}':"
+            "force_style='FontName=Noto Sans CJK KR,FontSize=8,PrimaryColour=&H00FFFFFF,"
+            "OutlineColour=&H00000000,BorderStyle=1,Outline=3,Shadow=2,Alignment=2,MarginV=300'[sub];"
+            "[sub][1:v]overlay=0:0:format=auto[v]"
+        )
         beta_run_ffmpeg([
-            "-i", str(silent_video), "-i", str(mixed_audio), "-map", "0:v:0", "-map", "1:a:0",
-            "-c:v", "copy", "-c:a", "aac", "-shortest", "-movflags", "+faststart", str(video)
+            "-i", str(silent_video), "-loop", "1", "-i", str(watermark), "-i", str(mixed_audio),
+            "-filter_complex", video_filter, "-map", "[v]", "-map", "2:a:0",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", "192k", "-t", f"{render_duration:.3f}", "-shortest", "-movflags", "+faststart", str(video)
         ], job_dir)
         if not video.exists() or video.stat().st_size == 0:
             raise RuntimeError("최종 MP4가 생성되지 않았습니다.")

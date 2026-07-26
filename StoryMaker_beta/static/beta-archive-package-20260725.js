@@ -155,6 +155,103 @@
     showCopyToast.timer = setTimeout(() => { toast.hidden = true; }, 1800);
   }
 
+  function cleanCopyMarkdown(value) {
+    return String(value || '')
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/__(.+?)__/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/^[-*+]\s+/gm, '')
+      .replace(/^>\s+/gm, '');
+  }
+
+  function wrapCopyLine(value, maxLength = 24) {
+    const words = String(value || '').trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return '';
+    const rows = [];
+    let current = '';
+    words.forEach((word) => {
+      if (!current) {
+        current = word;
+      } else if (`${current} ${word}`.length <= maxLength) {
+        current += ` ${word}`;
+      } else {
+        rows.push(current);
+        current = word;
+      }
+    });
+    if (current) rows.push(current);
+    return rows.join('\n');
+  }
+
+  function mobileCopyText(value) {
+    const source = cleanCopyMarkdown(value).replace(/\r\n?/g, '\n');
+    const output = [];
+    source.split('\n').forEach((raw) => {
+      const line = raw.trim();
+      if (!line) {
+        if (output.length && output[output.length - 1] !== '') output.push('');
+        return;
+      }
+      const sentences = line.match(/[^.!?。！？]+[.!?。！？]?/g) || [line];
+      sentences.forEach((sentence) => {
+        const cleaned = sentence.trim();
+        if (!cleaned) return;
+        output.push(wrapCopyLine(cleaned, 24));
+        if (/[.!?。！？]$/.test(cleaned)) output.push('');
+      });
+    });
+    return output.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  function mobileCopyHtml(value) {
+    return `<div style="white-space:pre-wrap;font-family:Arial,'Malgun Gothic',sans-serif;font-size:16px;line-height:1.9;color:#222;">${esc(mobileCopyText(value)).replace(/\n/g, '<br>')}</div>`;
+  }
+
+  function mobileBlogCopyHtml(value) {
+    const source = String(value || '').replace(/\r\n?/g, '\n');
+    let titleUsed = false;
+    const blocks = [];
+    source.split('\n').forEach((raw) => {
+      const original = raw.trim();
+      const line = cleanCopyMarkdown(original).trim();
+      if (!line) return;
+      if (/^[-_=·•─━]{3,}$/.test(original)) {
+        blocks.push('<hr style="border:0;border-top:1px solid #d8dde6;margin:28px 0;">');
+        return;
+      }
+      const numbered = /^\d+\./.test(line);
+      const markdownHeading = /^#{1,6}\s+/.test(original);
+      const mainTitle = !titleUsed && !numbered && line.length <= 52 && !/[.!?。！？]$/.test(line);
+      if (mainTitle) {
+        titleUsed = true;
+        blocks.push(`<h2 style="margin:24px 0 20px;font-size:24px;line-height:1.55;font-weight:800;">${esc(wrapCopyLine(line, 24)).replace(/\n/g, '<br>')}</h2>`);
+        return;
+      }
+      if (markdownHeading) {
+        blocks.push(`<h3 style="margin:28px 0 16px;font-size:21px;line-height:1.6;font-weight:800;">${esc(wrapCopyLine(line, 24)).replace(/\n/g, '<br>')}</h3>`);
+        return;
+      }
+      if (numbered) {
+        blocks.push(`<p style="margin:0 0 12px;font-size:16px;line-height:1.9;">${esc(wrapCopyLine(line, 24)).replace(/\n/g, '<br>')}</p>`);
+        return;
+      }
+      const sentences = line.match(/[^.!?。！？]+[.!?。！？]?/g) || [line];
+      sentences.forEach((sentence) => {
+        const cleaned = sentence.trim();
+        if (!cleaned) return;
+        blocks.push(`<p style="margin:0 0 18px;font-size:16px;line-height:1.9;">${esc(wrapCopyLine(cleaned, 24)).replace(/\n/g, '<br>')}</p>`);
+      });
+    });
+    return `<article style="font-family:Arial,'Malgun Gothic',sans-serif;color:#222;background:#fff;max-width:720px;">${blocks.join('')}</article>`;
+  }
+
+  function archiveCopyPayload(item, key) {
+    const plain = mobileCopyText(item?.content || '');
+    if (key === 'BLOG') return { plain, rich: mobileBlogCopyHtml(item?.content || '') };
+    return { plain, rich: mobileCopyHtml(item?.content || '') };
+  }
+
   function plainToRichHtml(value, key = '') {
     const lines = String(value || '').replace(/\r\n?/g, '\n').split('\n');
     let previousBlank = true;
@@ -220,18 +317,23 @@
     if (!copied) throw new Error('브라우저 복사 권한을 확인해 주세요.');
   }
 
-  async function selectAndCopyChannel(button, channels) {
+  async function selectAndCopyChannel(button, channels, copyNow = true) {
     const key = String(button.dataset.channel || '');
     const item = channels[key] || {};
     const content = String(item.content || '');
     const label = String(item.label || key || '콘텐츠');
     detail.querySelectorAll('[data-channel]').forEach((tab) => tab.classList.toggle('active', tab === button));
+    const payload = archiveCopyPayload(item, key);
     const contentBox = document.getElementById('archive-channel-content');
-    if (contentBox) contentBox.textContent = content;
+    if (contentBox) {
+      contentBox.classList.toggle('archive-channel-dark', key !== 'BLOG');
+      contentBox.innerHTML = key === 'BLOG' ? payload.rich : mobileCopyHtml(item.content || '');
+    }
+    if (!copyNow) return;
     const original = button.dataset.originalLabel || button.textContent.trim();
     button.dataset.originalLabel = original;
     try {
-      await copyText(content);
+      await copyRichContent(payload.plain, payload.rich);
       button.classList.add('copied');
       button.textContent = `${original} 복사됨`;
       showCopyToast(`${label} 콘텐츠를 복사했습니다. 바로 붙여넣어 사용하세요.`);
@@ -339,6 +441,100 @@
     list.querySelectorAll('[data-delete-yes]').forEach((button) => button.addEventListener('click', () => deleteJob(button.dataset.deleteYes, button)));
   }
 
+  function ensureMediaPreviewModal() {
+    let layer = document.getElementById('archive-media-preview-modal');
+    if (layer) return layer;
+    layer = document.createElement('div');
+    layer.id = 'archive-media-preview-modal';
+    layer.className = 'archive-media-preview-modal';
+    layer.hidden = true;
+    layer.innerHTML = `<div class="archive-media-preview-card" role="dialog" aria-modal="true" aria-labelledby="archive-media-preview-title">
+      <div class="archive-media-preview-head"><h3 id="archive-media-preview-title">미디어 미리보기</h3><button type="button" data-media-preview-close>닫기</button></div>
+      <div id="archive-media-preview-body" class="archive-media-preview-body"></div>
+      <a id="archive-media-preview-download" class="archive-media-preview-download" href="#" download>다운로드</a>
+    </div>`;
+    document.body.appendChild(layer);
+    layer.addEventListener('click', (event) => {
+      if (event.target === layer || event.target.closest('[data-media-preview-close]')) closeMediaPreview();
+    });
+    layer.querySelector('#archive-media-preview-download')?.addEventListener('click', downloadMediaPreviewFile);
+    return layer;
+  }
+
+  async function downloadMediaPreviewFile(event) {
+    event.preventDefault();
+    const button = event.currentTarget;
+    const url = String(button?.href || '');
+    if (!url || url.endsWith('#')) return;
+    const original = button.textContent;
+    button.textContent = '다운로드 준비 중...';
+    button.setAttribute('aria-disabled', 'true');
+    try {
+      const response = await fetch(url, { credentials: 'include', cache: 'no-store' });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || `HTTP ${response.status}`);
+      }
+      const blob = await response.blob();
+      if (!blob.size) throw new Error('다운로드 파일이 비어 있습니다.');
+      const disposition = response.headers.get('content-disposition') || '';
+      const utf8Name = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+      const plainName = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+      const filename = decodeURIComponent(utf8Name || plainName || button.getAttribute('download') || 'download');
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+      button.textContent = '다운로드 완료';
+    } catch (error) {
+      button.textContent = '다운로드 실패';
+      showCopyToast(`다운로드 실패: ${error.message}`, true);
+    } finally {
+      window.setTimeout(() => {
+        button.textContent = original;
+        button.removeAttribute('aria-disabled');
+      }, 1500);
+    }
+  }
+
+  function closeMediaPreview() {
+    const layer = document.getElementById('archive-media-preview-modal');
+    if (!layer) return;
+    const video = layer.querySelector('video');
+    if (video) {
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    }
+    layer.hidden = true;
+    document.body.classList.remove('archive-media-preview-open');
+  }
+
+  function openMediaPreview({ type, url, urls = [], title, downloadName, downloadUrl }) {
+    const galleryUrls = Array.isArray(urls) ? urls.filter(Boolean) : [];
+    if (!url && !galleryUrls.length) return;
+    const layer = ensureMediaPreviewModal();
+    const body = layer.querySelector('#archive-media-preview-body');
+    const heading = layer.querySelector('#archive-media-preview-title');
+    const download = layer.querySelector('#archive-media-preview-download');
+    heading.textContent = title || '미디어 미리보기';
+    if (type === 'gallery') {
+      body.innerHTML = `<div class="archive-media-preview-gallery">${galleryUrls.map((item, index) => `<figure><img src="${esc(item)}" alt="업로드 이미지 ${index + 1}"><figcaption>${index + 1} / ${galleryUrls.length}</figcaption></figure>`).join('')}</div>`;
+    } else {
+      body.innerHTML = type === 'video'
+        ? `<video controls playsinline preload="metadata" src="${esc(url)}"></video>`
+        : `<img src="${esc(url)}" alt="${esc(title || '미디어 미리보기')}">`;
+    }
+    download.href = downloadUrl || url;
+    download.setAttribute('download', downloadName || '');
+    layer.hidden = false;
+    document.body.classList.add('archive-media-preview-open');
+  }
+
   async function deleteJob(jobId, button) {
     if (!jobId || button.disabled) return;
     button.disabled = true;
@@ -370,25 +566,42 @@
       const images = assets.images || [];
       const thumbnailUrl = assets.thumbnail ? `/beta-api/jobs/${encodeURIComponent(jobId)}/file/thumbnail` : (images.length ? `/beta-api/browser/jobs/${encodeURIComponent(jobId)}/image/1` : '');
       detail.innerHTML = `<div class="detail-head"><div><div class="badge">BETA ARCHIVE DETAIL</div><h2>${esc(job.title || 'Beta 제작')}</h2><p>${esc(job.business?.name || '')} · ${esc(job.business?.region || '')} · ${esc(job.business?.service || '')}</p></div><button id="archive-detail-close" type="button">닫기</button></div>
-        <section class="detail-block"><div class="channel-title-row"><h3>SNS 8채널</h3><span>탭을 누르면 해당 콘텐츠가 바로 복사됩니다.</span></div><div class="channel-tabs">${order.map((key, index) => `<button type="button" class="channel-tab${index === 0 ? ' active' : ''}" data-channel="${esc(key)}">${esc(channels[key]?.label || key)}</button>`).join('')}</div><div id="archive-channel-content" class="channel-content rich-channel-content">${channelHtml(channels[first], first)}</div></section>
+        <section class="detail-block"><div class="channel-title-row"><h3>SNS 8채널</h3><div class="channel-copy-actions"><button id="archive-channel-copy" type="button">복사</button><span>채널을 선택한 뒤 복사하세요.</span></div></div><div class="channel-tabs">${order.map((key, index) => `<button type="button" class="channel-tab${index === 0 ? ' active' : ''}" data-channel="${esc(key)}">${esc(channels[key]?.label || key)}</button>`).join('')}</div><div id="archive-channel-content" class="channel-content rich-channel-content${first === 'BLOG' ? '' : ' archive-channel-dark'}">${first === 'BLOG' ? archiveCopyPayload(channels[first], first).rich : mobileCopyHtml(channels[first]?.content || '')}</div></section>
         <div class="archive-sections archive-sections-all">
           <div id="archive-media-all" class="archive-media-all">
-            <section class="archive-section-static media-preview-card"><h3>업로드 이미지 ${images.length}장</h3><div class="image-grid">${images.map((_, index) => `<a href="/beta-api/browser/jobs/${encodeURIComponent(jobId)}/image/${index + 1}" target="_blank"><img loading="lazy" src="/beta-api/browser/jobs/${encodeURIComponent(jobId)}/image/${index + 1}" alt="이미지 ${index + 1}"></a>`).join('') || '<div class="empty-mini">이미지가 없습니다.</div>'}</div>${images.length ? `<div class="media-download-row"><button type="button" class="download-link package-download-button" data-download-package="${esc(jobId)}">가공 이미지 포함 ZIP 다운로드</button></div>` : ''}</section>
-            <section class="archive-section-static media-preview-card"><h3>팟캐스트 MP3</h3>${audioUrl ? `<audio class="audio-preview" controls preload="metadata" src="${audioUrl}"></audio><div class="media-download-row"><a class="download-link" href="${audioUrl}" target="_blank" download>MP3 다운로드</a></div>` : '<div class="empty-mini">MP3가 없습니다.</div>'}</section>
-            <section class="archive-section-static media-preview-card"><h3>썸네일</h3>${thumbnailUrl ? `<a href="${thumbnailUrl}" target="_blank"><img class="thumbnail-preview" loading="lazy" src="${thumbnailUrl}" alt="썸네일"></a><div class="media-download-row"><a class="download-link" href="${thumbnailUrl}" download>썸네일 다운로드</a></div>` : '<div class="empty-mini">썸네일이 없습니다.</div>'}</section>
-            <section class="archive-section-static media-preview-card"><h3>최종 MP4</h3>${videoUrl ? `<video class="mp4-preview" controls preload="metadata" playsinline src="${videoUrl}"></video><div class="media-download-row"><a class="download-link" href="${videoUrl}" target="_blank">MP4 크게 보기</a><a class="download-link" href="${videoUrl}" download>MP4 다운로드</a></div>` : '<div class="empty-mini">MP4가 없습니다.</div>'}</section>
+            <section class="archive-section-static media-preview-card"><h3>업로드 이미지 ${images.length}장</h3><div class="image-grid">${images.map((_, index) => { const imageUrl = `/beta-api/browser/jobs/${encodeURIComponent(jobId)}/image/${index + 1}`; return `<button type="button" class="archive-media-thumb" data-media-preview="gallery" data-media-url="${imageUrl}" data-media-title="업로드 이미지 ${images.length}장" data-media-download="${esc(jobId)}_images.zip"><img loading="lazy" src="${imageUrl}" alt="이미지 ${index + 1}"></button>`; }).join('') || '<div class="empty-mini">이미지가 없습니다.</div>'}</div>${images.length ? `<div class="media-download-row"><a class="download-link" href="/beta-api/browser/jobs/${encodeURIComponent(jobId)}/images-download" download>다운로드</a></div>` : ''}</section>
+            <section class="archive-section-static media-preview-card"><h3>팟캐스트 MP3</h3>${audioUrl ? `<audio class="audio-preview" controls preload="metadata" src="${audioUrl}"></audio><div class="media-download-row"><a class="download-link" href="${audioUrl}" download>다운로드</a></div>` : '<div class="empty-mini">MP3가 없습니다.</div>'}</section>
+            <section class="archive-section-static media-preview-card"><h3>썸네일</h3>${thumbnailUrl ? `<button type="button" class="archive-media-thumb archive-media-thumb-large" data-media-preview="image" data-media-url="${thumbnailUrl}" data-media-title="썸네일 미리보기" data-media-download="${esc(jobId)}_thumbnail.png"><img class="thumbnail-preview" loading="lazy" src="${thumbnailUrl}" alt="썸네일"></button><div class="media-download-row"><a class="download-link" href="${thumbnailUrl}" download>다운로드</a></div>` : '<div class="empty-mini">썸네일이 없습니다.</div>'}</section>
+            <section class="archive-section-static media-preview-card"><h3>최종 MP4</h3>${videoUrl ? `<button type="button" class="archive-media-thumb archive-video-thumb" data-media-preview="video" data-media-url="${videoUrl}" data-media-title="최종 MP4 미리보기" data-media-download="${esc(jobId)}.mp4"><video class="mp4-preview" muted preload="metadata" playsinline src="${videoUrl}"></video><span>눌러서 크게 보기</span></button><div class="media-download-row"><a class="download-link" href="${videoUrl}" download>다운로드</a></div>` : '<div class="empty-mini">MP4가 없습니다.</div>'}</section>
           </div>
           <div class="archive-package-row"><button type="button" class="package-main-button" data-download-package="${esc(jobId)}">이미지 · MP3 · SRT · 썸네일 · MP4 전체 ZIP 다운로드</button></div>
         </div>`;
       document.getElementById('archive-detail-close')?.addEventListener('click', closeDetail);
       detail.querySelectorAll('[data-download-package]').forEach((button) => button.addEventListener('click', () => downloadPackage(button.dataset.downloadPackage)));
-      detail.querySelectorAll('[data-channel]').forEach((button) => button.addEventListener('click', () => selectAndCopyChannel(button, channels)));
+      detail.querySelectorAll('[data-channel]').forEach((button) => button.addEventListener('click', () => selectAndCopyChannel(button, channels, false)));
+      document.getElementById('archive-channel-copy')?.addEventListener('click', () => {
+        const active = detail.querySelector('[data-channel].active');
+        if (active) selectAndCopyChannel(active, channels, true);
+      });
+      detail.querySelectorAll('[data-media-preview]').forEach((button) => button.addEventListener('click', () => {
+        const type = button.dataset.mediaPreview;
+        const galleryButtons = type === 'gallery' ? [...detail.querySelectorAll('[data-media-preview="gallery"]')] : [];
+        openMediaPreview({
+          type,
+          url: button.dataset.mediaUrl,
+          urls: galleryButtons.map((item) => item.dataset.mediaUrl),
+          title: button.dataset.mediaTitle,
+          downloadName: button.dataset.mediaDownload,
+          downloadUrl: type === 'gallery' ? `/beta-api/browser/jobs/${encodeURIComponent(jobId)}/images-download` : '',
+        });
+      }));
     } catch (error) {
       detail.innerHTML = `<div class="empty">상세 조회 실패: ${esc(error.message)}</div>`;
     }
   }
 
   function closeDetail() {
+    closeMediaPreview();
     modal.hidden = true;
     document.body.classList.remove('archive-modal-open');
     detail.innerHTML = '';
@@ -398,7 +611,13 @@
     if (event.target === modal) closeDetail();
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !modal.hidden) closeDetail();
+    if (event.key !== 'Escape') return;
+    const mediaLayer = document.getElementById('archive-media-preview-modal');
+    if (mediaLayer && !mediaLayer.hidden) {
+      closeMediaPreview();
+      return;
+    }
+    if (!modal.hidden) closeDetail();
   });
 
   async function load() {

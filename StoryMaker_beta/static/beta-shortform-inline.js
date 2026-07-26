@@ -99,7 +99,12 @@
   }
 
   function stripSpeakerLabels(text) {
-    return String(text || '').split(/\r?\n/).map((line) => line.replace(/^\s*(?:여자|여성|female|F1|남자|남성|male|M1)\s*[:：]\s*/i, '').trim()).filter(Boolean).join('\n');
+    return String(text || '')
+      .replace(/\*\*/g, '')
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^\s*(?:여자|여성|female|F1|남자|남성|male|M1)\s*[:：]\s*/i, '').trim())
+      .filter(Boolean)
+      .join('\n');
   }
 
   function values() {
@@ -335,6 +340,7 @@
   async function makeVideo() {
     if (!state.jobId) return;
     fields.make.disabled = true;
+    fields.make.classList.remove('beta-action-breathe');
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     state.readyToSave = false;
     state.savedToArchive = false;
@@ -413,14 +419,53 @@
         stopHeartbeat = null;
       }
       state.readyToSave = false;
-      setProgress(0, `제작 실패: ${error.message}`);
-      appendLog(`오류 · ${error.message}`);
+      const browserMessage = String(error?.message || error || '브라우저 MP4 제작 실패');
+      appendLog(`브라우저 MP4 실패 · 서버 폴백 준비: ${browserMessage}`);
+      setProgress(72, '저사양 PC 감지 · Dell 서버에서 MP4를 완성하는 중...');
+      try {
+        const fallbackBody = new FormData();
+        fallbackBody.append('music_volume', String(Number(fields.bgmVolume?.value || 0.1)));
+        const fallback = await request(`/beta-api/jobs/${encodeURIComponent(state.jobId)}/render`, {
+          method: 'POST',
+          body: fallbackBody
+        });
+        await loadJob(state.jobId);
+        clearRenderedFrame();
+        preview.src = fallback.video_url || `/beta-api/jobs/${encodeURIComponent(state.jobId)}/file/video?v=${Date.now()}`;
+        preview.hidden = false;
+        preview.volume = 0.8;
+        preview.currentTime = 0;
+        phone?.classList.add('has-final');
+        state.readyToSave = true;
+        state.savedToArchive = true;
+        stopScenePreview();
+        setProgress(100, '서버 MP4 폴백 완료 · 보관함 자동 저장 완료');
+        appendLog('Dell 서버 MP4 폴백 완료 · 저사양 PC에서도 최종 영상 생성 성공');
+        if (fields.sceneBadge) fields.sceneBadge.textContent = '서버 폴백 완료 · Play로 확인하세요';
+        window.dispatchEvent(new CustomEvent('storymaker:shortform-complete', {
+          detail: {
+            jobId: state.jobId,
+            title1: fields.title1?.value || '',
+            title2: fields.title2?.value || '',
+            business: fields.business?.value || '',
+            phone: fields.phone?.value || '',
+            script: fields.script?.value || '',
+            images: state.mediaUrls.length ? state.mediaUrls.slice() : (Array.isArray(state.context?.images) ? state.context.images.slice() : [])
+          }
+        }));
+        preview.play().catch(() => {});
+      } catch (fallbackError) {
+        const fallbackMessage = String(fallbackError?.message || fallbackError || '서버 MP4 폴백 실패');
+        setProgress(0, `브라우저 및 서버 MP4 실패: ${fallbackMessage}`);
+        appendLog(`서버 MP4 폴백 실패 · ${fallbackMessage}`);
+      }
     } finally {
       if (stopHeartbeat) {
         stopHeartbeat();
         stopHeartbeat = null;
       }
       fields.make.disabled = false;
+      fields.make.classList.toggle('beta-action-breathe', !state.readyToSave);
     }
   }
 

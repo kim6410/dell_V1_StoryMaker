@@ -42,7 +42,12 @@
   let betaAiCompletionState = false;
   let betaGeminiWatchTimer = null;
   let betaGeminiLockedUntil = 0;
+  let betaAutoAiDelayTimer = null;
+  let betaAutoAiCountdownTimer = null;
+  let betaAutoAiCountdown = 0;
   const BETA_GEMINI_LOCK_MS = 60000;
+  const BETA_AUTO_AI_IDLE_MS = 5000;
+  const BETA_AUTO_AI_COUNTDOWN_SECONDS = 10;
   const BETA_AI_PROVIDER_STORAGE_KEY = 'storymaker_beta_ai_provider';
 
   function betaGetAiProvider() {
@@ -366,12 +371,68 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
     betaUi.content.hidden = order.length !== 8;
   }
 
+  function betaSetActionButtonLabel(button, step, text) {
+    if (!button) return;
+    button.innerHTML = `<span class="beta-step-circle">${step}</span>${text}`;
+  }
+
+  function betaInputsReady() {
+    return Boolean(betaUi.topic?.value.trim() && betaUi.images?.files?.length);
+  }
+
+  function betaRefreshActionGlow() {
+    if (betaUi.gemini) {
+      betaUi.gemini.classList.toggle('beta-action-breathe', !betaUi.gemini.disabled && betaInputsReady());
+    }
+    if (betaUi.geminiRetry) {
+      betaUi.geminiRetry.classList.toggle('beta-action-breathe', !betaUi.geminiRetry.disabled);
+    }
+  }
+
+  function betaCancelAutoAiGeneration() {
+    if (betaAutoAiDelayTimer) window.clearTimeout(betaAutoAiDelayTimer);
+    if (betaAutoAiCountdownTimer) window.clearInterval(betaAutoAiCountdownTimer);
+    betaAutoAiDelayTimer = null;
+    betaAutoAiCountdownTimer = null;
+    betaAutoAiCountdown = 0;
+    betaSetActionButtonLabel(betaUi.geminiRetry, 4, 'AI원고 생성');
+  }
+
+  function betaScheduleAutoAiGeneration() {
+    betaCancelAutoAiGeneration();
+    const scheduledJobId = betaCurrentJobId;
+    if (!scheduledJobId || !betaUi.geminiRetry || betaUi.geminiRetry.disabled) return;
+    betaAutoAiDelayTimer = window.setTimeout(() => {
+      betaAutoAiDelayTimer = null;
+      if (scheduledJobId !== betaCurrentJobId || betaUi.geminiRetry.disabled) return;
+      betaAutoAiCountdown = BETA_AUTO_AI_COUNTDOWN_SECONDS;
+      betaSetActionButtonLabel(betaUi.geminiRetry, 4, `AI원고 생성 · 자동 ${betaAutoAiCountdown}초`);
+      betaSetStatus(`AI원고 생성을 누르지 않아 ${betaAutoAiCountdown}초 후 자동으로 시작합니다.`, 15);
+      betaAutoAiCountdownTimer = window.setInterval(() => {
+        if (scheduledJobId !== betaCurrentJobId || betaUi.geminiRetry.disabled) {
+          betaCancelAutoAiGeneration();
+          return;
+        }
+        betaAutoAiCountdown -= 1;
+        if (betaAutoAiCountdown <= 0) {
+          betaCancelAutoAiGeneration();
+          betaSetStatus('AI원고 생성을 자동으로 시작합니다.', 18);
+          betaGenerateGemini();
+          return;
+        }
+        betaSetActionButtonLabel(betaUi.geminiRetry, 4, `AI원고 생성 · 자동 ${betaAutoAiCountdown}초`);
+        betaSetStatus(`AI원고 생성을 누르지 않아 ${betaAutoAiCountdown}초 후 자동으로 시작합니다.`, 15);
+      }, 1000);
+    }, BETA_AUTO_AI_IDLE_MS);
+  }
+
   function betaSetGeminiButtons({ promptDisabled = false, aiDisabled = true } = {}) {
     if (betaUi.gemini) betaUi.gemini.disabled = promptDisabled;
     if (betaUi.geminiRetry) {
       betaUi.geminiRetry.hidden = false;
       betaUi.geminiRetry.disabled = aiDisabled;
     }
+    betaRefreshActionGlow();
   }
 
   function betaUnlockAiAfterTimeout() {
@@ -422,8 +483,9 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
       betaUi.jobId.textContent = betaCurrentJobId;
       betaShowContent(data.job);
       await betaRequest(`/beta-api/gemini-worker/jobs/${encodeURIComponent(betaCurrentJobId)}/prepare`, { method: 'POST' });
-      betaSetStatus('프롬프트 준비 완료. 오른쪽 AI원고 생성 버튼을 한 번만 누르세요.', 15);
+      betaSetStatus('프롬프트 준비 완료. ④ AI원고 생성을 눌러주세요.', 15);
       betaSetGeminiButtons({ promptDisabled: true, aiDisabled: false });
+      betaScheduleAutoAiGeneration();
     } catch (error) {
       betaSetStatus(`프롬프트 생성 실패: ${error.message}`);
       betaSetGeminiButtons({ promptDisabled: false, aiDisabled: true });
@@ -525,6 +587,7 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
   }
 
   async function betaGenerateGemini() {
+    betaCancelAutoAiGeneration();
     if (!betaCurrentJobId || !betaUi.geminiRetry) return;
     if (Date.now() < betaGeminiLockedUntil) return;
     const provider = betaGetAiProvider();
@@ -565,7 +628,13 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
 
   betaInitAiProvider();
   betaUi.form.addEventListener('submit', betaCreateJob);
-  if (betaUi.geminiRetry) betaUi.geminiRetry.addEventListener('click', betaRetryGemini);
+  if (betaUi.geminiRetry) betaUi.geminiRetry.addEventListener('click', () => {
+    betaCancelAutoAiGeneration();
+    betaRetryGemini();
+  });
+  betaUi.topic?.addEventListener('input', betaRefreshActionGlow);
+  betaUi.images?.addEventListener('change', betaRefreshActionGlow);
+  betaRefreshActionGlow();
   if (betaUi.prepareBrowser) betaUi.prepareBrowser.addEventListener('click', betaCreateSupertonicVoice);
   async function betaRestoreCurrentJob() {
     if (!betaCurrentJobId) return;
@@ -580,8 +649,9 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
         betaSetGeminiButtons({ promptDisabled: false, aiDisabled: true });
       } else {
         await betaRequest(`/beta-api/gemini-worker/jobs/${encodeURIComponent(betaCurrentJobId)}/prepare`, { method: 'POST' });
-        betaSetStatus('현재 작업의 프롬프트가 준비되었습니다. AI원고 생성을 누르세요.', 15);
+        betaSetStatus('현재 작업의 프롬프트가 준비되었습니다. ④ AI원고 생성을 눌러주세요.', 15);
         betaSetGeminiButtons({ promptDisabled: true, aiDisabled: false });
+        betaScheduleAutoAiGeneration();
       }
     } catch (error) {
       betaSetStatus(`현재 작업 불러오기 실패: ${error.message}`);

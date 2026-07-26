@@ -75,7 +75,7 @@ def strip_speaker_labels(script: str) -> str:
     speaker_prefix = re.compile(r"^\s*(?:[\[【(（<〈]\s*)?(?:여자|여성|여|female|F1|남자|남성|남|male|M1)(?:\s*[\]】)）>〉])?\s*[:：-]\s*", re.I)
     bracket_prefix = re.compile(r"^\s*[\[【(（<〈]\s*(?:여자|여성|여|female|F1|남자|남성|남|male|M1)\s*[\]】)）>〉]\s*", re.I)
     for raw in str(script or "").splitlines():
-        line = str(raw or "").strip()
+        line = str(raw or "").replace("**", "").strip()
         if not line or speaker_only.match(line):
             continue
         line = speaker_prefix.sub("", line).strip()

@@ -7,11 +7,12 @@ import json
 import hashlib
 import shutil
 import subprocess
+import zipfile
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 
-from app.beta_image_download import build_download_package
+from app.beta_image_download import _clean_name, _watermark_image, build_download_package
 
 BETA_ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
 BETA_JOBS = BETA_ROOT / "data" / "jobs"
@@ -227,6 +228,43 @@ async def beta_browser_upload(
     beta_browser_write_result(job_dir, result)
     (output_dir / "diagnostics.json").write_text(json.dumps(diagnostic_data, ensure_ascii=False, indent=2), encoding="utf-8")
     return JSONResponse({"ok": True, "saved": saved})
+
+
+@beta_browser_router.get("/jobs/{beta_job_id}/images-download")
+def beta_browser_images_download(beta_job_id: str) -> FileResponse:
+    job_dir = beta_browser_job_dir(beta_job_id)
+    result = beta_browser_result(job_dir)
+    images = result.get("assets", {}).get("images", []) or []
+    valid_images = [Path(value) for value in images if value and Path(value).exists()]
+    if not valid_images:
+        raise HTTPException(status_code=404, detail="다운로드할 업로드 이미지가 없습니다.")
+
+    business = result.get("business") if isinstance(result.get("business"), dict) else {}
+    company = " ".join(str(business.get("name") or "").split())
+    phone = " ".join(str(business.get("phone") or "").split())
+    title = _clean_name(result.get("title"), "콘텐츠", 28)
+    company_name = _clean_name(company, "업체", 24)
+
+    download_dir = job_dir / "output" / "downloads" / "watermarked_images_v2"
+    prepared_dir = download_dir / "prepared"
+    prepared_dir.mkdir(parents=True, exist_ok=True)
+    package_path = download_dir / "uploaded_images.zip"
+    temp_path = package_path.with_suffix(".zip.tmp")
+    temp_path.unlink(missing_ok=True)
+
+    with zipfile.ZipFile(temp_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+        for index, source in enumerate(valid_images, start=1):
+            filename = f"{company_name}_{title}_{index:03d}.jpg"
+            target = prepared_dir / filename
+            _watermark_image(source, target, company, phone)
+            archive.write(target, arcname=filename)
+    temp_path.replace(package_path)
+    return FileResponse(
+        package_path,
+        media_type="application/zip",
+        filename=f"{company_name}_{title}_이미지.zip",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @beta_browser_router.get("/jobs/{beta_job_id}/download-package")
