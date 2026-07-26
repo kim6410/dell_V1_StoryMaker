@@ -4,7 +4,6 @@
   const MENU_ITEMS = [
     { key: 'betaProduction', label: '딸깍 제작 Beta', src: '/v1/beta/production' },
     { key: 'betaArchive', label: '보관함 Beta', src: '/v1/beta/archive' },
-    { key: 'fourThumbnail', label: '16종 썸네일', src: '/static/v1/four-thumbnail/index.html' },
   ];
 
   function findNav() {

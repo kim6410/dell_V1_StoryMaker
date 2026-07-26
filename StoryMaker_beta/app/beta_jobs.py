@@ -189,9 +189,16 @@ def beta_init() -> None:
                 progress INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
                 completed_at TEXT,
-                result_json TEXT NOT NULL
+                result_json TEXT NOT NULL,
+                selected_thumbnail_template TEXT,
+                selected_thumbnail_path TEXT
             )
         """)
+        columns = {str(row[1]) for row in connection.execute("PRAGMA table_info(beta_jobs)").fetchall()}
+        if "selected_thumbnail_template" not in columns:
+            connection.execute("ALTER TABLE beta_jobs ADD COLUMN selected_thumbnail_template TEXT")
+        if "selected_thumbnail_path" not in columns:
+            connection.execute("ALTER TABLE beta_jobs ADD COLUMN selected_thumbnail_path TEXT")
 
 
 def beta_job_dir(beta_job_id: str) -> Path:
@@ -514,7 +521,7 @@ def beta_get_job(beta_job_id: str) -> JSONResponse:
     return JSONResponse({"ok": True, "job": beta_read_json(beta_job_dir(beta_job_id) / "result.json")})
 
 
-THUMBNAIL_STUDIO_TEMPLATE_IDS = {f"v{i}" for i in range(1, 9)} | {f"h{i}" for i in range(1, 9)}
+THUMBNAIL_STUDIO_TEMPLATE_IDS = {f"v{i}" for i in range(1, 9)}
 THUMBNAIL_STUDIO_SETTING_KEYS = {
     "title", "subtitle", "blogSummary", "instagramSummary", "business", "phone", "metric", "job_id", "version"
 }
@@ -530,12 +537,18 @@ def beta_thumbnail_studio_dir(beta_job_id: str) -> Path:
 def beta_get_thumbnail_studio(beta_job_id: str) -> JSONResponse:
     studio_dir = beta_thumbnail_studio_dir(beta_job_id)
     settings = beta_read_json(studio_dir / "settings.json")
-    files = {
-        template_id: f"/beta-api/jobs/{beta_job_id}/thumbnail-studio/{template_id}/file"
-        for template_id in sorted(THUMBNAIL_STUDIO_TEMPLATE_IDS)
-        if (studio_dir / f"{template_id}.png").exists()
-    }
-    return JSONResponse({"ok": True, "settings": settings, "files": files})
+    result = beta_read_json(beta_job_dir(beta_job_id) / "result.json")
+    selected_template_id = str(result.get("selected_thumbnail_template") or "").strip()
+    selected_file = beta_job_dir(beta_job_id) / "output" / "thumbnail.png"
+    files = {}
+    if selected_template_id in THUMBNAIL_STUDIO_TEMPLATE_IDS and selected_file.exists():
+        files[selected_template_id] = f"/beta-api/jobs/{beta_job_id}/file/thumbnail"
+    return JSONResponse({
+        "ok": True,
+        "settings": settings,
+        "files": files,
+        "selected_template_id": selected_template_id,
+    })
 
 
 @beta_jobs_router.post("/jobs/{beta_job_id}/thumbnail-studio/settings")
@@ -572,23 +585,37 @@ async def beta_save_thumbnail_studio_png(
         raise HTTPException(status_code=400, detail="PNG 파일 크기가 올바르지 않습니다.")
     if not payload.startswith(b"\x89PNG\r\n\x1a\n"):
         raise HTTPException(status_code=400, detail="올바른 PNG 파일이 아닙니다.")
-    studio_dir = beta_thumbnail_studio_dir(beta_job_id)
-    target = studio_dir / f"{template_id}.png"
+    job_dir = beta_job_dir(beta_job_id)
+    output_dir = job_dir / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    target = output_dir / "thumbnail.png"
     tmp = target.with_suffix(".png.tmp")
     tmp.write_bytes(payload)
     tmp.replace(target)
 
-    result_path = beta_job_dir(beta_job_id) / "result.json"
+    studio_dir = beta_thumbnail_studio_dir(beta_job_id)
+    for old_png in studio_dir.glob("*.png"):
+        old_png.unlink(missing_ok=True)
+
+    result_path = job_dir / "result.json"
     result = beta_read_json(result_path)
     assets = result.setdefault("assets", {})
-    studio_assets = assets.setdefault("thumbnail_studio", {})
-    studio_assets[template_id] = str(target)
+    assets.pop("thumbnail_studio", None)
+    assets["thumbnail"] = str(target)
+    result["selected_thumbnail_template"] = template_id
+    result["selected_thumbnail_path"] = str(target)
     beta_write_json(result_path, result)
+    with beta_connect() as connection:
+        connection.execute(
+            "UPDATE beta_jobs SET result_json=?, selected_thumbnail_template=?, selected_thumbnail_path=? WHERE beta_job_id=?",
+            (json.dumps(result, ensure_ascii=False), template_id, str(target), beta_job_id),
+        )
+        connection.commit()
     return JSONResponse({
         "ok": True,
         "template_id": template_id,
         "size": len(payload),
-        "file_url": f"/beta-api/jobs/{beta_job_id}/thumbnail-studio/{template_id}/file",
+        "file_url": f"/beta-api/jobs/{beta_job_id}/file/thumbnail",
     })
 
 
@@ -596,10 +623,13 @@ async def beta_save_thumbnail_studio_png(
 def beta_get_thumbnail_studio_png(beta_job_id: str, template_id: str) -> FileResponse:
     if template_id not in THUMBNAIL_STUDIO_TEMPLATE_IDS:
         raise HTTPException(status_code=404, detail="지원하지 않는 썸네일 템플릿입니다.")
-    target = beta_thumbnail_studio_dir(beta_job_id) / f"{template_id}.png"
+    result = beta_read_json(beta_job_dir(beta_job_id) / "result.json")
+    if str(result.get("selected_thumbnail_template") or "") != template_id:
+        raise HTTPException(status_code=404, detail="선택된 대표 썸네일이 아닙니다.")
+    target = beta_job_dir(beta_job_id) / "output" / "thumbnail.png"
     if not target.exists():
-        raise HTTPException(status_code=404, detail="저장된 썸네일이 없습니다.")
-    return FileResponse(target, media_type="image/png", filename=f"{template_id}.png")
+        raise HTTPException(status_code=404, detail="저장된 대표 썸네일이 없습니다.")
+    return FileResponse(target, media_type="image/png", filename="thumbnail.png")
 
 
 @beta_jobs_router.delete("/jobs/{beta_job_id}")
