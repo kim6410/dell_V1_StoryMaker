@@ -492,6 +492,7 @@ async function loadBetaRenderBrowserShortform() {
   }
 
   let browserPodcastWorker = null;
+  let renderInProgress = false;
   let lastPodcastProvider = 'unknown';
   let lastPodcastSeconds = 0;
 
@@ -641,7 +642,9 @@ async function loadBetaRenderBrowserShortform() {
   ui.upload.onclick=()=>upload().catch(e=>ui.status.textContent=`저장 실패: ${e.message}`);
   window.StoryMakerBetaBrowserRenderer = {
     setJob(jobId) { ui.job.value = String(jobId || ''); },
+    isRendering() { return renderInProgress; },
     prime(jobId) {
+      if (renderInProgress) return false;
       const nextJobId=String(jobId||'');
       ui.job.value=nextJobId; manifest=null; mp3Blob=null; mp4Blob=null; subtitles=[];
       ui.audio.pause(); ui.video.pause();
@@ -652,38 +655,44 @@ async function loadBetaRenderBrowserShortform() {
     },
     loadJob: () => loadJob(),
     async createVideoOnly(jobId, settings = {}, onProgress = () => {}) {
-      ui.job.value = String(jobId || '');
-      manifest = null; mp3Blob = null; mp4Blob = null; subtitles = [];
-      await request(`/beta-api/shortform/jobs/${encodeURIComponent(jobId)}/reset-generated`, {method:'POST'});
-      onProgress(12, '사용자 브라우저 WebGPU 우선으로 MP3와 SRT를 만드는 중...');
-      await ensurePodcastReady(settings, (percent, detail) => {
-        onProgress(12 + Math.max(0, Math.min(100, Number(percent || 0))) * 0.22, detail || '브라우저 음성 생성 중...');
-      });
-      onProgress(36, '새 랜덤 배경음악을 선택하고 음성과 믹싱하는 중...', {type:'media', images:[...(manifest?.images || [])], videos:[...(manifest?.videos || [])]});
-      let prepared;
-      if (settings.bgm_mode === 'one_time' && settings.one_time_music_file) {
-        const form = new FormData();
-        Object.entries(settings).forEach(([key,value]) => { if (key !== 'one_time_music_file' && value != null) form.append(key, String(value)); });
-        form.append('bgm_file_upload', settings.one_time_music_file, settings.one_time_music_file.name);
-        prepared = await request(`/beta-api/shortform/jobs/${encodeURIComponent(jobId)}/prepare-audio`, {method:'POST', body:form});
-      } else {
-        prepared = await request(`/beta-api/shortform/jobs/${encodeURIComponent(jobId)}/prepare-audio`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...settings, force_new_music:true})});
+      if (renderInProgress) throw new Error('영상 제작이 이미 진행 중입니다.');
+      renderInProgress = true;
+      try {
+        ui.job.value = String(jobId || '');
+        manifest = null; mp3Blob = null; mp4Blob = null; subtitles = [];
+        await request(`/beta-api/shortform/jobs/${encodeURIComponent(jobId)}/reset-generated`, {method:'POST'});
+        onProgress(12, '사용자 브라우저 WebGPU 우선으로 MP3와 SRT를 만드는 중...');
+        await ensurePodcastReady(settings, (percent, detail) => {
+          onProgress(12 + Math.max(0, Math.min(100, Number(percent || 0))) * 0.22, detail || '브라우저 음성 생성 중...');
+        });
+        onProgress(36, '새 랜덤 배경음악을 선택하고 음성과 믹싱하는 중...', {type:'media', images:[...(manifest?.images || [])], videos:[...(manifest?.videos || [])]});
+        let prepared;
+        if (settings.bgm_mode === 'one_time' && settings.one_time_music_file) {
+          const form = new FormData();
+          Object.entries(settings).forEach(([key,value]) => { if (key !== 'one_time_music_file' && value != null) form.append(key, String(value)); });
+          form.append('bgm_file_upload', settings.one_time_music_file, settings.one_time_music_file.name);
+          prepared = await request(`/beta-api/shortform/jobs/${encodeURIComponent(jobId)}/prepare-audio`, {method:'POST', body:form});
+        } else {
+          prepared = await request(`/beta-api/shortform/jobs/${encodeURIComponent(jobId)}/prepare-audio`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...settings, force_new_music:true})});
+        }
+        await loadJob();
+        onProgress(45, `음악 선택 완료 · ${prepared.music_name || '음악 없음'}`, {type:'music', musicName:prepared.music_name || ''});
+        await encodeMp3();
+        onProgress(51, '이미지와 동영상 30% 구간을 무작위 배치하는 중...');
+        await renderMp4(settings, (detail) => {
+          if (detail.type === 'render') onProgress(51 + Math.max(0, Math.min(100, Number(detail.rawPercent || 0))) * 0.47, `${detail.stage || 'MP4 렌더링'} · ${Math.round(detail.rawPercent || 0)}%`, detail);
+          if (detail.type === 'complete') onProgress(98, 'MP4 제작 완료 · 보관함 자동 저장 중', detail);
+        });
+        const saved = await this.saveCurrentToArchive(jobId);
+        onProgress(100, 'MP4 제작 및 보관함 자동 저장 완료', {type:'ready', saved:true});
+        return {
+          videoUrl: URL.createObjectURL(mp4Blob),
+          musicName: prepared.music_name || manifest?.music_name || '',
+          saved: Boolean(saved?.saved?.browser_video)
+        };
+      } finally {
+        renderInProgress = false;
       }
-      await loadJob();
-      onProgress(45, `음악 선택 완료 · ${prepared.music_name || '음악 없음'}`, {type:'music', musicName:prepared.music_name || ''});
-      await encodeMp3();
-      onProgress(51, '이미지와 동영상 30% 구간을 무작위 배치하는 중...');
-      await renderMp4(settings, (detail) => {
-        if (detail.type === 'render') onProgress(51 + Math.max(0, Math.min(100, Number(detail.rawPercent || 0))) * 0.47, `${detail.stage || 'MP4 렌더링'} · ${Math.round(detail.rawPercent || 0)}%`, detail);
-        if (detail.type === 'complete') onProgress(98, 'MP4 제작 완료 · 보관함 자동 저장 중', detail);
-      });
-      const saved = await this.saveCurrentToArchive(jobId);
-      onProgress(100, 'MP4 제작 및 보관함 자동 저장 완료', {type:'ready', saved:true});
-      return {
-        videoUrl: URL.createObjectURL(mp4Blob),
-        musicName: prepared.music_name || manifest?.music_name || '',
-        saved: Boolean(saved?.saved?.browser_video)
-      };
     },
     async saveCurrentToArchive(jobId) {
       if (!mp4Blob || !mp3Blob) throw new Error('먼저 영상 만들기를 완료해 주세요.');
