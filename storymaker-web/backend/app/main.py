@@ -5,6 +5,8 @@ StoryMaker 웹앱 백엔드 진입점 모듈 (main.py)
 import os
 import json
 import base64
+import hashlib
+import hmac
 import re
 import urllib.request
 import urllib.error
@@ -2065,6 +2067,29 @@ def get_gemini_tampermonkey_userscript():
 
 
 BETA_INTERNAL_ORIGIN = os.getenv("STORYMAKER_BETA_INTERNAL_ORIGIN", "http://172.27.0.1:8021").rstrip("/")
+BETA_INTERNAL_AUTH_SECRET = (os.getenv("BETA_INTERNAL_AUTH_SECRET") or "").strip()
+
+
+def _beta_signed_user_headers(current_user: User) -> dict[str, str]:
+    if not BETA_INTERNAL_AUTH_SECRET:
+        raise HTTPException(status_code=503, detail="Beta 내부 인증키가 설정되지 않았습니다.")
+    timestamp = str(int(time.time()))
+    role = str(getattr(current_user, "role", "user") or "user").strip().lower()
+    user_id = int(current_user.id)
+    payload = f"{user_id}|{role}|{timestamp}".encode("utf-8")
+    signature = hmac.new(BETA_INTERNAL_AUTH_SECRET.encode("utf-8"), payload, hashlib.sha256).hexdigest()
+    return {
+        "X-StoryMaker-User-Id": str(user_id),
+        "X-StoryMaker-User-Role": role,
+        "X-StoryMaker-Auth-Time": timestamp,
+        "X-StoryMaker-Auth-Signature": signature,
+    }
+
+
+def _require_beta_user(current_user: User | None) -> User:
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="로그인이 필요합니다.")
+    return current_user
 
 
 def _rewrite_beta_payload(content: bytes, content_type: str) -> bytes:
@@ -2082,7 +2107,7 @@ def _rewrite_beta_payload(content: bytes, content_type: str) -> bytes:
     return text_value.encode("utf-8")
 
 
-async def _proxy_beta_request(request: Request, upstream_path: str):
+async def _proxy_beta_request(request: Request, upstream_path: str, current_user: User | None = None):
     target_url = BETA_INTERNAL_ORIGIN + upstream_path
     if request.url.query:
         target_url += "?" + request.url.query
@@ -2092,6 +2117,8 @@ async def _proxy_beta_request(request: Request, upstream_path: str):
         for key, value in request.headers.items()
         if key.lower() not in {"host", "content-length", "connection", "accept-encoding"}
     }
+    if upstream_path.startswith("/beta-api"):
+        headers.update(_beta_signed_user_headers(_require_beta_user(current_user)))
     upstream_request = urllib.request.Request(
         target_url,
         data=body if body else None,
@@ -2139,8 +2166,12 @@ async def proxy_beta_page(request: Request, beta_path: str):
 
 
 @app.api_route("/v1/beta-api/{beta_path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
-async def proxy_beta_api(request: Request, beta_path: str):
-    return await _proxy_beta_request(request, "/beta-api/" + beta_path)
+async def proxy_beta_api(
+    request: Request,
+    beta_path: str,
+    current_user: User | None = Depends(get_optional_current_user),
+):
+    return await _proxy_beta_request(request, "/beta-api/" + beta_path, current_user)
 
 
 @app.api_route("/v1/beta-static/{beta_path:path}", methods=["GET", "POST", "OPTIONS"])
@@ -2149,8 +2180,12 @@ async def proxy_beta_static(request: Request, beta_path: str):
 
 
 @app.api_route("/beta-api/{beta_path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], include_in_schema=False)
-async def proxy_beta_api_legacy(request: Request, beta_path: str):
-    return await _proxy_beta_request(request, "/beta-api/" + beta_path)
+async def proxy_beta_api_legacy(
+    request: Request,
+    beta_path: str,
+    current_user: User | None = Depends(get_optional_current_user),
+):
+    return await _proxy_beta_request(request, "/beta-api/" + beta_path, current_user)
 
 
 @app.api_route("/beta-static/{beta_path:path}", methods=["GET", "POST", "OPTIONS"], include_in_schema=False)

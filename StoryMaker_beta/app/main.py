@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -15,6 +15,7 @@ from app.beta_browser import beta_browser_router
 from app.beta_steps import beta_steps_router
 from app.beta_gemini_worker import beta_gemini_worker_router
 from app.beta_shortform import beta_shortform_router
+from app.beta_auth import current_user_id, current_user_role, enforce_beta_user_isolation
 
 ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
 STATIC_DIR = ROOT / "static"
@@ -29,6 +30,7 @@ for directory in (STATIC_DIR, DATA_DIR, JOBS_DIR, MEDIA_DIR, ARCHIVE_DIR, LOGS_D
     directory.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="StoryMaker Beta", version="0.2.0")
+app.middleware("http")(enforce_beta_user_isolation)
 app.mount("/beta-static", StaticFiles(directory=STATIC_DIR), name="beta-static")
 app.include_router(beta_jobs_router)
 app.include_router(beta_gemini_router)
@@ -81,10 +83,21 @@ def beta_health() -> JSONResponse:
 
 
 @app.get("/beta-api/archive")
-def beta_archive_list() -> JSONResponse:
+def beta_archive_list(request: Request) -> JSONResponse:
+    user_id = current_user_id(request)
+    role = current_user_role(request)
     with connect_db() as connection:
         table = connection.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='beta_jobs'").fetchone()
         if not table:
             return JSONResponse({"ok": True, "items": []})
-        rows = connection.execute("SELECT beta_job_id, title, status, created_at FROM beta_jobs ORDER BY created_at DESC").fetchall()
+        if role == "admin":
+            rows = connection.execute(
+                "SELECT beta_job_id, title, status, created_at FROM beta_jobs WHERE owner_user_id=? OR owner_user_id IS NULL ORDER BY created_at DESC",
+                (user_id,),
+            ).fetchall()
+        else:
+            rows = connection.execute(
+                "SELECT beta_job_id, title, status, created_at FROM beta_jobs WHERE owner_user_id=? ORDER BY created_at DESC",
+                (user_id,),
+            ).fetchall()
     return JSONResponse({"ok": True, "items": [dict(row) for row in rows]})

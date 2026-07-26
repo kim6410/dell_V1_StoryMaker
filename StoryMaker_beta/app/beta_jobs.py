@@ -18,6 +18,8 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse, JSONResponse
 
+from app.beta_auth import current_user_id, current_user_role
+
 KST = ZoneInfo("Asia/Seoul")
 
 FOOTER_WEATHER_REGION_MAP = {
@@ -190,11 +192,14 @@ def beta_init() -> None:
                 created_at TEXT NOT NULL,
                 completed_at TEXT,
                 result_json TEXT NOT NULL,
+                owner_user_id INTEGER,
                 selected_thumbnail_template TEXT,
                 selected_thumbnail_path TEXT
             )
         """)
         columns = {str(row[1]) for row in connection.execute("PRAGMA table_info(beta_jobs)").fetchall()}
+        if "owner_user_id" not in columns:
+            connection.execute("ALTER TABLE beta_jobs ADD COLUMN owner_user_id INTEGER")
         if "selected_thumbnail_template" not in columns:
             connection.execute("ALTER TABLE beta_jobs ADD COLUMN selected_thumbnail_template TEXT")
         if "selected_thumbnail_path" not in columns:
@@ -349,6 +354,7 @@ beta_init()
 
 @beta_jobs_router.post("/jobs")
 async def beta_create_job(
+    request: Request,
     business_name: str = Form(""), business_region: str = Form(""), business_service: str = Form(""),
     business_phone: str = Form(""), topic: str = Form(""), images: list[UploadFile] = File(...),
     videos: list[UploadFile] | None = File(None),
@@ -384,7 +390,8 @@ async def beta_create_job(
     weather_snapshot = get_weather_snapshot(business_region.strip())
     content = beta_make_content(business, topic, len(saved_images))
     created_at = beta_now()
-    state = {"beta_job_id": beta_job_id, "title": content["title"], "status": "created", "progress": 0, "created_at": created_at}
+    owner_user_id = current_user_id(request)
+    state = {"beta_job_id": beta_job_id, "title": content["title"], "status": "created", "progress": 0, "created_at": created_at, "owner_user_id": owner_user_id}
     result = {**state, "schema_version": "beta-2.0", "business": business, "topic": topic.strip(), "weather_snapshot": weather_snapshot, "content": content,
               "assets": {"images": saved_images, "videos": saved_videos, "music": None, "script": str(job_dir / "script.txt"), "podcast_script": str(job_dir / "podcast_script.txt"), "channels_dir": str(job_dir / "channels"), "podcast_50": str(job_dir / "podcast_50.txt"), "podcast_80": str(job_dir / "podcast_80.txt"), "audio": None, "mixed_audio": None, "subtitle": None, "thumbnail": None, "video": None}}
     beta_write_json(job_dir / "state.json", state)
@@ -404,8 +411,10 @@ async def beta_create_job(
     (job_dir / "script.txt").write_text(content["podcast_50"], encoding="utf-8")
     (job_dir / "podcast_script.txt").write_text(content["podcast_50"], encoding="utf-8")
     with beta_connect() as connection:
-        connection.execute("INSERT INTO beta_jobs(beta_job_id,title,status,progress,created_at,result_json) VALUES(?,?,?,?,?,?)",
-                           (beta_job_id, content["title"], "created", 0, created_at, str(job_dir / "result.json")))
+        connection.execute(
+            "INSERT INTO beta_jobs(beta_job_id,title,status,progress,created_at,result_json,owner_user_id) VALUES(?,?,?,?,?,?,?)",
+            (beta_job_id, content["title"], "created", 0, created_at, str(job_dir / "result.json"), owner_user_id),
+        )
     return JSONResponse({"ok": True, "job": result})
 
 
@@ -510,9 +519,20 @@ def beta_v1_profile(request: Request) -> JSONResponse:
 
 
 @beta_jobs_router.get("/jobs")
-def beta_list_jobs() -> JSONResponse:
+def beta_list_jobs(request: Request) -> JSONResponse:
+    user_id = current_user_id(request)
+    role = current_user_role(request)
     with beta_connect() as connection:
-        rows = connection.execute("SELECT beta_job_id,title,status,progress,created_at,completed_at FROM beta_jobs ORDER BY created_at DESC").fetchall()
+        if role == "admin":
+            rows = connection.execute(
+                "SELECT beta_job_id,title,status,progress,created_at,completed_at FROM beta_jobs WHERE owner_user_id=? OR owner_user_id IS NULL ORDER BY created_at DESC",
+                (user_id,),
+            ).fetchall()
+        else:
+            rows = connection.execute(
+                "SELECT beta_job_id,title,status,progress,created_at,completed_at FROM beta_jobs WHERE owner_user_id=? ORDER BY created_at DESC",
+                (user_id,),
+            ).fetchall()
     return JSONResponse({"ok": True, "items": [dict(row) for row in rows]})
 
 

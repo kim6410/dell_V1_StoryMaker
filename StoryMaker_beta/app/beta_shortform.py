@@ -93,6 +93,9 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
 
 
 def user_key(request: Request) -> str:
+    signed_user_id = getattr(request.state, "storymaker_user_id", None)
+    if isinstance(signed_user_id, int) and signed_user_id > 0:
+        return hashlib.sha256(f"user-id:{signed_user_id}".encode("utf-8")).hexdigest()[:32]
     preferred = (
         request.cookies.get("storymaker_user_email")
         or request.cookies.get("user_email")
