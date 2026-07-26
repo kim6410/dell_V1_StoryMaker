@@ -8,6 +8,46 @@
   const browserPodcastJobs = new Set();
   let browserPodcastWorker = null;
   let activeLatestJobId = '';
+  const EXPERIENCE_SESSION_KEY = 'storymaker_experience_lab_session_v1';
+
+  function currentPageName() {
+    return new URLSearchParams(window.location.search).get('page') || '';
+  }
+
+  function isExperienceLabContext() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('page') === 'experienceLab') return true;
+    if (params.get('webgpu_tts_test') === '1') return true;
+    if (params.get('inline_lab_frame') === '1') return true;
+    return Boolean(document.querySelector(
+      '#v1-dashboard-inline-lab-host.open iframe[src*="page=experienceLab"],'
+      + ' iframe[src*="page=experienceLab"][src*="inline_lab_frame=1"]'
+    ));
+  }
+
+  function isOneShotAutomationContext() {
+    if (isExperienceLabContext()) return false;
+    return ['workpanel', 'write', 'podcast', 'shortform'].includes(currentPageName());
+  }
+
+  function seedExperienceLabDefaults() {
+    if (!isExperienceLabContext()) return;
+    try {
+      const raw = sessionStorage.getItem(EXPERIENCE_SESSION_KEY);
+      const settings = raw ? JSON.parse(raw) : {};
+      const savedSpeed = Number(settings.voiceSpeed);
+      if (!Number.isFinite(savedSpeed) || savedSpeed === 1.35) {
+        settings.voiceSpeed = 1.2;
+        sessionStorage.setItem(EXPERIENCE_SESSION_KEY, JSON.stringify(settings));
+      }
+    } catch (_) {
+      try {
+        sessionStorage.setItem(EXPERIENCE_SESSION_KEY, JSON.stringify({ voiceSpeed: 1.2 }));
+      } catch (_) {}
+    }
+  }
+
+  seedExperienceLabDefaults();
 
   function normalizedUrl(input) {
     if (typeof input === 'string') return input;
@@ -422,6 +462,7 @@
   let latestJobWatcherBusy = false;
 
   async function syncLatestStoredJob() {
+    if (!isOneShotAutomationContext()) return;
     if (latestJobWatcherBusy || document.visibilityState === 'hidden') return;
     latestJobWatcherBusy = true;
     try {
@@ -487,7 +528,8 @@
     const originalUrl = normalizedUrl(input);
     const progressMatch = originalUrl.match(/\/v1-api\/mobile\/one-shot\/jobs\/(mob-[^/?]+)\/progress/);
     const shouldAdoptLatest = Boolean(
-      progressMatch
+      isOneShotAutomationContext()
+      && progressMatch
       && /^mob-[A-Za-z0-9_-]+$/.test(activeLatestJobId)
       && progressMatch[1] !== activeLatestJobId
     );
@@ -505,7 +547,7 @@
     const contentBoardMatch = originalUrl.match(/\/v1-api\/v2\/content-board\/(mob-[^/?]+)(?:$|\?)/);
     const requestedJobId = progressMatch?.[1] || podcastUploadMatch?.[1] || contentBoardMatch?.[1] || '';
 
-    if (response.ok && requestedJobId) {
+    if (response.ok && requestedJobId && isOneShotAutomationContext()) {
       try {
         const payload = await response.clone().json();
         const data = payload && payload.data ? payload.data : payload;

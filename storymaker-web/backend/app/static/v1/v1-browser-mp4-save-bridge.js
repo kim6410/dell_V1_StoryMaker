@@ -5,6 +5,22 @@
   if (window[GLOBAL_KEY]?.started) return;
 
   const PREFIX = '[StoryMaker V1] browser MP4 save bridge';
+  const pageParams = new URLSearchParams(window.location.search);
+  const isExperienceLab = pageParams.get('page') === 'experienceLab'
+    || pageParams.get('webgpu_tts_test') === '1'
+    || pageParams.get('inline_lab_frame') === '1';
+
+  if (isExperienceLab) {
+    window[GLOBAL_KEY] = {
+      started: true,
+      disabled: true,
+      reason: 'experience-lab-local-only',
+      version: '20260727-experience-lab-guard-1'
+    };
+    console.info(PREFIX, 'disabled for browser-only experience lab');
+    return;
+  }
+
   const JOB_RE = /(?:storymaker_main_\d{14}|mob-\d{14}-[a-f0-9]{8})/ig;
   const processed = new Map();
   const objectUrlBlobs = new Map();
