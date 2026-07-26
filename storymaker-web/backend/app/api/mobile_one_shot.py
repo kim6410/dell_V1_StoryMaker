@@ -3532,15 +3532,18 @@ async def upload_mobile_one_shot_browser_podcast(
     timing["podcast_completed_at"] = _now().isoformat(timespec="milliseconds")
 
     # V1 one-click keeps its source images under storymaker_main_uploads, while
-    # the archive result lives under a generated mob-* job. Materialize those
-    # images before starting the shared shortform renderer.
+    # the archive result lives under a generated mob-* job.
     data = _sync_storymaker_main_images(data, result_file)
     media = data.setdefault("media", {})
     _write_json_atomic(result_file, data)
-    data = _start_shortform_job(data, result_file)
-    data = _sync_shortform_result(data, result_file)
-    if data.setdefault("media", {}).get("slideshow_job_id"):
-        _schedule_thumbnail_job_after_podcast_start(result_file, delay_seconds=1.0)
+    if is_staged:
+        data = _start_shortform_job(data, result_file)
+        data = _sync_shortform_result(data, result_file)
+    else:
+        pipeline = data.setdefault("pipeline", {})
+        pipeline["shortform_owner"] = "browser"
+        pipeline["server_shortform_skipped_at"] = _now().isoformat(timespec="milliseconds")
+    _schedule_thumbnail_job_after_podcast_start(result_file, delay_seconds=1.0)
     data["steps"] = [
         {"label": "1단계 글 만들기", "status": "done"},
         {"label": "2단계 팟캐스트 만들기", "status": "done"},

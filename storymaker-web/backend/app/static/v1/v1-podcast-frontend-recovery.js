@@ -496,8 +496,14 @@
       } catch (_) {}
     }
 
-    startOneShotBrowserPodcast(safeJobId, handoff, importKey);
-    console.info(PREFIX, 'automatic one-shot browser podcast armed', safeJobId, sourceJobId, importKey, handoff);
+    console.info(
+      PREFIX,
+      'automatic one-shot browser podcast armed for React owner',
+      safeJobId,
+      sourceJobId,
+      importKey,
+      handoff
+    );
   }
 
   function armAutomaticShortform(jobId, data) {
@@ -509,7 +515,7 @@
     const srtUrl = `/v1-api/mobile/one-shot/jobs/${encodeURIComponent(safeJobId)}/files/srt`;
     const handoff = {
       source: 'server',
-      artifact_id: String(media.podcast_job_id || data.podcast_job_id || ''),
+      artifact_id: '',
       project_key: safeJobId,
       title: String(data.memo || data.project_title || data.persona?.business_name || safeJobId),
       pipeline_id: String(data.archive_group_key || data.source_job_id || media.project_key || ''),

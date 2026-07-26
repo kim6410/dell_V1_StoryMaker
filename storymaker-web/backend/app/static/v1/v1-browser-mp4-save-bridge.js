@@ -21,7 +21,7 @@
     return;
   }
 
-  const JOB_RE = /(?:storymaker_main_\d{14}|mob-\d{14}-[a-f0-9]{8})/ig;
+  const JOB_RE = /mob-\d{14}-[a-f0-9]{8}/ig;
   const processed = new Map();
   const objectUrlBlobs = new Map();
   const nativeCreateObjectURL = URL.createObjectURL.bind(URL);
@@ -67,16 +67,14 @@
     return [...new Set(matches.map((item) => item.toLowerCase()))];
   }
 
-  // V1 안에 남아 있는 구형 MP4 저장 호출을 안전하게 교정합니다.
-  // /api/mobile/... 또는 오래된 storymaker_main_* 요청이 들어오면
-  // 현재 source 작업 ID와 /v1-api 전용 경로로 바꿔 서버에 전달합니다.
+  // V1 안에 남아 있는 구형 /api/mobile 저장 호출은 현재 mob-* 작업으로만 교정합니다.
   const previousFetch = window.fetch.bind(window);
   window.fetch = async function storymakerV1Mp4FetchGuard(input, init = {}) {
     const rawUrl = typeof input === 'string' ? input : String(input?.url || '');
     const method = String(init?.method || (typeof input !== 'string' && input?.method) || 'GET').toUpperCase();
 
     if (method === 'POST' && /\/api\/mobile\/one-shot\/jobs\/[^/]+\/browser-shortform(?:$|\?)/.test(rawUrl)) {
-      const currentId = currentMobileJobId() || currentSourceJobId();
+      const currentId = currentMobileJobId();
       if (currentId) {
         const correctedUrl = `/v1-api/mobile/one-shot/jobs/${encodeURIComponent(currentId)}/browser-shortform`;
         console.warn(PREFIX, 'legacy MP4 upload request corrected', { rawUrl, correctedUrl, currentId });
@@ -184,13 +182,8 @@
     return newestJobId(values);
   }
 
-  function sourceStorymakerJobId(value) {
-    const ids = extractJobIds(value).filter((id) => id.startsWith('storymaker_main_'));
-    return ids.sort().reverse()[0] || '';
-  }
-
   function mobileJobId(value) {
-    const ids = extractJobIds(value).filter((id) => id.startsWith('mob-'));
+    const ids = extractJobIds(value);
     return ids.sort().reverse()[0] || '';
   }
 
@@ -224,31 +217,10 @@
     ].join(' '));
   }
 
-  function currentSourceJobId() {
-    const networkId = recentNetworkJobId();
-    if (networkId && networkId.startsWith('storymaker_main_')) return networkId;
-
-    const explicitId = sourceStorymakerJobId([
-      window.__STORYMAKER_V1_CURRENT_JOB_ID__,
-      window.__STORYMAKER_CURRENT_JOB_ID__,
-      location.href
-    ].join(' '));
-    if (explicitId) return explicitId;
-
-    return sourceStorymakerJobId([
-      visibleElementJobId(),
-      elementJobId(document.querySelector('video')),
-      storageJobId()
-    ].join(' '));
-  }
-
   function findJobId(video) {
-    // 딸깍 제작 MP4는 현재 mob-* 작업에 저장해야 MP3·MP4·보관함이 한 작업으로 연결됩니다.
-    // mob-*를 찾지 못한 오래된 화면에서만 source storymaker_main_*를 최후 대안으로 사용합니다.
+    // MP3·MP4·보관함이 같은 작업으로 연결되도록 mob-* 작업만 허용합니다.
     return currentMobileJobId()
-      || mobileJobId(elementJobId(video))
-      || currentSourceJobId()
-      || sourceStorymakerJobId(elementJobId(video));
+      || mobileJobId(elementJobId(video));
   }
 
   function statusElement(video) {
@@ -293,6 +265,10 @@
     }
   }
 
+  function uploadKey(jobId, sourceUrl) {
+    return `${jobId}|${sourceUrl}`;
+  }
+
   async function uploadGeneratedMp4Blob(blob, sourceUrl, attempt = 0) {
     if (!(blob instanceof Blob) || blob.size <= 0) return;
 
@@ -312,7 +288,7 @@
       return;
     }
 
-    const key = `${jobId}|direct-mp4|${sourceUrl}|${blob.size}`;
+    const key = uploadKey(jobId, sourceUrl);
     if (['uploading', 'saved'].includes(processed.get(key))) return;
     processed.set(key, 'uploading');
 
@@ -379,7 +355,7 @@
   }
 
   async function saveVideo(video, sourceUrl, jobId) {
-    const key = `${jobId}|${sourceUrl}`;
+    const key = uploadKey(jobId, sourceUrl);
     if (['uploading', 'saved'].includes(processed.get(key))) return;
 
     processed.set(key, 'uploading');
@@ -492,7 +468,7 @@
     started: true,
     scan,
     findJobId,
-    version: '20260719-current-job-2'
+    version: '20260727-single-mob-upload-1'
   };
 
   scan();
