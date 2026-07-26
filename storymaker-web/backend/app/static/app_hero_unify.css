@@ -1,0 +1,88 @@
+/* StoryMaker PC hero typography unifier */
+.container > header .global-home-center,
+.global-home-center.is-hidden-legacy-home {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+@media (min-width: 901px) {
+  .container > header,
+  .hero-mini,
+  .app-hero,
+  .podcast-hero,
+  .slideshow-hero {
+    position: relative !important;
+    min-height: 86px !important;
+    padding: 18px 96px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    gap: 6px !important;
+  }
+
+  .container > header .header-brand,
+  .hero-mini .hero-line,
+  .hero-mini .hero-copy,
+  .app-hero .hero-copy,
+  .podcast-hero .hero-copy,
+  .slideshow-hero .hero-copy {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    gap: 6px !important;
+  }
+
+  .container > header .header-brand h1,
+  .hero-mini .hero-title,
+  .app-hero h1,
+  .podcast-hero h1,
+  .slideshow-hero h1 {
+    margin: 0 !important;
+    font-family: 'Outfit', 'Inter', 'Pretendard', 'Malgun Gothic', sans-serif !important;
+    font-size: 28px !important;
+    line-height: 1.15 !important;
+    font-weight: 850 !important;
+    letter-spacing: -0.035em !important;
+    text-align: center !important;
+  }
+
+  .container > header .header-brand span,
+  .hero-mini .hero-sub,
+  .app-hero p,
+  .podcast-hero p,
+  .slideshow-hero p {
+    margin: 0 !important;
+    font-family: 'Inter', 'Pretendard', 'Malgun Gothic', sans-serif !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.015em !important;
+    color: #aebdd2 !important;
+    text-align: center !important;
+  }
+
+  .container > header .header-controls {
+    position: absolute !important;
+    right: 28px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    margin: 0 !important;
+  }
+
+  .container > header .global-home-center,
+  .hero-nav-link,
+  #sm-header-podcast-arrow {
+    position: absolute !important;
+    right: 28px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    margin: 0 !important;
+  }
+}

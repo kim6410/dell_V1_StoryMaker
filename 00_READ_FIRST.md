@@ -1,5 +1,75 @@
 ﻿# StoryMaker V1 작업 시작 전 필독
 
+## 최우선: Git + 비공개 전체 서버 복구 기준
+
+StoryMaker V1·Beta 복구는 GitHub 소스와 DellMusic 비공개 백업을 함께 사용합니다.
+
+- GitHub: V1·Beta 코드, Docker Compose, Caddy, 설치 명세, 복구 문서
+- 비공개 백업: `\\192.168.0.32\DellMusic\StoryMaker_Backup`
+- 백업 스크립트: `\\192.168.0.32\StoryMaker_1\Git_추가_비공개_백업`
+- 전체 복구 문서: `/home/bourne/StoryMaker_1/FULL_SERVER_RECOVERY.md`
+- 자동 백업: 매일 새벽 03:30
+- 백업 방식: 압축하지 않는 날짜별 폴더 + 대용량 증분 미러
+- 자동 삭제: 금지
+
+날짜별 `Full_Private`에는 V1·Beta DB, Beta jobs·Gemini queue, 서버 로컬 환경설정, 실제 systemd 설정과 실행 상태를 저장합니다.
+
+`Recovery_Mirror/current`에는 V1 output_results, 브라우저 TTS ONNX 모델, 백엔드 글꼴, 음악 라이브러리, Supertonic3 실행 환경을 저장합니다.
+
+복구 전에는 반드시 다음을 확인합니다.
+
+```bash
+cat /mnt/lms_ssd/StoryMaker_Backup/LATEST_FULL_RECOVERY_BACKUP.txt
+systemctl status storymaker-beta-private-backup.timer --no-pager
+git -C /home/bourne/StoryMaker_1 status
+git -C /home/bourne/StoryMaker_1 log --oneline --decorate -5
+```
+
+비공개 백업의 서버 로컬 환경설정 파일은 GitHub나 외부 공개 공유에 올리지 않습니다.
+
+NVIDIA API 주소 환경변수의 정식 기준 이름은 `NVIDIA_API_BASE`입니다.
+
+---
+
+## 최우선: Git 외 Beta 비공개 자동 백업
+
+GitHub에 포함하지 않는 StoryMaker Beta 운영 데이터는 아래 자동 백업을 최우선 복구 기준으로 사용합니다.
+
+- 백업 대상 DB: `/home/bourne/StoryMaker_1/StoryMaker_beta/data/storymaker_beta.db`
+- 백업 대상 작업 폴더: `/home/bourne/StoryMaker_1/StoryMaker_beta/data/jobs/`
+- Dell 백업 위치: `/mnt/lms_ssd/StoryMaker_Backup/Beta_Private/`
+- Windows 공유 위치: `\\192.168.0.32\DellMusic\StoryMaker_Backup\Beta_Private\`
+- 관리 스크립트 위치: `/home/bourne/StoryMaker_1/Git_추가_비공개_백업/`
+- Windows 관리 경로: `\\192.168.0.32\StoryMaker_1\Git_추가_비공개_백업\`
+- 자동 실행 시각: 매일 새벽 03:30
+- 백업 형식: 압축하지 않은 날짜·시간별 폴더
+- DB 백업 방식: SQLite 온라인 백업 API와 integrity_check
+- 기존 백업 자동 삭제: 하지 않음
+
+백업 실행 파일:
+
+```bash
+/usr/bin/python3 /home/bourne/StoryMaker_1/Git_추가_비공개_백업/backup_beta_private.py
+```
+
+자동 백업 상태 확인:
+
+```bash
+systemctl status storymaker-beta-private-backup.timer
+systemctl list-timers storymaker-beta-private-backup.timer
+journalctl -u storymaker-beta-private-backup.service -n 100 --no-pager
+```
+
+최근 성공 백업 위치 확인:
+
+```bash
+cat /mnt/lms_ssd/StoryMaker_Backup/Beta_Private/LATEST_BACKUP.txt
+```
+
+이 백업은 원본 DB와 jobs를 삭제하거나 이동하지 않습니다.
+
+복구 작업 전에는 반드시 이 백업의 `backup_manifest.json`, DB SHA-256, `integrity_check = ok`, jobs 파일 수를 먼저 확인합니다.
+
 이 문서는 `/home/bourne/StoryMaker_1`에서 작업하는 사람과 AI가 가장 먼저 읽어야 하는 최상위 작업 규칙입니다.
 
 ## 최우선: GitHub SSH 푸시 운영 기준

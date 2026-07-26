@@ -1,0 +1,1666 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta name="robots" content="noindex, nofollow">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Podcast 생성기 | SNS AI Studio</title>
+<link rel="stylesheet" href="/static/app_hero_unify.css?v=20260704-hide-legacy-home-1">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#090d16;
+  --panel:#111827;
+  --panel2:#182235;
+  --line:#2a3850;
+  --text:#eef4ff;
+  --muted:#96a6be;
+  --blue:#3b9cff;
+  --blue2:#7468ff;
+  --green:#35d49a;
+  --red:#ff6b7e;
+  --yellow:#ffc857
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:radial-gradient(circle at 15% 0,#14243f 0,transparent 32%),var(--bg);
+  color:var(--text);
+  font:14px/1.45 Inter,"Pretendard","Malgun Gothic",sans-serif;
+  padding-top:0;
+}
+button,input,textarea,select{font:inherit}
+button,a{transition:.18s ease}
+button{border:0;cursor:pointer}
+.shell{max-width:1500px;margin:auto;padding:12px 18px 18px}
+.tool-topbar{height:54px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 22px;border-bottom:1px solid rgba(48,57,75,.8);background:rgba(9,13,22,.82);backdrop-filter:blur(14px);position:sticky;top:0;z-index:50}
+.topbar-left{justify-self:start;font-weight:800;font-size:14px;background:linear-gradient(90deg,#fff,#a7d4ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-pill{justify-self:center;display:inline-flex;align-items:center;gap:8px;padding:8px 13px;border:1px solid rgba(59,156,255,.45);border-radius:12px;color:#dcecff;text-decoration:none;font-weight:800;font-size:13px;background:rgba(59,156,255,.08)}
+.home-pill:hover{background:rgba(59,156,255,.18);border-color:rgba(59,156,255,.8)}
+.topbar-right{justify-self:end;display:flex;align-items:center;gap:12px;min-width:0}
+.nav-link{color:#b9d9ff;text-decoration:none;padding:8px 12px;border:1px solid var(--line);border-radius:12px;font-size:13px;font-weight:800;background:rgba(59,156,255,.05)}
+.nav-link:hover{background:rgba(59,156,255,.16);border-color:rgba(59,156,255,.55)}
+.api-state{display:flex;align-items:center;gap:7px;color:var(--muted);white-space:nowrap;font-size:13px;font-weight:800}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--yellow);box-shadow:0 0 8px currentColor}
+.api-state.ok{color:var(--green)}
+.api-state.error{color:var(--red)}
+
+.layout{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(420px,0.88fr);gap:14px;align-items:start;margin-top:12px}
+.stack{display:grid;gap:12px}
+.card{background:linear-gradient(145deg,rgba(24,34,53,.92),rgba(15,22,36,.96));border:1px solid var(--line);border-radius:10px;padding:14px 16px;box-shadow:0 6px 20px rgba(0,0,0,.16)}
+.card h3{font-size:14px;margin:0;font-weight:700}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.step{display:inline-grid;place-items:center;width:18px;height:18px;margin-right:3px;border-radius:5px;background:rgba(59,156,255,.15);color:#80c2ff;font-size:9px;font-weight:bold}
+.hint,.muted{color:var(--muted);font-size:11px}
+
+.import-actions,.tag-row,.downloads,.preview-actions{display:flex;gap:4px;flex-wrap:wrap}
+.btn{padding:7px 11px;border-radius:6px;background:var(--blue);color:#fff;font-weight:700;font-size:13px}
+.btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.btn.secondary{background:#24344f;color:#dbeaff;border:1px solid #3a4d6d}
+.btn.danger{background:rgba(255,107,126,.12);color:#ff9aa8;border:1px solid rgba(255,107,126,.35)}
+.btn:disabled{opacity:.42;cursor:not-allowed;transform:none}
+.message{display:none;margin-top:4px;padding:4px 6px;border-radius:5px;background:rgba(255,107,126,.1);color:#ff9aaa;font-size:11px}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.field{margin-bottom:8px}
+.field label{display:block;margin-bottom:4px;font-weight:700;font-size:12.5px}
+.field input,.field textarea,.field select{width:100%;border:1px solid var(--line);border-radius:6px;background:#0b111d;color:var(--text);padding:6px 8px;outline:none;font-size:13px;height:32px}
+.field textarea{height:auto}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(59,156,255,.12)}
+
+textarea#script{height:360px;min-height:260px;max-height:62vh;margin-top:8px;resize:vertical;line-height:1.5;font-size:13.5px;padding:10px}
+.tag{padding:3px 5px;border-radius:4px;background:#222f45;color:#bdd5f4;border:1px solid #354762;font-family:ui-monospace,monospace;font-size:10px}
+.tag:hover{border-color:var(--blue)}
+
+.range-line{display:grid;grid-template-columns:1fr 38px;gap:4px;align-items:center}
+.range-line output{text-align:center;padding:1px;border-radius:3px;background:#0b111d;color:#b9d9ff;font-size:10px}
+.toggle{display:flex;align-items:center;gap:4px;font-size:11.5px;user-select:none;cursor:pointer}
+.toggle input{width:12px;height:12px;accent-color:var(--blue)}
+.divider{height:1px;background:var(--line);margin:6px 0}
+.music-grid{display:grid;gap:4px}
+.path-box{padding:3px 5px;border:1px solid var(--line);border-radius:4px;background:#0b111d;color:var(--muted);font:9.5px ui-monospace,monospace;word-break:break-all}
+.unsupported{padding:4px;border-radius:5px;background:rgba(255,200,87,.08);color:#e8c979;font-size:10px;line-height:1.3}
+.info-dot{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;border:1px solid rgba(59,156,255,.55);background:rgba(59,156,255,.13);color:#dcecff;font-size:11px;font-weight:900;line-height:1;cursor:pointer;margin-left:6px;box-shadow:0 6px 16px rgba(0,0,0,.22)}
+.info-dot:hover{background:rgba(59,156,255,.26);border-color:rgba(59,156,255,.9);transform:translateY(-1px)}
+.license-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(8px);z-index:9998;display:none;align-items:center;justify-content:center;padding:18px}
+.license-backdrop.show{display:flex}
+.license-modal{width:min(720px,calc(100vw - 32px));max-height:calc(100vh - 46px);overflow:auto;background:linear-gradient(145deg,#111827,#0b1220);border:1px solid rgba(59,156,255,.45);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.56);padding:22px;color:#e5eefc}
+.license-modal h3{margin:0 0 10px;font-size:19px;color:#fff}.license-modal h4{margin:18px 0 8px;font-size:14px;color:#b9d9ff}.license-modal p,.license-modal li{font-size:13px;line-height:1.75;color:#cbd5e1}.license-modal ul{margin:8px 0 0;padding-left:18px}.license-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:999px;background:rgba(53,212,154,.10);border:1px solid rgba(53,212,154,.32);color:#a7f3d0;font-size:12px;font-weight:800}.license-warn{margin-top:12px;padding:12px;border-radius:12px;background:rgba(255,200,87,.10);border:1px solid rgba(255,200,87,.26);color:#ffe4a3;font-size:13px;line-height:1.7}.license-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}.license-actions button{width:auto;padding:9px 15px;border-radius:10px;font-size:12px}
+@media(max-width:560px){.license-modal{padding:18px}.license-actions{justify-content:stretch}.license-actions button{flex:1}}
+
+.run-card{position:sticky;top:54px}
+.primary-run{width:100%;padding:6px;font-size:12px;background:linear-gradient(135deg,var(--blue),var(--blue2));border-radius:5px}
+.run-actions{display:grid;grid-template-columns:1fr auto;gap:5px}
+.progress-track{height:5px;margin:8px 0 3px;border-radius:99px;background:#090e18;overflow:hidden}
+.progress-bar{height:100%;width:0;background:linear-gradient(90deg,#3b9cff,#7468ff,#35d49a,#ffc857);background-size:240% 100%;transition:width .35s;animation:progressGlow 1.4s linear infinite;box-shadow:0 0 16px rgba(59,156,255,.45)}
+@keyframes progressGlow{0%{background-position:0% 50%}100%{background-position:240% 50%}}
+.stage{display:flex;justify-content:space-between;gap:5px;color:#c8d7eb;font-size:11px}
+.job{margin-top:2px;color:var(--muted);font:9px ui-monospace,monospace;word-break:break-all}
+.logs{height:80px;margin-top:6px;overflow:auto;padding:4px 6px;background:#080d16;border:1px solid var(--line);border-radius:5px;color:#aebdd2;font:10px/1.3 ui-monospace,monospace;white-space:pre-wrap}
+
+.inline-result{display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.inline-result.show{display:block}
+.badges{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+.badge{padding:3px 5px;border-radius:99px;background:rgba(53,212,154,.1);color:var(--green);border:1px solid rgba(53,212,154,.28);font-size:10px}
+
+audio{width:100%;margin:0;height:30px}
+/* Hide default audio player volume controls in WebKit browsers */
+audio::-webkit-media-controls-volume-control-container,
+audio::-webkit-media-controls-mute-button,
+audio::-webkit-media-controls-volume-slider {
+    display: none !important;
+}
+
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* Custom volume slider specific styles */
+#custom-volume::-webkit-slider-runnable-track {
+  background: linear-gradient(90deg, rgba(59,156,255,.9), rgba(116,104,255,.8));
+  height: 6px;
+  border-radius: 999px;
+}
+#custom-volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  background: #9fd0ff;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  margin-top: -5px;
+  box-shadow: 0 0 12px rgba(59,156,255,.8);
+}
+
+/* History list scrollbar styling */
+#local-history-list::-webkit-scrollbar {
+  width: 4px;
+}
+#local-history-list::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.1);
+}
+#local-history-list::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 2px;
+}
+#local-history-list::-webkit-scrollbar-thumb:hover {
+  background: var(--blue);
+}
+
+@media(max-width:900px){
+  .tool-topbar{height:auto;min-height:54px;padding:8px 12px;gap:8px}
+  .topbar-right{gap:8px}
+  .nav-link{padding:3px 6px;font-size:11px}
+  .layout{grid-template-columns:1fr}
+  .run-card{position:static}
+}
+@media(max-width:560px){
+  .shell{padding-inline:4px}
+  .tool-topbar{grid-template-columns:auto;justify-items:center;padding-inline:8px}
+  .topbar-right{justify-self:center;flex-wrap:wrap;justify-content:center}
+  .card{padding:6px 8px}
+  .grid2{grid-template-columns:1fr}
+}
+
+/* Visual polish override */
+.shell{max-width:1580px;padding:10px 20px 20px}
+.tool-topbar{height:54px}
+.layout{grid-template-columns:minmax(0,1.08fr) minmax(520px,.92fr);gap:16px;margin-top:14px}
+.stack{gap:14px}
+.card{border-radius:14px;padding:16px 18px;background:linear-gradient(145deg,rgba(21,32,51,.94),rgba(12,19,33,.96));box-shadow:0 16px 45px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.03)}
+.card h3{font-size:15px;letter-spacing:-.2px}
+.card-head{margin-bottom:10px}
+.nav-link{border-radius:8px;padding:6px 10px}
+.brand-icon{width:28px;height:28px;border-radius:9px;font-size:14px}
+.brand h1{font-size:16px}
+.hero-mini{position:relative;min-height:80px;margin:0 auto 14px;padding:14px 86px;border:1px solid var(--line);border-radius:8px;background:rgba(22,26,34,.75);box-shadow:0 8px 32px rgba(0,0,0,.22);text-align:center;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.hero-mini .hero-icon,.hero-nav-link.prev{display:none!important}
+.hero-mini .hero-title{font-family:'Outfit',Inter,'Pretendard','Malgun Gothic',sans-serif;font-size:24px;font-weight:700;letter-spacing:-.5px;margin:0;background:linear-gradient(45deg,#0088ff,#00e6ff);-webkit-background-clip:text;background-clip:text;color:transparent;text-align:center}
+.hero-nav-link{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;min-width:46px;margin:0;padding:0;position:absolute;right:22px;top:50%;transform:translateY(-50%);border-radius:999px;border:2px solid rgba(116,104,255,.92);color:#d8eaff;text-decoration:none;font-size:27px;font-weight:950;line-height:46px;text-align:center;background:radial-gradient(circle at 32% 24%,rgba(255,255,255,.34),rgba(72,119,255,.22) 34%,rgba(116,104,255,.12) 58%,rgba(10,17,30,.9) 100%);box-shadow:0 0 16px rgba(116,104,255,.52),0 0 34px rgba(56,189,248,.24),inset 0 1px 0 rgba(255,255,255,.22);position:relative;overflow:visible;text-shadow:0 0 10px rgba(167,212,255,.8);animation:heroArrowPulse 1.75s ease-in-out infinite}
+.hero-nav-link::before{content:"";position:absolute;inset:-12px;border-radius:inherit;background:radial-gradient(circle,rgba(59,130,246,.42) 0,rgba(116,104,255,.22) 38%,transparent 68%);filter:blur(3px);z-index:-1;animation:heroArrowShine 1.75s ease-in-out infinite}
+.hero-nav-link:hover{border-color:rgba(167,212,255,1);box-shadow:0 0 22px rgba(116,104,255,.78),0 0 48px rgba(56,189,248,.46),inset 0 1px 0 rgba(255,255,255,.28)}
+.hero-nav-link.prev:hover{transform:translateY(-50%) translateX(-3px) scale(1.06)}
+.hero-nav-link.next:hover{transform:translateY(-50%) translateX(3px) scale(1.06)}
+.hero-shorts-link{display:inline-flex}
+@keyframes heroArrowPulse{0%,100%{filter:brightness(1);box-shadow:0 0 16px rgba(116,104,255,.52),0 0 34px rgba(56,189,248,.24),inset 0 1px 0 rgba(255,255,255,.22)}50%{filter:brightness(1.22);box-shadow:0 0 24px rgba(116,104,255,.86),0 0 58px rgba(56,189,248,.48),inset 0 1px 0 rgba(255,255,255,.32)}}
+@keyframes heroArrowShine{0%,100%{opacity:.54;transform:scale(.96)}50%{opacity:1;transform:scale(1.08)}}
+.hero-mini .hero-sub{position:absolute;left:50%;bottom:13px;transform:translateX(-50%);width:calc(100% - 172px);font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.5px;margin:0;text-align:center}
+textarea#script{height:390px;line-height:1.55;background:linear-gradient(180deg,#08101d,#070c15);border-radius:10px;padding:20px 28px}
+.field input,.field select{border-radius:8px;background:#08101d}
+
+@media(min-width:901px){
+  textarea#script{padding:28px 40px !important;}
+}
+
+@media(max-width:900px){
+  textarea#script{padding:20px 28px !important;}
+}
+.btn{border-radius:8px}
+.primary-run{padding:9px;font-size:13px;border-radius:9px}
+.logs{height:96px;border-radius:9px;background:#070c15}
+.music-details{border-radius:10px!important;background:rgba(8,16,29,.72)!important}
+#local-history-list{max-height:138px!important}
+.history-item{border:1px solid rgba(42,56,80,.85)!important;background:linear-gradient(135deg,rgba(16,29,48,.9),rgba(9,16,28,.92))!important;border-radius:10px!important;padding:8px 10px!important}
+/* Height balance override */
+.card{padding:18px 20px}
+.stack{gap:16px}
+.layout{align-items:stretch}
+.hero-mini{padding:14px 86px}.hero-line{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:46px;text-align:center}.hero-line .hero-title{margin:0}
+@media (max-width:760px){.hero-mini{min-height:76px;padding:14px 72px;margin-bottom:12px}.hero-line{gap:8px;min-height:44px;justify-content:center;text-align:center}.hero-mini .hero-title{font-size:22px;letter-spacing:-.5px;text-align:center}.hero-mini .hero-sub{left:50%;bottom:12px;transform:translateX(-50%);width:calc(100% - 144px);font-size:10px;margin:0;text-align:center}.hero-nav-link{right:18px;width:44px;height:44px;min-width:44px;line-height:44px;font-size:25px}}
+textarea#script{height:450px;min-height:360px;padding:20px 28px}
+.run-card{min-height:210px}
+.logs{height:118px!important}
+#history-card{min-height:130px}
+#local-history-list{max-height:180px!important}
+.music-details{padding:10px 12px!important}
+.primary-run{padding:11px!important}
+.field input,.field select{height:34px}
+.podcast-player-split{display:grid!important;grid-template-columns:1fr 1fr!important;align-items:center!important;gap:10px!important;margin:3px 0 5px!important;flex-wrap:nowrap!important}
+.podcast-player-half{min-width:0!important;width:100%!important}
+.podcast-player-half audio{width:100%!important;height:32px!important;display:block!important}
+.podcast-volume-half{display:grid!important;grid-template-columns:auto auto minmax(0,1fr)!important;align-items:center!important;gap:10px!important;background:#162235!important;padding:7px 10px!important;border-radius:9px!important;border:1px solid var(--line)!important;width:100%!important;height:34px!important;min-width:0!important}
+.podcast-volume-label{font-size:11px!important;font-weight:900!important;color:#b9d9ff!important;white-space:nowrap!important}
+.podcast-volume-mute{font-size:15px!important;cursor:pointer!important;user-select:none!important;line-height:1!important}
+.podcast-volume-slider{width:100%!important;height:6px!important;cursor:pointer!important;accent-color:var(--blue)!important;outline:none!important;margin:0!important;padding:0!important;-webkit-appearance:none!important;border-radius:999px!important;background:transparent!important}
+@media(max-width:760px){.podcast-player-split{grid-template-columns:1fr!important}.podcast-volume-half{grid-template-columns:auto auto minmax(0,1fr)!important}}
+.tts-slim-head{align-items:center!important;margin-bottom:6px!important;gap:10px!important}
+.tts-slim-head h3{display:inline-flex;align-items:center;white-space:nowrap;font-size:15px!important;font-weight:800!important}
+.tts-engine-inline{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:1;min-width:0;font-size:11px;font-weight:800;color:#dbeaff}
+.tts-engine-inline label{display:inline-flex;align-items:center;gap:5px;margin:0!important;white-space:nowrap;font-size:15px!important;font-weight:800!important;color:#b7ff7a!important;text-shadow:0 0 10px rgba(183,255,122,.28)}
+.tts-engine-inline .info-dot{width:17px;height:17px;margin-left:2px;font-size:10px;box-shadow:none}
+.tts-engine-inline select{width:min(260px,42vw)!important;height:28px!important;padding:3px 8px!important;border-radius:8px!important;background:#08101d!important;color:var(--text)!important;border:1px solid var(--line)!important;font-size:12px!important;font-weight:800!important}
+.tts-engine-ok{display:inline-flex;align-items:center;gap:3px;color:var(--green);font-size:10px;font-weight:800;white-space:nowrap}
+.tts-engine-ok .dot{width:4px!important;height:4px!important;margin:0!important;background:var(--green)!important;box-shadow:0 0 4px var(--green)!important;display:inline-block!important}
+.tts-slim-grid .field{margin-bottom:1px!important}
+.tts-slim-grid .field label{font-size:11px!important;margin-bottom:1px!important;font-weight:800!important}
+.tts-slim-grid .field select{height:26px!important;padding:4px 7px!important;font-size:12px!important}
+@media(max-width:760px){.tts-slim-head{flex-direction:column;align-items:stretch!important}.tts-engine-inline{justify-content:flex-start;flex-wrap:wrap}.tts-engine-inline select{width:100%!important}.tts-engine-ok{margin-left:auto}}
+@media(max-width:1100px){.layout{grid-template-columns:1fr}.run-card{position:static}}
+
+/* Legacy disabled 20260703: wp-style-hero experiment.
+   실제 podcast.html 본문은 hero-mini를 사용하므로 이 실험 블록은 실행하지 않습니다.
+   원본은 MCP 자동 백업 파일에 보관됩니다. */
+@media all and (max-width:0px){
+.shell{
+  max-width:1500px;
+  padding-top:0;
+}
+.wp-style-hero{
+  width:100vw;
+  margin-left:calc(50% - 50vw);
+  margin-right:calc(50% - 50vw);
+  min-height:420px;
+  display:flex;
+  align-items:center;
+  position:relative;
+  overflow:hidden;
+  color:#111827;
+  background:
+    linear-gradient(90deg, rgba(248,251,255,.98) 0%, rgba(247,251,255,.96) 43%, rgba(226,237,255,.94) 100%),
+    linear-gradient(90deg, rgba(43,103,255,.055) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(43,103,255,.055) 1px, transparent 1px);
+  background-size:auto, 42px 42px, 42px 42px;
+  border-bottom:1px solid rgba(15,23,42,.08);
+}
+.wp-style-hero::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(circle at 78% 22%, rgba(59,130,246,.22), transparent 26%),
+    radial-gradient(circle at 42% 8%, rgba(255,255,255,.90), transparent 22%);
+  pointer-events:none;
+}
+.wp-style-hero-inner{
+  position:relative;
+  z-index:2;
+  width:min(1280px, calc(100% - 48px));
+  margin:0 auto;
+  display:grid;
+  grid-template-columns:minmax(520px, .92fr) minmax(560px, 1.08fr);
+  align-items:center;
+  gap:46px;
+  padding:46px 0 54px;
+}
+.wp-style-hero-copy{
+  min-width:0;
+}
+.wp-style-hero-kicker{
+  display:inline-flex;
+  align-items:center;
+  height:48px;
+  margin:0 0 26px;
+  padding:0 22px;
+  border-radius:999px;
+  border:1px solid rgba(37,99,235,.18);
+  background:rgba(219,234,254,.72);
+  color:#1d4ed8;
+  font-size:22px;
+  font-weight:950;
+  letter-spacing:-.035em;
+  box-shadow:0 18px 38px rgba(37,99,235,.10);
+}
+.wp-style-hero-title{
+  margin:0 0 22px;
+  font-size:52px;
+  line-height:1.12;
+  font-weight:950;
+  letter-spacing:-.06em;
+  color:#0f172a;
+}
+.wp-style-hero-title .blue{
+  display:inline-block;
+  color:#3157ff;
+}
+.wp-style-hero-desc{
+  margin:0;
+  max-width:560px;
+  font-size:18px;
+  line-height:1.78;
+  color:#334155;
+  letter-spacing:-.03em;
+  font-weight:700;
+}
+.wp-hero-visual{
+  position:relative;
+  min-height:270px;
+}
+.wp-window-card{
+  position:absolute;
+  right:10px;
+  top:46px;
+  width:min(610px, 100%);
+  height:236px;
+  border-radius:24px 24px 10px 10px;
+  background:#f8fbff;
+  border:14px solid #f8fbff;
+  box-shadow:0 24px 64px rgba(15,23,42,.18);
+  overflow:hidden;
+  transform:rotate(-1.2deg);
+}
+.wp-window-top{
+  height:34px;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding-left:14px;
+  background:#0f172a;
+}
+.wp-window-top i{
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  display:block;
+}
+.wp-window-top i:nth-child(1){background:#ef4444;}
+.wp-window-top i:nth-child(2){background:#f59e0b;}
+.wp-window-top i:nth-child(3){background:#22c55e;}
+.wp-window-body{
+  height:calc(100% - 34px);
+  padding:34px 42px;
+  background:linear-gradient(135deg,#ffffff,#eef6ff);
+}
+.wp-window-logo{
+  display:flex;
+  align-items:center;
+  gap:13px;
+  color:#111827;
+  font-weight:950;
+  font-size:22px;
+}
+.wp-window-logo b{
+  display:inline-grid;
+  place-items:center;
+  width:42px;
+  height:42px;
+  border-radius:13px;
+  background:linear-gradient(145deg,#5b7cff,#6d45ff);
+  color:#fff;
+  box-shadow:0 8px 18px rgba(80,70,255,.24);
+}
+.wp-window-lines{
+  margin-top:30px;
+  display:grid;
+  gap:12px;
+}
+.wp-window-lines span{
+  display:block;
+  height:14px;
+  border-radius:999px;
+  background:linear-gradient(90deg,rgba(49,87,255,.22),rgba(14,165,233,.12));
+}
+.wp-window-lines span:nth-child(1){width:82%;}
+.wp-window-lines span:nth-child(2){width:64%;}
+.wp-window-lines span:nth-child(3){width:72%;}
+.wp-float-chip{
+  position:absolute;
+  z-index:3;
+  display:inline-flex;
+  align-items:center;
+  gap:9px;
+  min-height:58px;
+  padding:0 22px;
+  border-radius:23px;
+  background:rgba(255,255,255,.92);
+  color:#111827;
+  font-size:18px;
+  font-weight:950;
+  box-shadow:0 18px 44px rgba(15,23,42,.14);
+}
+.wp-float-chip i{
+  display:inline-grid;
+  place-items:center;
+  width:30px;
+  height:30px;
+  border-radius:999px;
+  color:#fff;
+  font-style:normal;
+  font-size:16px;
+}
+.wp-float-chip.blog{left:54px;top:22px;transform:rotate(-2deg);}
+.wp-float-chip.blog i{background:#22c55e;}
+.wp-float-chip.podcast{right:8px;top:22px;transform:rotate(1deg);}
+.wp-float-chip.podcast i{background:#db2777;}
+.wp-phone-card{
+  position:absolute;
+  right:-18px;
+  bottom:-22px;
+  z-index:4;
+  width:188px;
+  height:190px;
+  border-radius:26px;
+  background:linear-gradient(160deg,#111827,#334155);
+  border:10px solid #111827;
+  box-shadow:0 24px 52px rgba(15,23,42,.28);
+  transform:rotate(5deg);
+  overflow:hidden;
+}
+.wp-phone-card::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    linear-gradient(135deg, rgba(56,189,248,.42), transparent 42%),
+    linear-gradient(45deg, rgba(255,255,255,.12) 25%, transparent 25% 50%, rgba(255,255,255,.12) 50% 75%, transparent 75%);
+  background-size:auto, 42px 42px;
+}
+@media(max-width:960px){
+  .wp-style-hero{
+    min-height:auto;
+  }
+  .wp-style-hero-inner{
+    grid-template-columns:1fr;
+    gap:24px;
+    padding:30px 0 34px;
+  }
+  .wp-hero-visual{
+    min-height:230px;
+  }
+  .wp-style-hero-title{
+    font-size:40px;
+  }
+}
+@media(max-width:760px){
+  .wp-style-hero-inner{
+    width:calc(100% - 32px);
+  }
+  .wp-style-hero-kicker{
+    height:38px;
+    padding:0 16px;
+    font-size:16px;
+    margin-bottom:18px;
+  }
+  .wp-style-hero-title{
+    font-size:31px;
+  }
+  .wp-style-hero-desc{
+    font-size:14px;
+  }
+  .wp-window-card{
+    right:0;
+    width:100%;
+  }
+  .wp-float-chip{
+    min-height:42px;
+    padding:0 14px;
+    font-size:13px;
+    border-radius:16px;
+  }
+  .wp-phone-card{display:none;}
+}
+}
+
+/* Legacy disabled 20260703: podcast-work-header experiment.
+   실제 podcast.html 본문에 없는 헤더 카드 스타일이며 hero-mini 정리 후 사용하지 않습니다.
+   원본은 MCP 자동 백업 파일에 보관됩니다. */
+@media all and (max-width:0px){
+body{
+  background:#f7fbff !important;
+  color:#0f172a !important;
+}
+.shell{
+  max-width:1240px !important;
+  padding:28px 20px 56px !important;
+}
+.podcast-work-header{
+  margin:0 auto 22px;
+  padding:26px 30px;
+  border-radius:24px;
+  border:1px solid rgba(22, 122, 69, .18);
+  background:
+    radial-gradient(circle at 88% 18%, rgba(49, 87, 255, .11), transparent 28%),
+    linear-gradient(135deg, #ffffff 0%, #f1fff7 100%);
+  box-shadow:0 22px 54px rgba(15, 23, 42, .08), inset 0 1px 0 rgba(255,255,255,.86);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:24px;
+}
+.podcast-work-title-wrap{
+  min-width:0;
+}
+.podcast-work-kicker{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:10px;
+  font-size:12px;
+  font-weight:950;
+  letter-spacing:.16em;
+  color:#047857;
+  text-transform:uppercase;
+}
+.podcast-work-kicker::before{
+  content:"";
+  width:8px;
+  height:8px;
+  border-radius:999px;
+  background:#16a34a;
+  box-shadow:0 0 0 6px rgba(22,163,74,.10);
+}
+.podcast-work-title{
+  margin:0;
+  font-size:32px;
+  line-height:1.18;
+  font-weight:950;
+  letter-spacing:-.055em;
+  color:#0f172a;
+}
+.podcast-work-desc{
+  margin:8px 0 0;
+  font-size:15px;
+  line-height:1.65;
+  font-weight:700;
+  letter-spacing:-.03em;
+  color:#475569;
+}
+.podcast-work-status{
+  flex:0 0 auto;
+  display:grid;
+  grid-template-columns:auto 1fr;
+  align-items:center;
+  gap:10px;
+  padding:13px 16px;
+  border-radius:18px;
+  border:1px solid rgba(49,87,255,.16);
+  background:rgba(255,255,255,.78);
+  color:#0f172a;
+  box-shadow:0 14px 32px rgba(15,23,42,.07);
+  font-size:13px;
+  font-weight:900;
+}
+.podcast-work-status i{
+  width:34px;
+  height:34px;
+  border-radius:13px;
+  display:inline-grid;
+  place-items:center;
+  background:linear-gradient(145deg,#5b7cff,#3157ff);
+  color:#fff;
+  font-style:normal;
+  box-shadow:0 8px 18px rgba(49,87,255,.20);
+}
+.layout{
+  gap:24px !important;
+  margin-top:0 !important;
+}
+.card{
+  background:#ffffff !important;
+  border:1px solid #dbeafe !important;
+  border-radius:22px !important;
+  color:#0f172a !important;
+  box-shadow:0 18px 44px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.84) !important;
+}
+.card h3,
+.field label{
+  color:#0f172a !important;
+}
+.hint,
+.muted,
+.stage,
+.job{
+  color:#64748b !important;
+}
+.step{
+  background:#eaf3ff !important;
+  color:#3157ff !important;
+}
+.field input,
+.field textarea,
+.field select,
+textarea#script{
+  background:#f8fbff !important;
+  border:1px solid #cbdcf6 !important;
+  color:#0f172a !important;
+}
+.field input:focus,
+.field textarea:focus,
+.field select:focus,
+textarea#script:focus{
+  border-color:#3157ff !important;
+  box-shadow:0 0 0 3px rgba(49,87,255,.12) !important;
+}
+.btn{
+  border-radius:12px !important;
+}
+.btn.secondary,
+.music-details,
+.path-box,
+.logs,
+.range-line output,
+.podcast-volume-half,
+.history-item{
+  background:#f1f7ff !important;
+  border-color:#dbeafe !important;
+  color:#1e293b !important;
+}
+.primary-run{
+  background:linear-gradient(135deg,#3b82f6,#3157ff) !important;
+  color:#ffffff !important;
+}
+.tts-engine-inline label{
+  color:#047857 !important;
+  text-shadow:none !important;
+}
+.tts-engine-inline select{
+  background:#f8fbff !important;
+  color:#0f172a !important;
+  border-color:#cbdcf6 !important;
+}
+.tts-engine-ok{
+  color:#059669 !important;
+}
+@media(max-width:900px){
+  .podcast-work-header{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .podcast-work-status{
+    width:100%;
+  }
+}
+@media(max-width:560px){
+  .shell{
+    padding:18px 12px 42px !important;
+  }
+  .podcast-work-header{
+    padding:20px;
+    border-radius:20px;
+  }
+  .podcast-work-title{
+    font-size:25px;
+  }
+  .podcast-work-desc{
+    font-size:13px;
+  }
+}
+}
+
+/* Podcast internal UI restore 20260703
+   Isolate podcast work area from header experiments and keep original dark studio UI. */
+body{
+  background:radial-gradient(circle at 15% 0,#14243f 0,transparent 32%),var(--bg) !important;
+  color:var(--text) !important;
+}
+.shell{
+  max-width:1500px !important;
+  margin:auto !important;
+  padding:12px 18px 18px !important;
+}
+.layout{
+  display:grid !important;
+  grid-template-columns:minmax(0,1.08fr) minmax(520px,.92fr) !important;
+  gap:16px !important;
+  align-items:stretch !important;
+  margin-top:14px !important;
+}
+.card{
+  background:linear-gradient(145deg,rgba(21,32,51,.94),rgba(12,19,33,.96)) !important;
+  border:1px solid var(--line) !important;
+  border-radius:14px !important;
+  color:var(--text) !important;
+  box-shadow:0 16px 45px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.03) !important;
+}
+.card h3,
+.field label,
+.card-head h3{
+  color:var(--text) !important;
+  opacity:1 !important;
+}
+.hint,.muted,.stage,.job{
+  color:var(--muted) !important;
+  opacity:1 !important;
+}
+.step{
+  background:rgba(59,156,255,.15) !important;
+  color:#cfe7ff !important;
+}
+.field input,
+.field textarea,
+.field select,
+textarea#script{
+  background:#08101d !important;
+  border:1px solid var(--line) !important;
+  color:var(--text) !important;
+  box-shadow:none !important;
+}
+.field input:focus,
+.field textarea:focus,
+.field select:focus,
+textarea#script:focus{
+  border-color:var(--blue) !important;
+  box-shadow:0 0 0 2px rgba(59,156,255,.12) !important;
+}
+.btn.secondary,
+.music-details,
+.path-box,
+.logs,
+.range-line output,
+.podcast-volume-half,
+.history-item{
+  background:#0b111d !important;
+  border-color:var(--line) !important;
+  color:var(--text) !important;
+}
+.logs{
+  background:#070c15 !important;
+  color:#aebdd2 !important;
+}
+.primary-run{
+  background:linear-gradient(135deg,var(--blue),var(--blue2)) !important;
+  color:#ffffff !important;
+}
+.tts-engine-inline label{
+  color:#b7ff7a !important;
+  text-shadow:0 0 10px rgba(183,255,122,.28) !important;
+}
+.tts-engine-inline select{
+  background:#08101d !important;
+  color:var(--text) !important;
+  border-color:var(--line) !important;
+}
+.tts-engine-ok{
+  color:var(--green) !important;
+}
+.badge{
+  background:rgba(53,212,154,.1) !important;
+  color:var(--green) !important;
+  border-color:rgba(53,212,154,.28) !important;
+}
+@media(max-width:1100px){
+  .layout{grid-template-columns:1fr !important;}
+}
+@media(max-width:560px){
+  .shell{padding-inline:4px !important;}
+  .card{padding:6px 8px !important;}
+  #source-meta{display:none !important;}
+}
+
+/* Mobile-only podcast work order and script viewport 20260703 */
+@media(max-width:760px){
+  .layout{
+    display:flex !important;
+    flex-direction:column !important;
+    gap:12px !important;
+  }
+  .layout > .stack,
+  .layout > aside.stack{
+    display:contents !important;
+  }
+  section.card[aria-labelledby="project-title-label"]{order:1 !important;}
+  section.card[aria-labelledby="import-title"]{order:2 !important;}
+  .run-card{order:3 !important;}
+  section.card[aria-labelledby="settings-title"]{order:4 !important;}
+  #history-card{order:5 !important;}
+  textarea#script{
+    height:190px !important;
+    min-height:190px !important;
+    max-height:190px !important;
+    overflow-y:auto !important;
+    resize:none !important;
+  }
+}
+
+/* Official Podcast hero-mini lock 20260703
+   Hostinger/common header 영향 없이 podcast.html 내부 hero-mini만 제어합니다. */
+main.shell > .hero-mini,
+.shell > .hero-mini{
+  display:flex !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  position:relative !important;
+  z-index:1 !important;
+  width:100% !important;
+  max-width:1500px !important;
+  min-height:112px !important;
+  margin:0 auto 16px !important;
+  padding:24px 96px 28px !important;
+  align-items:center !important;
+  justify-content:center !important;
+  overflow:hidden !important;
+  border:1px solid rgba(59,156,255,.28) !important;
+  border-radius:18px !important;
+  background:
+    radial-gradient(circle at 78% 18%, rgba(59,156,255,.20), transparent 32%),
+    linear-gradient(145deg, rgba(21,32,51,.96), rgba(8,14,25,.98)) !important;
+  box-shadow:0 18px 46px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.05) !important;
+  color:var(--text) !important;
+  text-align:center !important;
+}
+main.shell > .hero-mini .hero-line,
+.shell > .hero-mini .hero-line{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  width:100% !important;
+  min-height:52px !important;
+  gap:12px !important;
+  text-align:center !important;
+}
+main.shell > .hero-mini .hero-icon,
+.shell > .hero-mini .hero-icon,
+main.shell > .hero-mini .hero-nav-link.prev,
+.shell > .hero-mini .hero-nav-link.prev{
+  display:none !important;
+}
+main.shell > .hero-mini .hero-title,
+.shell > .hero-mini .hero-title{
+  display:block !important;
+  margin:0 !important;
+  font-family:Inter,"Pretendard","Malgun Gothic",sans-serif !important;
+  font-size:32px !important;
+  line-height:1.1 !important;
+  font-weight:950 !important;
+  letter-spacing:-.045em !important;
+  background:linear-gradient(90deg,#ffffff,#9fd0ff,#b9a7ff) !important;
+  -webkit-background-clip:text !important;
+  background-clip:text !important;
+  color:transparent !important;
+  text-align:center !important;
+}
+main.shell > .hero-mini .hero-sub,
+.shell > .hero-mini .hero-sub{
+  display:block !important;
+  position:absolute !important;
+  left:50% !important;
+  bottom:18px !important;
+  transform:translateX(-50%) !important;
+  width:calc(100% - 220px) !important;
+  margin:0 !important;
+  color:#b8c7de !important;
+  font-size:13px !important;
+  line-height:1.35 !important;
+  font-weight:700 !important;
+  letter-spacing:-.02em !important;
+  text-align:center !important;
+  white-space:normal !important;
+}
+main.shell > .hero-mini .hero-nav-link.next,
+.shell > .hero-mini .hero-nav-link.next{
+  display:inline-flex !important;
+  position:absolute !important;
+  right:28px !important;
+  top:50% !important;
+  transform:translateY(-50%) !important;
+  align-items:center !important;
+  justify-content:center !important;
+  width:48px !important;
+  height:48px !important;
+  min-width:48px !important;
+  padding:0 !important;
+  margin:0 !important;
+  border-radius:999px !important;
+  border:2px solid rgba(116,104,255,.82) !important;
+  background:radial-gradient(circle at 32% 24%,rgba(255,255,255,.30),rgba(72,119,255,.22) 34%,rgba(116,104,255,.12) 58%,rgba(10,17,30,.92) 100%) !important;
+  color:#e7f1ff !important;
+  text-decoration:none !important;
+  font-size:28px !important;
+  font-weight:950 !important;
+  line-height:48px !important;
+  box-shadow:0 0 18px rgba(116,104,255,.48),0 0 34px rgba(56,189,248,.20),inset 0 1px 0 rgba(255,255,255,.20) !important;
+}
+main.shell > .hero-mini .hero-nav-link.next:hover,
+.shell > .hero-mini .hero-nav-link.next:hover{
+  transform:translateY(-50%) translateX(3px) scale(1.05) !important;
+}
+@media(max-width:760px){
+  main.shell > .hero-mini,
+.shell > .hero-mini{
+    min-height:82px !important;
+    margin:0 auto 12px !important;
+    padding:16px 66px 22px !important;
+    border-radius:14px !important;
+  }
+  main.shell > .hero-mini .hero-line,
+.shell > .hero-mini .hero-line{
+    min-height:40px !important;
+  }
+  main.shell > .hero-mini .hero-title,
+.shell > .hero-mini .hero-title{
+    font-size:24px !important;
+  }
+  main.shell > .hero-mini .hero-sub,
+.shell > .hero-mini .hero-sub{
+    bottom:10px !important;
+    width:calc(100% - 126px) !important;
+    font-size:10.5px !important;
+    line-height:1.25 !important;
+  }
+  main.shell > .hero-mini .hero-nav-link.next,
+.shell > .hero-mini .hero-nav-link.next{
+    right:14px !important;
+    width:42px !important;
+    height:42px !important;
+    min-width:42px !important;
+    font-size:24px !important;
+    line-height:42px !important;
+  }
+}
+@media(max-width:390px){
+  main.shell > .hero-mini,
+.shell > .hero-mini{
+    padding-left:54px !important;
+    padding-right:54px !important;
+  }
+  main.shell > .hero-mini .hero-title,
+.shell > .hero-mini .hero-title{
+    font-size:22px !important;
+  }
+  main.shell > .hero-mini .hero-sub,
+.shell > .hero-mini .hero-sub{
+    width:calc(100% - 104px) !important;
+    font-size:10px !important;
+  }
+  main.shell > .hero-mini .hero-nav-link.next,
+.shell > .hero-mini .hero-nav-link.next{
+    right:10px !important;
+    width:38px !important;
+    height:38px !important;
+    min-width:38px !important;
+    font-size:22px !important;
+  }
+}
+</style>
+</head>
+<body>
+<nav class="tool-topbar" aria-label="Podcast Studio navigation">
+  <div class="topbar-left">StoryMaker Studio</div>
+  <a class="home-pill is-hidden-legacy-home" href="https://app.mystorymaker.net/" aria-label="앱홈" style="display:none !important; visibility:hidden !important; opacity:0 !important; pointer-events:none !important;">앱홈</a>
+  <div class="topbar-right">
+    <a class="nav-link" href="/storymaker">StoryMaker</a>
+    <a class="nav-link" href="/podcast">Podcast</a>
+    <a class="nav-link" href="/slideshow">Slideshow</a>
+    <span id="api-state" class="api-state"><i class="dot"></i><span>API 확인 중</span></span>
+  </div>
+</nav>
+<main class="shell">
+  <section class="hero-mini" aria-label="Podcast hero">
+    <div class="hero-line">
+      <a class="hero-nav-link prev" href="/storymaker" onclick="sessionStorage.setItem('explicit_nav','true');" aria-label="SNS 글쓰기로 이동">←</a>
+      <div class="hero-icon">🎙</div>
+      <div class="hero-title">Podcast</div>
+      <a class="hero-nav-link next" href="/slideshow" onclick="sessionStorage.setItem('explicit_nav','true');" aria-label="릴스/쇼츠 생성으로 이동">→</a>
+    </div>
+    <div class="hero-sub">블로그 글과 대본을 자연스러운 음성 콘텐츠로 변환합니다</div>
+  </section>
+
+  <div class="layout">
+    <div class="stack">
+      <!-- Card 1: Project Info -->
+      <section class="card" aria-labelledby="project-title-label">
+        <div class="card-head" style="margin-bottom: 4px;"><h3 id="project-title-label"><span class="step">1</span>프로젝트 정보</h3><span class="hint">자동 생성 후 편집</span></div>
+        <div class="field" style="margin-bottom:0;"><label for="title">팟캐스트 제목</label><input id="title" maxlength="160" placeholder="예: 동네 인테리어 이야기"></div><input id="project" value="" style="display:none">
+      </section>
+
+      <!-- Card 2: Script Input (260px Shrunken Height) -->
+      <section class="card" aria-labelledby="import-title">
+        <div class="card-head" style="margin-bottom: 4px;"><h3 id="import-title"><span class="step">2</span>대본 가져오기·편집</h3><span class="hint" id="source-meta">대본 확인 중</span><button class="btn secondary" id="script-edit-toggle" type="button" style="padding:4px 8px;font-size:11px;">수정</button></div>
+        <div class="import-actions" style="margin-bottom:6px;"><button class="btn secondary" style="padding:4px 8px; font-size:11px;" type="button" data-import="PODCAST_50">50초 대본 가져오기</button><button class="btn secondary" style="padding:4px 8px; font-size:11px;" type="button" data-import="PODCAST_80">80초 대본 가져오기</button></div>
+        <div id="import-message" class="message" role="alert"></div>
+        <div class="field" style="margin-bottom:2px;"><label class="sr-only" for="script">가져온 팟캐스트 대본</label><textarea id="script" required readonly maxlength="100000" placeholder="#M1&#10;안녕하세요. 오늘 이야기를 시작합니다.&#10;&#10;#F1&#10;반갑습니다. 함께 알아볼까요?"></textarea></div>
+        <div class="card-head" style="margin:2px 0"><span class="hint" style="font-size:10.5px;">대본 줄바꿈 간격이 조밀하게 자동 핏팅되어 표시됩니다.</span><span id="char-count" class="hint" style="font-size:10.5px;">0자</span></div>
+        <div class="tag-row" aria-label="감정 태그"><button class="tag" type="button">&lt;laugh&gt;</button><button class="tag" type="button">&lt;breath&gt;</button><button class="tag" type="button">&lt;sigh&gt;</button><button class="tag" type="button">&lt;angry&gt;</button><button class="tag" type="button">&lt;cough&gt;</button><button class="tag" type="button">&lt;yawn&gt;</button></div>
+      </section>
+    </div>
+    <aside class="stack">
+      <!-- Card 3: TTS & Music Settings (Compact & Inline License) -->
+      <section class="card" aria-labelledby="settings-title">
+        <div class="card-head tts-slim-head">
+          <h3 id="settings-title"><span class="step">3</span>TTS·음악 설정</h3>
+          <div class="tts-engine-inline">
+            <label for="tts-engine">TTS 엔진 선택 <button type="button" class="info-dot" onclick="openSupertonicLicenseModal()" aria-label="Supertonic 라이선스 안내">i</button></label>
+            <select id="tts-engine">
+              <option value="supertonic" selected>Supertonic (로컬)</option>
+              <option value="edge_tts">EdgeTTS (Microsoft)</option>
+            </select>
+            <span class="tts-engine-ok"><span class="dot"></span>로컬 엔진 연결됨</span>
+          </div>
+        </div>
+        <div class="grid2 tts-slim-grid" style="gap: 4px; margin-bottom: 2px;">
+          <div class="field" style="margin-bottom: 2px;">
+            <label for="male" style="font-size: 11px; margin-bottom: 1px;">남성 목소리</label>
+            <select id="male" style="padding: 4px 6px; font-size: 12px; height: 26px;"><option value="__shuffle__">Shuffle</option><option selected>M1</option><option>M2</option><option>M3</option><option>M4</option><option>M5</option></select>
+          </div>
+          <div class="field" style="margin-bottom: 2px;">
+            <label for="female" style="font-size: 11px; margin-bottom: 1px;">여성 목소리</label>
+            <select id="female" style="padding: 4px 6px; font-size: 12px; height: 26px;"><option value="__shuffle__" selected>Shuffle (기본)</option><option>F1</option><option>F2</option><option>F3</option><option>F4</option><option>F5</option></select>
+          </div>
+          <div class="field" style="margin-bottom: 2px;">
+            <label for="speed" style="font-size: 11px; margin-bottom: 1px;">속도</label>
+            <div class="range-line" style="grid-template-columns: 1fr 36px; gap: 4px;"><input id="speed" type="range" min="0.9" max="1.4" step="0.05" value="1.3" style="height: 3px; margin: 0;"><output for="speed" style="padding: 1px 2px; font-size: 9.5px;">1.30×</output></div>
+          </div>
+          <div class="field" style="margin-bottom: 2px;">
+            <label for="voice-volume" style="font-size: 11px; margin-bottom: 1px;">목소리 볼륨</label>
+            <div class="range-line" style="grid-template-columns: 1fr 36px; gap: 4px;"><input id="voice-volume" type="range" min="0.9" max="1.2" step="0.05" value="1.10" style="height: 3px; margin: 0;"><output for="voice-volume" style="padding: 1px 2px; font-size: 9.5px;">1.10</output></div>
+          </div>
+        </div>
+
+        <div class="divider" style="margin: 4px 0;"></div>
+        
+        <!-- Fully Collapsed Music Settings -->
+        <details class="music-details" style="border: 1px solid var(--line); border-radius: 6px; background: rgba(0,0,0,0.15); padding: 6px 8px; margin-top: 2px;">
+          <summary style="font-size: 12px; color: #b9d9ff; cursor: pointer; user-select: none; font-weight: bold;">🎵 배경음악 설정 (음악선택 + 믹싱볼륨)</summary>
+          <div class="music-grid" style="gap: 4px; margin-top: 6px; font-size: 11px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap;">
+              <label class="toggle"><input id="music-random" type="checkbox" checked> 랜덤 음악 사용</label>
+              <div class="field" style="flex: 1; min-width: 100px; margin: 0;">
+                <div class="range-line" style="grid-template-columns: auto 1fr 36px; gap: 4px;">
+                  <label style="margin: 0; font-size: 10px; font-weight: normal; white-space: nowrap;">볼륨</label>
+                  <input id="music-volume" type="range" min="0" max="1" step="0.05" value="0.10" style="height: 4px; margin: 0;">
+                  <output for="music-volume" style="padding: 2px 4px; font-size: 11px; min-width:36px;">0.10</output>
+                </div>
+              </div>
+            </div>
+            
+            <div style="height: 1px; background: var(--line); margin: 4px 0;"></div>
+            
+            <div style="display: grid; gap: 4px; font-size: 10.5px; opacity: 0.85;">
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                <span>음악 폴더</span>
+                <span class="path-box" style="padding: 2px 4px; font-size: 9px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">/home/bourne/StoryMaker_1/supertonic/music</span>
+              </div>
+              <div class="field" style="margin: 0;"><label for="music-file" style="font-size: 11px; font-weight: bold; margin-bottom: 3px;">배경음악 선택</label><select id="music-file" style="padding: 5px 6px; font-size: 12px; height: 30px;"><option value="">랜덤 선택</option><option value="calm_piano">잔잔한 피아노</option><option value="acoustic_guitar">어쿠스틱 기타</option><option value="warm_pad">따뜻한 패드</option><option value="cinematic">시네마틱</option><option value="travel_vlog">여행/브이로그</option></select></div>
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                <span>미리듣기</span>
+                <div class="preview-actions" style="gap: 2px;"><button id="music-play" class="btn secondary" type="button" disabled style="padding: 2px 4px; font-size: 9.5px;">재생</button><button id="music-stop" class="btn secondary" type="button" disabled style="padding: 2px 4px; font-size: 9.5px;">정지</button></div>
+              </div>
+              <div class="grid2" style="gap: 4px;">
+                <div class="field" style="margin: 0;"><label for="fade-in" style="font-size: 9.5px; font-weight: normal; margin-bottom: 1px;">페이드 인</label><div class="range-line" style="grid-template-columns: 1fr 30px; gap: 2px;"><input id="fade-in" type="range" min="0" max="5" step="0.1" value="0.5" disabled style="height: 3px;"><output for="fade-in" style="padding: 1px; font-size: 8.5px;">0.5s</output></div></div>
+                <div class="field" style="margin: 0;"><label for="fade-out" style="font-size: 9.5px; font-weight: normal; margin-bottom: 1px;">페이드 아웃</label><div class="range-line" style="grid-template-columns: 1fr 30px; gap: 2px;"><input id="fade-out" type="range" min="0" max="10" step="0.5" value="5" disabled style="height: 3px;"><output for="fade-out" style="padding: 1px; font-size: 8.5px;">5.0s</output></div></div>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;"><button class="btn secondary music-preset" type="button" data-music="calm_piano" style="padding:4px 7px;font-size:11px;">잔잔한 피아노</button><button class="btn secondary music-preset" type="button" data-music="acoustic_guitar" style="padding:4px 7px;font-size:11px;">어쿠스틱 기타</button><button class="btn secondary music-preset" type="button" data-music="cinematic" style="padding:4px 7px;font-size:11px;">시네마틱</button><button class="btn secondary music-preset" type="button" data-music="travel_vlog" style="padding:4px 7px;font-size:11px;">여행/브이로그</button></div><div class="unsupported" style="padding: 5px; font-size: 10.5px; margin: 4px 0 0; line-height: 1.35;">음악을 직접 고르면 랜덤 음악은 자동 해제됩니다. 실제 파일 매칭은 Podcast API의 음악 처리 로직을 따릅니다.</div>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- Card 4: Run Podcast (80px Logs, Compact Buttons) -->
+      <section class="card run-card" aria-labelledby="run-title" style="padding: 8px 10px;">
+        <div class="card-head" style="margin-bottom: 4px;"><h3 id="run-title" style="font-size: 12.5px;"><span class="step" style="width: 16px; height: 16px; font-size: 9px; margin-right: 3px;">4</span>생성 실행</h3></div>
+        <div class="run-actions"><button id="submit" class="btn primary-run" style="padding: 5px; font-size: 11.5px;" type="button">팟캐스트 생성</button><button id="cancel" class="btn danger" style="padding: 5px; font-size: 11.5px;" type="button" disabled>취소</button></div>
+        <div id="progress-view"><div class="progress-track" role="progressbar" aria-label="생성 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress" class="progress-bar"></div></div>
+        <div class="stage"><strong id="stage" style="font-size: 11px;">대기 중</strong><span id="percent" style="font-size: 11px;">0%</span></div>
+        <div id="job" class="job" style="font-size: 9px; margin-top: 1px;">job_id: -</div><div id="logs" class="logs" style="height: 80px; margin-top: 4px; padding: 4px 6px;" aria-live="polite">생성 준비가 완료되었습니다.</div></div>
+        
+        <div id="inline-result" class="inline-result" style="margin-top: 6px; padding-top: 6px;">
+          <div class="badges" style="margin-bottom: 4px; gap: 3px;">
+            <span class="badge" style="padding: 2px 4px; font-size: 9.5px;">✓ MP3 완료</span>
+            <span class="badge" style="padding: 2px 4px; font-size: 9.5px;">✓ SRT 완료</span>
+          </div>
+          
+          <div class="audio-container podcast-player-split">
+            <div class="podcast-player-half">
+              <audio id="player" controls autoplay preload="auto"></audio>
+            </div>
+            <div class="custom-volume-control podcast-volume-half" aria-label="볼륨 조절">
+              <span class="podcast-volume-label">볼륨</span>
+              <span id="volume-mute-btn" class="podcast-volume-mute" title="음소거 전환">🔊</span>
+              <input id="custom-volume" class="podcast-volume-slider" type="range" min="0" max="1" step="0.05" value="1">
+            </div>
+          </div>
+          
+          <button id="play-fallback" class="btn primary-run" type="button" hidden>MP3 재생</button>
+          <div class="downloads" style="margin-top: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+            <button id="regenerate" class="btn secondary" type="button" style="padding: 6px 8px; font-size: 11px; width: 100%;">다시 생성</button>
+            <a id="make-shorts" class="btn primary-run" href="https://app.mystorymaker.net/slideshow" style="padding: 6px 8px; font-size: 11px; width: 100%; text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">릴스·쇼츠 만들기</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Card 5: Recent Creations List (100px Scrollable History Card) -->
+      <section class="card" id="history-card" style="padding: 8px 10px; margin-top: 0;">
+        <div class="card-head" style="margin-bottom: 4px;">
+          <h3 id="history-title" style="font-size: 12.5px;"><span class="step" style="width: 16px; height: 16px; font-size: 9px; margin-right: 3px;">5</span>최근 생성 목록</h3>
+          <span class="hint" style="font-size: 10.5px;">히스토리 및 다운로드</span>
+        </div>
+        <div id="local-history-list" style="max-height: 100px; overflow-y: auto; display: grid; gap: 3px; padding-right: 2px;">
+          <div class="muted" style="padding: 6px; text-align: center; font-size: 11px;">최근 생성된 팟캐스트가 없습니다.</div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<div id="supertonic-license-modal" class="license-backdrop" onclick="if(event.target===this) closeSupertonicLicenseModal()" aria-hidden="true">
+  <div class="license-modal" role="dialog" aria-modal="true" aria-labelledby="supertonic-license-title">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px;">
+      <div>
+        <span class="license-badge">Supertonic AI Model License</span>
+        <h3 id="supertonic-license-title">Supertonic</h3>
+      </div>
+      <button class="btn secondary" type="button" onclick="closeSupertonicLicenseModal()" style="width:auto;padding:7px 10px;font-size:12px;">닫기</button>
+    </div>
+
+    <p>이 안내는 StoryMaker 팟캐스트 생성기에서 사용하는 Supertonic 기반 음성 합성 모델과 관련된 라이선스 주의사항 입니다.</p>
+
+    <h4>1. 적용되는 라이선스</h4>
+    <p><strong>AI 모델, Hugging Face 배포 모델:</strong> OpenRAIL-M License가 적용될 수 있습니다. Hugging Face에 올라온 음성 합성 모델 데이터, ONNX 파일, 모델 가중치 등에는 일반 오픈소스와 다른 책임 있는 AI 사용 조건이 붙습니다.</p>
+
+    <h4>2. 상업적 사용 가능 여부</h4>
+    <p>OpenRAIL-M 계열 라이선스는 상업적 사용 자체를 무조건 금지하는 형태가 아닙니다. 다만 서비스를 운영하거나 앱, 웹서비스, 제작툴에 포함해 사용할 때는 아래의 책임 있는 사용 조건을 지켜야 합니다.</p>
+
+    <h4>3. 반드시 피해야 하는 사용</h4>
+    <ul>
+      <li>타인을 속이기 위한 딥페이크 음성 제작</li>
+      <li>사기, 보이스피싱, 허위 사실 유포 목적의 음성 생성</li>
+      <li>타인의 명예를 훼손하거나 특정인을 사칭하는 콘텐츠 제작</li>
+      <li>동의 없는 개인정보, 민감정보, 음성 특징을 악용하는 사용</li>
+      <li>불법 행위, 악의적 자동화, 사회적 피해를 유발할 수 있는 사용</li>
+    </ul>
+
+    <h4>4. 서비스 운영 시 고지 의무</h4>
+    <p> 이 사이트에 제작되어 서비스 되는 팟캐스트 생성기 모델은 Supertonic 기반이며 OpenRAIL-M의 사용 제한 조항을 준수합니다.</p>
+
+    <h4>5. StoryMaker에서의 권장 고지 문구</h4>
+    <div class="license-warn">이 서비스의 일부 음성 합성 기능은 Supertonic 기반 AI 음성 모델을 사용할 수 있습니다. 
+      <br>사용자는 타인을 사칭하거나 속이는 목적, 불법적 목적, 명예훼손, 허위정보 유포, 동의 없는 
+      <br>개인정보 악용 목적으로 음성을 생성해서는 안 됩니다.</div>
+
+    <h4>6. 실무 운영 팁</h4>
+    <ul>
+      <li>고객용 서비스라면 이용약관 또는 안내 페이지에 AI 음성 사용 고지를 넣는 것이 안전합니다.</li>
+      <li>상업 콘텐츠 제작은 가능하더라도, 특정 실존 인물의 목소리를 흉내 내는 방식은 피하는 것이 좋습니다.</li>
+      <li>광고, 블로그, 숏폼, 팟캐스트 제작에 사용할 때는 “AI 음성으로 제작됨” 또는 “AI 음성 합성 기능 사용” 안내를 상황에 맞게 넣는 것을 추천합니다.</li>
+      <li>모델 파일이나 파생 모델을 재배포하는 경우에는 원 라이선스 조건을 함께 전달해야 합니다.</li>
+    </ul>
+
+    <div class="license-actions">
+      <button type="button" class="btn secondary" onclick="closeSupertonicLicenseModal()">확인했습니다</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function openSupertonicLicenseModal(){const m=document.getElementById('supertonic-license-modal');if(m){m.classList.add('show');m.setAttribute('aria-hidden','false')}}
+function closeSupertonicLicenseModal(){const m=document.getElementById('supertonic-license-modal');if(m){m.classList.remove('show');m.setAttribute('aria-hidden','true')}}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSupertonicLicenseModal()});
+const $=s=>document.querySelector(s),token=localStorage.getItem('storymaker_token');
+const PODCAST_DRAFT_KEY='storymaker_podcast_work_state_v1';
+function savePodcastDraft(){
+  try{
+    const ids=['project','title','script','tts-engine','male','female','speed','voice-volume','music-random','music-volume','music-file'];
+    const data={updatedAt:new Date().toISOString()};
+    ids.forEach(id=>{const el=$('#'+id);if(!el)return;data[id]=el.type==='checkbox'?el.checked:el.value;});
+    localStorage.setItem(PODCAST_DRAFT_KEY,JSON.stringify(data));
+  }catch(e){}
+}
+function restorePodcastDraft(){
+  try{
+    const data=JSON.parse(localStorage.getItem(PODCAST_DRAFT_KEY)||'{}')||{};
+    Object.keys(data).forEach(id=>{const el=$('#'+id);if(!el||id==='updatedAt')return;if(el.type==='checkbox')el.checked=!!data[id];else el.value=data[id];});
+  }catch(e){}
+}
+function bindPodcastDraft(){
+  const ids=['project','title','script','tts-engine','male','female','speed','voice-volume','music-random','music-volume','music-file'];
+  ids.forEach(id=>{const el=$('#'+id);if(!el)return;el.addEventListener('input',savePodcastDraft);el.addEventListener('change',savePodcastDraft);});
+}
+
+let resultUrls={},projectKey='',pollTimer=null,fakeProgressTimer=null,fakeProgressStart=0,lastProgressValue=0,cancelled=false,playerObjectUrl='',lastVoiceSelection=null,progressLogBuffer=[],progressLogSeen=new Set(),lastStageText='';
+const SLIDESHOW_URL='https://app.mystorymaker.net/slideshow';
+const sourceKey='storymaker_podcast_results';
+const auth=()=>token?{Authorization:`Bearer ${token}`}:{},escapeName=s=>(s||'사용자').replace(/[\\/:*?"<>|\s]+/g,'_');
+const formatDate=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+console.assert(formatDate(new Date(2000,0,2))==='2000-01-02','date formatter check');
+
+function currentUser(){try{return JSON.parse(localStorage.getItem('storymaker_user')||'{}').username||'사용자'}catch{return'사용자'}}
+function autoProject(){return `${escapeName(currentUser())}_${formatDate(new Date())}_팟캐스트`}
+function normalizePodcastProjectDate(){
+  const el=$('#project');
+  if(!el)return;
+  const today=formatDate(new Date());
+  const value=(el.value||'').trim();
+  const m=value.match(/^(.+)_\d{4}-\d{2}-\d{2}_팟캐스트$/);
+  if(m){
+    el.value=`${m[1]}_${today}_팟캐스트`;
+  }else if(!value){
+    el.value=autoProject();
+  }
+}
+function sourceData(){try{return JSON.parse(localStorage.getItem(sourceKey)||'{}')}catch{return{}}}
+function setMessage(text=''){const el=$('#import-message');el.textContent=text;el.style.display=text?'block':'none'}
+
+// Tidy Log Window: Only show user-necessary steps and hide internal paths
+function setLog(lines){
+  const arr = Array.isArray(lines) ? lines : [lines];
+  const cleanLogs = [];
+  let hasScriptReady = false;
+  let hasVoiceGen = false;
+  let hasMp3Done = false;
+  let hasSrtDone = false;
+  let hasAllDone = false;
+
+  for (const line of arr) {
+    const str = String(line);
+    // Hide absolute server paths containing /home/ or "저장 위치:"
+    if (str.includes('/home/') || str.includes('저장 위치:') || str.includes('job_id:') || str.includes('TEMP_DIR')) {
+      continue;
+    }
+    
+    if (str.includes('프로젝트:') || str.includes('스크립트 파일 생성:') || str.includes('음성 설정:') || str.includes('준비 완료')) {
+      if (!hasScriptReady) {
+        cleanLogs.push('✓ 스크립트 준비 완료');
+        hasScriptReady = true;
+      }
+    } else if (str.includes('Supertonic3') || str.includes('음성:') || str.includes('파싱 완료') || str.includes('세그먼트') || str.includes('인코딩') || str.includes('믹싱') || str.includes('호출')) {
+      if (!hasVoiceGen) {
+        cleanLogs.push('⏳ 음성 생성 중...');
+        hasVoiceGen = true;
+      }
+    } else if (str.includes('MP3 파일 크기') || str.includes('MP3 완료') || str.includes('mp3')) {
+      if (!hasMp3Done) {
+        cleanLogs.push('✓ MP3 생성 완료');
+        hasMp3Done = true;
+      }
+    } else if (str.includes('SRT 파일 생성됨') || str.includes('SRT 완료') || str.includes('SRT')) {
+      if (!hasSrtDone) {
+        cleanLogs.push('✓ SRT 생성 완료');
+        hasSrtDone = true;
+      }
+    } else if (str.includes('생성 완료!') || str.includes('완료')) {
+      if (!hasAllDone) {
+        if (!hasScriptReady) { cleanLogs.push('✓ 스크립트 준비 완료'); hasScriptReady = true; }
+        if (!hasVoiceGen) { cleanLogs.push('✓ 음성 생성 완료'); hasVoiceGen = true; }
+        if (!hasMp3Done) { cleanLogs.push('✓ MP3 생성 완료'); hasMp3Done = true; }
+        if (!hasSrtDone) { cleanLogs.push('✓ SRT 생성 완료'); hasSrtDone = true; }
+        cleanLogs.push('🎉 완료');
+        hasAllDone = true;
+      }
+    } else {
+      // Keep errors and warnings
+      if (str.includes('오류') || str.includes('실패') || str.includes('WARNING') || str.includes('ERROR') || str.includes('중단')) {
+        cleanLogs.push(str);
+      }
+    }
+  }
+  
+  if (cleanLogs.length === 0) {
+    cleanLogs.push('생성 준비가 완료되었습니다.');
+  }
+
+  $('#logs').textContent = cleanLogs.join('\n');
+  $('#logs').scrollTop = $('#logs').scrollHeight;
+}
+
+function setProgress(value,stage='대기 중'){
+  const n=Math.max(0,Math.min(100,Number(value)||0));
+  lastProgressValue=Math.max(lastProgressValue,n);
+  $('#progress').style.width=`${lastProgressValue}%`;
+  $('#percent').textContent=`${Math.round(lastProgressValue)}%`;
+  $('#stage').textContent=stage;
+  $('.progress-track').setAttribute('aria-valuenow',lastProgressValue)
+}
+function stopFakeProgress(){if(fakeProgressTimer){clearInterval(fakeProgressTimer);fakeProgressTimer=null}}
+function startFakeProgress(){
+  stopFakeProgress();
+  fakeProgressStart=Date.now();
+  lastProgressValue=0;
+  const stages=['대본 분석 중','화자 분리 중','음성 엔진 준비 중','음성 조각 생성 중','배경음악 믹싱 중','MP3/SRT 정리 중'];
+  setProgress(3,'생성 준비 중');
+  fakeProgressTimer=setInterval(()=>{
+    if(cancelled)return stopFakeProgress();
+    const elapsed=(Date.now()-fakeProgressStart)/1000;
+    const ratio=Math.min(elapsed/40,1);
+    const wave=Math.sin(elapsed*1.8)*1.8+Math.sin(elapsed*.55)*1.2;
+    const target=Math.min(92,3+(ratio*86)+wave);
+    const stage=stages[Math.min(stages.length-1,Math.floor(ratio*stages.length))];
+    setProgress(target,stage);
+  },450)
+}
+function setRunning(on){$('#submit').disabled=on;$('#cancel').disabled=!on}
+
+async function apiHealth(){const el=$('#api-state');try{const r=await fetch('/api/podcast/health');if(!r.ok)throw Error();el.className='api-state ok';el.lastElementChild.textContent='Podcast API 정상'}catch{el.className='api-state error';el.lastElementChild.textContent='Podcast API 연결 실패'}}
+function refreshSource(){const data=sourceData(),has=data.PODCAST_50||data.PODCAST_80;$('#source-meta').textContent=has?(data.title?`${data.title} · `:'')+(data.updated_at?new Date(data.updated_at).toLocaleString('ko-KR'):'가져오기 가능'):'가져올 결과 없음';document.querySelectorAll('[data-import]').forEach(btn=>btn.disabled=!data[btn.dataset.import])}
+function formatPodcastDialogueSpacing(text){return String(text||'').replace(/\r\n/g,'\n').replace(/\n{3,}/g,'\n\n').replace(/\n(?=\[(?:남성|여성)\])/g,'\n\n').replace(/\n{3,}/g,'\n\n').trim()}
+function importScript(kind){const data=sourceData(),text=data[kind];if(!text){setMessage(`${kind==='PODCAST_50'?'50초':'80초'} 결과가 없습니다. StoryMaker에서 결과를 먼저 파싱해 주세요.`);return}setMessage();$('#script').value=formatPodcastDialogueSpacing(text);$('#script').readOnly=true;const btn=$('#script-edit-toggle');if(btn)btn.textContent='수정';$('#title').value=data.title||$('#title').value;updateCount()}
+function autoImportStoryMakerPodcast(){const kind=sessionStorage.getItem('storymaker_auto_import_podcast');if(!kind)return;sessionStorage.removeItem('storymaker_auto_import_podcast');setTimeout(()=>importScript(kind==='PODCAST_80'?'PODCAST_80':'PODCAST_50'),120)}
+function bindScriptEditToggle(){const btn=$('#script-edit-toggle'),script=$('#script');if(!btn||!script)return;script.readOnly=true;btn.onclick=function(){script.readOnly=!script.readOnly;btn.textContent=script.readOnly?'수정':'보기';if(!script.readOnly)script.focus();};}
+function insertTag(tag){const el=$('#script'),start=el.selectionStart,end=el.selectionEnd;el.setRangeText(tag,start,end,'end');el.focus();updateCount()}
+function updateCount(){$('#char-count').textContent=`${$('#script').value.length.toLocaleString()}자`}
+function bindRange(id,format=v=>Number(v).toFixed(2)){const input=$(id),output=input.nextElementSibling;const sync=()=>output.value=format(input.value);input.addEventListener('input',sync);sync()}
+function voiceMode(value){return value&&value!=='__shuffle__'?'Fixed':'Shuffle'}
+function voicePayloadValue(value){return value&&value!=='__shuffle__'?value:''}
+function formatVoiceSelection(v){if(!v)return '목소리 설정 확인 전';return `남성 : ${v.male_voice} (${v.male_mode})\n여성 : ${v.female_voice} (${v.female_mode})`}
+async function loadVoiceSettings(){
+  try{
+    const r=await fetch('/api/podcast/voice-settings',{headers:auth()});
+    if(!r.ok)throw Error();
+    const data=await r.json();
+    $('#male').value=data.male_voice||'__shuffle__';
+    $('#female').value=data.female_voice||'__shuffle__';
+  }catch(e){
+    try{
+      const data=JSON.parse(localStorage.getItem('podcast_voice_settings')||'{}');
+      $('#male').value=data.male_voice||'__shuffle__';
+      $('#female').value=data.female_voice||'__shuffle__';
+    }catch(_e){}
+  }
+}
+async function saveVoiceSettings(){
+  const payload={male_voice:voicePayloadValue($('#male').value),female_voice:voicePayloadValue($('#female').value)};
+  localStorage.setItem('podcast_voice_settings',JSON.stringify(payload));
+  try{
+    await fetch('/api/podcast/voice-settings',{method:'PUT',headers:{...auth(),'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  }catch(e){}
+}
+
+// Browser-stored recent generation history (localStorage based)
+function getLocalHistory() {
+  try {
+    return JSON.parse(localStorage.getItem('podcast_generation_history') || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveLatestPodcastForSlideshow(projectKey, result) {
+  try {
+    const payload = {
+      project_key: projectKey,
+      mp3_url: result && result.mp3_url ? result.mp3_url : '',
+      srt_url: result && result.srt_url ? result.srt_url : '',
+      created_at: new Date().toISOString()
+    };
+    sessionStorage.setItem('storymaker_latest_podcast_for_slideshow', JSON.stringify(payload));
+    localStorage.setItem('storymaker_latest_podcast_for_slideshow', JSON.stringify(payload));
+  } catch (e) {}
+}
+
+function saveToLocalHistory(projectKey, result) {
+  saveLatestPodcastForSlideshow(projectKey, result);
+  let history = getLocalHistory();
+  // Remove duplicates
+  history = history.filter(item => item.projectKey !== projectKey);
+  // Unshift new item
+  history.unshift({
+    projectKey: projectKey,
+    date: new Date().toLocaleString('ko-KR'),
+    mp3_url: result.mp3_url,
+    srt_url: result.srt_url
+  });
+  // Limit to 15 items
+  if (history.length > 15) history = history.slice(0, 15);
+  localStorage.setItem('podcast_generation_history', JSON.stringify(history));
+  renderLocalHistory();
+}
+
+function renderLocalHistory() {
+  const listEl = $('#local-history-list');
+  if (!listEl) return;
+  const history = getLocalHistory();
+  if (history.length === 0) {
+    listEl.innerHTML = '<div class="muted" style="padding: 6px; text-align: center; font-size: 11px;">최근 생성된 팟캐스트가 없습니다.</div>';
+    return;
+  }
+  
+  listEl.innerHTML = history.map((item, idx) => `
+    <div class="history-item" style="display: flex; align-items: center; justify-content: space-between; padding: 4px 6px; border-bottom: 1px solid var(--line); gap: 6px; flex-wrap: wrap; border-radius: 4px; background: rgba(255,255,255,0.01); margin-bottom: 2px;">
+      <div style="flex: 1; min-width: 120px; overflow: hidden;">
+        <div style="font-weight: 700; font-size: 12px; word-break: break-all; color: var(--text); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;" title="${item.projectKey}">${item.projectKey}</div>
+        <div class="muted" style="font-size: 9px; margin-top: 1px;">${item.date}</div>
+      </div>
+      <div style="display: flex; gap: 3px;">
+        <button class="btn" style="padding: 3px 6px; font-size: 10px;" onclick="downloadUrl('${item.mp3_url}', '${item.projectKey}.mp3')">MP3</button>
+        ${item.srt_url ? `<button class="btn secondary" style="padding: 3px 6px; font-size: 10px;" onclick="downloadUrl('${item.srt_url}', '${item.projectKey}.srt')">SRT</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function run(){
+  normalizePodcastProjectDate();
+  projectKey=$('#project').value.trim();
+  const script=$('#script').value.trim();
+  if(!projectKey||!script){alert('프로젝트 이름과 대본을 입력해 주세요.');(!projectKey?$('#project'):$('#script')).focus();return}
+  cancelled=false;
+  resultUrls={};
+  $('#inline-result').classList.remove('show');
+  $('#progress-view').hidden=false;
+  $('.run-actions').hidden=false;
+  $('#run-title').innerHTML='<span class="step">4</span>생성 실행';
+  setRunning(true);
+  startFakeProgress();
+  setLog('Podcast API에 생성 작업을 요청합니다.');
+  const ttsEngine=$('#tts-engine').value;
+  console.info('[Podcast] TTS engine:',ttsEngine);
+  try{
+    const r=await fetch('/api/podcast/run',{
+      method:'POST',
+      headers:{...auth(),'Content-Type':'application/json'},
+      body:JSON.stringify({
+        project_key:projectKey,
+        script,
+        male_voice:$('#male').value,
+        female_voice:$('#female').value,
+        speed:Number($('#speed').value),
+        voice_volume:Number($('#voice-volume').value),
+        music_random:$('#music-random').checked,
+        music_file:$('#music-file').value,
+        music_volume:Number($('#music-volume').value),
+        tts_engine:ttsEngine
+      })
+    });
+    const raw=await r.text();
+    let data;
+    try{data=JSON.parse(raw)}catch{throw Error(`API가 JSON 대신 HTML/텍스트를 반환했습니다. 상태코드 ${r.status}. 서버 라우트 또는 로그인 상태를 확인하세요.`)}
+    if(!r.ok)throw Error(typeof data.detail==='string'?data.detail:'생성 요청에 실패했습니다.');
+    lastVoiceSelection=data.voice_selection||null;
+    $('#job').textContent=`job_id: ${data.job_id}`;
+    await poll(data.job_id)
+  }catch(err){
+    fail(err.message)
+  }
+}
+
+async function poll(id){
+  if(cancelled)return;
+  try{
+    const r=await fetch(`/api/podcast/jobs/${encodeURIComponent(id)}`,{headers:auth()});
+    const raw=await r.text();
+    let data;
+    try{data=JSON.parse(raw)}catch{throw Error(`상태 조회 API가 JSON 대신 HTML/텍스트를 반환했습니다. 상태코드 ${r.status}.`)}
+    if(!r.ok)throw Error(data.detail||'상태 조회에 실패했습니다.');
+    setProgress(data.percent,data.stage||data.status);
+    setLog(data.log?.length?data.log:`상태: ${data.status}`);
+    if(data.status==='completed'){
+      resultUrls=data.result||{};
+      stopFakeProgress();
+      setRunning(false);
+      lastProgressValue=100;
+      setProgress(100,'생성 완료');
+      saveToLocalHistory(projectKey, resultUrls); // Save completed job to local history!
+      if(lastVoiceSelection){setLog(['생성 완료',formatVoiceSelection(lastVoiceSelection)]);}
+      await showResult();
+      return;
+    }
+    if(data.status==='failed')throw Error(data.stage||'생성에 실패했습니다.');
+    pollTimer=setTimeout(()=>poll(id),2000)
+  }catch(err){
+    fail(err.message)
+  }
+}
+
+function fail(message){clearTimeout(pollTimer);stopFakeProgress();setRunning(false);$('#stage').textContent='오류';setLog(`오류: ${message}`)}
+function cancel(){cancelled=true;clearTimeout(pollTimer);stopFakeProgress();setRunning(false);$('#stage').textContent='상태 확인 취소됨';setLog('상태 확인을 중단했습니다. 서버의 생성 작업은 계속될 수 있습니다.')}
+
+async function showResult(){
+  if(playerObjectUrl)URL.revokeObjectURL(playerObjectUrl);
+  const player=$('#player'),fallback=$('#play-fallback');
+  fallback.hidden=true;
+  try{
+    const r=await fetch(resultUrls.mp3_url,{headers:auth()});
+    if(!r.ok)throw Error();
+    playerObjectUrl=URL.createObjectURL(await r.blob());
+    player.src=playerObjectUrl;
+    
+    // Sync custom volume with player on load
+    player.volume = $('#custom-volume').value;
+    player.muted = false;
+    updateVolumeIcon(player, player.volume);
+    
+    await player.play()
+  }catch{
+    fallback.hidden=false
+  }
+  $('#run-title').innerHTML='<span class="step">✓</span>생성 완료';
+  $('.run-actions').hidden=true;
+  $('#progress-view').hidden=true;
+  $('#inline-result').classList.add('show')
+}
+
+async function downloadUrl(url,name){
+  if(!url)return alert('다운로드 주소가 없습니다.');
+  const r=await fetch(url,{headers:auth()});
+  if(!r.ok)return alert('다운로드에 실패했습니다.');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(await r.blob());
+  a.download=name;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000)
+}
+
+// Custom volume slider event listeners
+$('#custom-volume').addEventListener('input', (e) => {
+  const p = $('#player');
+  p.volume = e.target.value;
+  p.muted = false;
+  updateVolumeIcon(p, e.target.value);
+});
+
+$('#volume-mute-btn').addEventListener('click', () => {
+  const p = $('#player');
+  const volSlider = $('#custom-volume');
+  p.muted = !p.muted;
+  if (p.muted) {
+    $('#volume-mute-btn').textContent = '🔇';
+  } else {
+    updateVolumeIcon(p, p.volume);
+  }
+});
+
+function updateVolumeIcon(p, vol) {
+  const btn = $('#volume-mute-btn');
+  if (p.muted || vol == 0) {
+    btn.textContent = '🔇';
+  } else if (vol < 0.5) {
+    btn.textContent = '🔉';
+  } else {
+    btn.textContent = '🔊';
+  }
+}
+
+// Sync slider on player volume change event
+$('#player').addEventListener('volumechange', () => {
+  const p = $('#player');
+  const volSlider = $('#custom-volume');
+  if (p.muted) {
+    $('#volume-mute-btn').textContent = '🔇';
+  } else {
+    volSlider.value = p.volume;
+    updateVolumeIcon(p, p.volume);
+  }
+});
+
+// 팟캐스트 음성 재생이 끝나면 1초 후 릴스/쇼츠 제작 화면으로 이동한다.
+$('#player').addEventListener('ended', () => {
+  window.setTimeout(() => {
+    window.location.href = SLIDESHOW_URL;
+  }, 1000);
+});
+
+document.querySelectorAll('[data-import]').forEach(btn=>btn.onclick=()=>importScript(btn.dataset.import));
+document.querySelectorAll('.tag').forEach(btn=>btn.onclick=()=>insertTag(btn.textContent));
+
+$('#submit').onclick=run;
+$('#cancel').onclick=cancel;
+$('#play-fallback').onclick=()=>$('#player').play();
+$('#regenerate').onclick=()=>{
+  if(playerObjectUrl)$('#player').pause();
+  $('#inline-result').classList.remove('show');
+  $('#progress-view').hidden=false;
+  $('.run-actions').hidden=false;
+  $('#run-title').innerHTML='<span class="step">4</span>생성 실행';
+  setProgress(0,'대기 중');
+  $('#script').focus()
+};
+
+$('#script').addEventListener('input',updateCount);
+$('#tts-engine').addEventListener('change',()=>{const note=$('#tts-engine-note');if(note)note.textContent=$('#tts-engine').value==='edge_tts'?'EdgeTTS가 실제 생성 엔진으로 적용됩니다.':'';});
+$('#male').addEventListener('change',saveVoiceSettings);
+$('#female').addEventListener('change',saveVoiceSettings);
+$('#music-file').addEventListener('change',()=>{if($('#music-file').value)$('#music-random').checked=false;});
+$('#music-random').addEventListener('change',()=>{if($('#music-random').checked)$('#music-file').value='';});
+document.querySelectorAll('.music-preset').forEach(btn=>btn.onclick=()=>{$('#music-file').value=btn.dataset.music;$('#music-random').checked=false;});
+bindRange('#speed',v=>`${Number(v).toFixed(2)}×`);
+bindRange('#voice-volume');
+bindRange('#music-volume');
+
+$('#project').value=autoProject();
+refreshSource();
+updateCount();
+apiHealth();
+loadVoiceSettings();
+bindScriptEditToggle();
+renderLocalHistory(); // Load and display search history on startup
+setTimeout(function(){
+  if (typeof autoImportStoryMakerPodcast === 'function') {
+    autoImportStoryMakerPodcast();
+  }
+}, 220);
+</script>
+<script>
+try{
+  restorePodcastDraft();
+  normalizePodcastProjectDate();
+  bindPodcastDraft();
+}catch(e){}
+</script>
+<script src="/static/podcast_progress_polish.js?v=20260702-progress-log-2"></script>
+<script>
+(function(){
+  function forcePodcastHeroMini(){
+    var shell = document.querySelector('main.shell') || document.querySelector('.shell');
+    if (!shell) return;
+    var layout = shell.querySelector('.layout');
+    if (!layout) return;
+    var hero = shell.querySelector('.hero-mini');
+    if (!hero) {
+      hero = document.createElement('section');
+      hero.className = 'hero-mini';
+      hero.setAttribute('aria-label', 'Podcast hero');
+      hero.innerHTML = '<div class="hero-line"><a class="hero-nav-link prev" href="/storymaker" aria-label="SNS 글쓰기로 이동">←</a><div class="hero-icon">🎙</div><div class="hero-title">Podcast</div><a class="hero-nav-link next" href="/slideshow" aria-label="릴스/쇼츠 생성으로 이동">→</a></div><div class="hero-sub">블로그 글과 대본을 자연스러운 음성 콘텐츠로 변환합니다</div>';
+      shell.insertBefore(hero, layout);
+    } else if (hero.nextElementSibling !== layout) {
+      shell.insertBefore(hero, layout);
+    }
+    hero.removeAttribute('hidden');
+    hero.style.setProperty('display', 'flex', 'important');
+    hero.style.setProperty('visibility', 'visible', 'important');
+    hero.style.setProperty('opacity', '1', 'important');
+    hero.style.setProperty('height', 'auto', 'important');
+    hero.style.setProperty('min-height', window.matchMedia('(max-width:760px)').matches ? '82px' : '112px', 'important');
+    hero.style.setProperty('max-height', 'none', 'important');
+    hero.style.setProperty('overflow', 'hidden', 'important');
+    var title = hero.querySelector('.hero-title');
+    if (title) {
+      title.style.setProperty('display', 'block', 'important');
+      title.style.setProperty('visibility', 'visible', 'important');
+      title.style.setProperty('opacity', '1', 'important');
+    }
+    var sub = hero.querySelector('.hero-sub');
+    if (sub) {
+      sub.style.setProperty('display', 'block', 'important');
+      sub.style.setProperty('visibility', 'visible', 'important');
+      sub.style.setProperty('opacity', '1', 'important');
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', forcePodcastHeroMini);
+  } else {
+    forcePodcastHeroMini();
+  }
+  window.addEventListener('resize', forcePodcastHeroMini);
+  setTimeout(forcePodcastHeroMini, 300);
+  setTimeout(forcePodcastHeroMini, 1200);
+})();
+</script>
+<script src="/static/common_nav_unified.js?v=20260705-mobile-session-menu-3"></script>
+</body>
+</html>

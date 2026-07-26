@@ -1,0 +1,43 @@
+/* StoryMaker CSS Layer 02: theme-dark
+ * 역할: 앱 공통 다크 네이비 디자인 토큰
+ */
+
+:root {
+  --sm-bg-page: #06101f;
+  --sm-bg-page-2: #09172a;
+  --sm-panel: #101d31;
+  --sm-panel-strong: #0b1628;
+  --sm-card: #111f35;
+  --sm-card-soft: #14243a;
+  --sm-field: #071225;
+  --sm-border: rgba(91, 123, 166, 0.34);
+  --sm-border-strong: rgba(91, 123, 166, 0.48);
+  --sm-border-soft: rgba(91, 123, 166, 0.22);
+  --sm-text-main: #edf5ff;
+  --sm-text-muted: #9fb3cc;
+  --sm-accent: #39a7ff;
+  --sm-accent-2: #62e6ff;
+  --sm-success: #19d68b;
+  --sm-warning: #ffd166;
+  --sm-danger: #ff6b7e;
+  --sm-radius: 14px;
+  --sm-gap: 12px;
+  --sm-shadow-card: 0 14px 34px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255,255,255,0.035);
+}
+
+body {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(38, 86, 145, 0.28) 0, rgba(6, 16, 31, 0) 34%),
+    linear-gradient(180deg, #071225 0%, var(--sm-bg-page) 42%, #040b16 100%) !important;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 86% 12%, rgba(57, 167, 255, 0.10), transparent 30%),
+    linear-gradient(180deg, rgba(6, 16, 31, 0.12), rgba(6, 16, 31, 0.88));
+}

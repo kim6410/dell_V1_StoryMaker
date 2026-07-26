@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Mock ChatGPT (StoryMaker Test Worker)</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #212121;
+      color: #ececf1;
+      display: flex;
+      height: 100vh;
+    }
+    #sidebar {
+      width: 280px;
+      background-color: #171717;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #4f4f4f;
+    }
+    #main-chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    #chat-history {
+      flex: 1;
+      overflow-y: auto;
+      padding: 40px 15%;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .message {
+      display: flex;
+      gap: 20px;
+      padding: 16px;
+      border-radius: 8px;
+    }
+    .message.user {
+      background-color: #2f2f2f;
+    }
+    .message.assistant {
+      background-color: #212121;
+      border: 1px solid #2d2d2d;
+    }
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    .user .avatar {
+      background-color: #543fd7;
+      color: white;
+    }
+    .assistant .avatar {
+      background-color: #10a37f;
+      color: white;
+    }
+    .content {
+      flex: 1;
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+    #input-area {
+      padding: 20px 15%;
+      background-color: #212121;
+      border-top: 1px solid #2d2d2d;
+    }
+    .input-container {
+      position: relative;
+      background-color: #2f2f2f;
+      border-radius: 12px;
+      border: 1px solid #4f4f4f;
+      display: flex;
+      flex-direction: column;
+    }
+    textarea {
+      background: transparent;
+      border: none;
+      color: #ececf1;
+      padding: 16px;
+      resize: none;
+      height: 80px;
+      font-size: 16px;
+      outline: none;
+      font-family: inherit;
+    }
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 16px;
+      background: rgba(0,0,0,0.1);
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+    }
+    button {
+      background-color: #10a37f;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover:not(:disabled) {
+      background-color: #1a7f64;
+    }
+    button:disabled {
+      background-color: #4f4f4f;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    #stop-btn {
+      background-color: #c0392b;
+    }
+    #stop-btn:hover:not(:disabled) {
+      background-color: #a93226;
+    }
+    .panel-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      color: #10a37f;
+      border-bottom: 1px solid #333;
+      padding-bottom: 8px;
+    }
+    .log-container {
+      flex: 1;
+      background-color: #0f0f0f;
+      border: 1px solid #3f3f3f;
+      border-radius: 6px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 11px;
+      overflow-y: auto;
+      margin-top: 15px;
+      color: #2ecc71;
+      white-space: pre-wrap;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .status-badge.idle { background-color: #7f8c8d; color: white; }
+    .status-badge.polling { background-color: #2980b9; color: white; }
+    .status-badge.working { background-color: #d35400; color: white; }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <div class="panel-title">StoryMaker Worker Sim</div>
+    <div style="margin-bottom: 12px;">
+      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;">
+        <input type="checkbox" id="automate-switch"> 자동화 워커 활성화
+      </label>
+    </div>
+    <div>
+      <span style="font-size: 13px;">상태:</span>
+      <span id="worker-status" class="status-badge idle">IDLE</span>
+    </div>
+    <div style="font-size: 11px; color: #888; margin-top: 5px;">
+      CORS 없이 로컬 백엔드(/api/test/*)에 직접 접속하여 작업을 수행합니다.
+    </div>
+    <div class="log-container" id="log-box">[System] Mock ChatGPT Ready.</div>
+  </div>
+
+  <div id="main-chat">
+    <div id="chat-history">
+      <div class="message assistant">
+        <div class="avatar">GPT</div>
+        <div class="content">안녕하세요! StoryMaker 전용 ChatGPT 모킹 화면입니다.
+자동화 워커 활성화 스위치를 켜면 로컬 백엔드(/api/test/trigger-status)를 3초마다 폴링하여 대기 중인 작업을 자동 수행합니다.</div>
+      </div>
+    </div>
+
+    <div id="input-area">
+      <div class="input-container">
+        <textarea id="prompt-textarea" placeholder="Message ChatGPT..."></textarea>
+        <div class="controls">
+          <div>
+            <button id="stop-btn" style="display: none;" aria-label="Stop generating">Stop</button>
+          </div>
+          <button id="send-btn" data-testid="send-button">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let isWorking = false;
+    let pollTimer = null;
+    const logBox = document.getElementById('log-box');
+    const switchEl = document.getElementById('automate-switch');
+    const statusEl = document.getElementById('worker-status');
+    const textarea = document.getElementById('prompt-textarea');
+    const sendBtn = document.getElementById('send-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const chatHistory = document.getElementById('chat-history');
+
+    function log(msg) {
+      const time = new Date().toLocaleTimeString();
+      logBox.innerHTML += `\n[${time}] ${msg}`;
+      logBox.scrollTop = logBox.scrollHeight;
+      console.log(`[MockGPT] ${msg}`);
+    }
+
+    function setStatus(status) {
+      statusEl.textContent = status.toUpperCase();
+      statusEl.className = 'status-badge ' + status;
+    }
+
+    function generateMockContent(promptText) {
+      let brand = "오박사만능인테리어";
+      let phone = "010-8284-5584";
+      let location = "울산 신정동";
+      
+      // 프롬프트 내의 특정 설정 추출 시도
+      if (promptText.includes("브랜드명:") || promptText.includes("브랜드:")) {
+        const match = promptText.match(/(?:브랜드명|브랜드)\s*:\s*([^\n]+)/);
+        if (match) brand = match[1].trim();
+      }
+      if (promptText.includes("전화번호:") || promptText.includes("연락처:")) {
+        const match = promptText.match(/(?:전화번호|연락처)\s*:\s*([^\n]+)/);
+        if (match) phone = match[1].trim();
+      }
+      if (promptText.includes("지역명:") || promptText.includes("지역:")) {
+        const match = promptText.match(/(?:지역명|지역)\s*:\s*([^\n]+)/);
+        if (match) location = match[1].trim();
+      }
+
+      return `[BLOCK:BLOG_TITLES]
+1. ${location} 욕실 리모델링 완벽 가이드 - ${brand}
+2. 오래된 화장실을 호텔처럼! ${location} 욕실 인테리어 시공 후기
+3. 스마트한 욕실 리모델링 체크리스트 및 비용 아끼는 법
+4. ${brand}가 추천하는 욕실 타일 및 도기 선정 기준
+5. 욕실 누수 방지와 위생관리를 위한 핵심 인테리어 팁
+
+[BLOCK:BLOG_POST]
+# ${location} 욕실 리모델링 완벽 가이드 - ${brand}
+
+## 도입부
+지역 매장은 고객이 검색하는 순간 발견되어야 합니다. **네이버 스마트플레이스 노출**은 매장의 매출과 직결되는 매우 중요한 첫인상입니다. 
+우리가 매일 사용하는 화장실은 단순한 위생 공간을 넘어, 하루의 피로를 풀고 힐링하는 중요한 장소입니다. 하지만 노후화된 욕실은 누수, 곰팡이, 타일 깨짐 등의 문제로 스트레스의 원인이 되기도 합니다.
+
+## 욕실 리모델링의 주요 고민 사항
+많은 소상공인분들과 이웃분들이 **욕실 공사**를 결심할 때 가장 걱정하시는 부분이 바로 '비용'과 '시공 품질' 그리고 '확실한 사후 관리'입니다.
+* **과잉 시공**으로 인한 예산 초과
+* 하자 발생 시 나 몰라라 하는 불량 업체로 인한 피해
+* 공사 기간이 길어져 일상생활에 지장을 주는 불편함
+
+## ${brand}의 욕실 리모델링 솔루션
+저희 **${brand}**는 이러한 고객님들의 걱정을 덜어드리기 위해 다음과 같은 철칙으로 **${location} 욕실 리모델링**을 진행합니다.
+1. **정직한 무료 현장 견적**: 꼭 필요한 부분만 진단하여 정직한 자재비와 인건비를 제안합니다.
+2. **최상급 방수 시공**: 욕실 인테리어의 기본이자 핵심인 방수 작업을 다년간의 숙련된 노하우로 꼼꼼하게 처리하여 누수 걱정을 완전히 해소합니다.
+3. **고객 맞춤형 디자인**: 트렌디한 템바보드 타일, 무광 니켈 수전, 간접 조명 거울 등 고객님의 취향에 맞는 최적의 레이아웃을 제공합니다.
+4. **신속하고 정확한 책임 시공**: 철저한 기일 준수로 일상 불편을 최소화하며, 무상 A/S 보증을 확실하게 약속드립니다.
+
+## 작업 후기 및 요약
+실제 **${location} 욕실 공사**를 완료한 한 고객님께서는 "타일 줄눈선 하나까지 정교하게 맞춰진 것을 보고 매우 만족하셨다"고 전해주셨습니다. 
+욕실 리모델링은 한 번 시공하면 10년 이상 사용하는 공간인 만큼, 첫 단추를 제대로 꿰어야 합니다.
+
+문의 사항이나 예약 상담이 필요하시다면 언제든 **${phone}**으로 연락 주시면 성심성의껏 안내해 드리겠습니다.
+
+[BLOCK:CARROT_TITLES]
+1. [욕실 리모델링] 우리 동네 화장실 공사 꼼꼼하게 잘하는 곳! (${brand})
+2. 타일 깨짐, 양변기 교체 등 욕실 부분 수리도 완벽하게 처리합니다!
+3. 오래되고 낡은 화장실의 변신! 무료 욕실 견적 받아보세요.
+4. 하자 없는 정직한 욕실 시공, ${location} 단골 인테리어 매장입니다.
+
+[BLOCK:CARROT_POST]
+안녕하세요! ${location} 이웃 여러분! 😊
+욕실 전문 시공 매장 **${brand}**입니다.
+
+우리 집 화장실, 리모델링하고 싶지만 막막하셨나요?
+타일 줄눈에 핀 곰팡이, 노후된 변기와 세면대, 물이 샐까 걱정되는 누수 문제까지!
+멀리서 찾지 마시고 언제든 부를 수 있는 동네 단골 매장과 의논해 보세요.
+
+저희는 싱크대, 타일, 변기 교체 등 작은 부분 수리부터 전체 리모델링까지 과잉 청구 없이 정직하고 투명한 가격에 시공해 드립니다.
+
+동네 매장인 만큼 신속한 사후 A/S는 기본으로 약속드립니다!
+언제든지 당근 채팅이나 **${phone}**으로 문의 주시면 성심껏 답변 드리겠습니다. 
+행복한 하루 되세요! 💕
+
+[BLOCK:PODCAST_50]
+[여성]
+화장실 문을 열 때마다 한숨 쉬고 계시진 않나요? 낡고 오래된 욕실, 이제는 바꿀 때입니다.
+[남성]
+맞습니다. 욕실 리모델링은 겉모습도 중요하지만 보이지 않는 방수 공사가 정말 핵심이죠.
+[여성]
+동네 이웃 매장이라 믿을 수 있고 사후 관리도 확실한 곳, ${brand}에서 상담받아보세요!
+[남성]
+상담 번호는 ${phone}입니다. 지금 전화 주세요!
+
+[BLOCK:PODCAST_80]
+[여성]
+매일 쓰는 화장실인데, 타일이 깨지고 물이 잘 안 내려가서 스트레스받으시죠? 리모델링 한 번 하려 해도 믿을 만한 업체를 찾기 어려우셨을 겁니다.
+[남성]
+네, 그렇습니다. 자재 가격은 합리적인지, 공사는 일정대로 꼼꼼히 해주는지 걱정이 많으실 텐데요. 저희 ${brand}는 거품 없는 정직한 견적과 정밀한 책임 시공을 철칙으로 합니다.
+[여성]
+와, 정말 든든하네요! 동네 전문 매장이라 문제 발생 시 즉각 대처해 주시겠어요?
+[남성]
+당연하죠. 24시간 동네 밀착 대기 중이며 확실한 사후 보증제도까지 운영합니다. 화장실 고민, 이제 ${phone} 번으로 편하게 해결해 보세요.
+
+[BLOCK:INSTAGRAM_POST]
+🛁 오래되고 낡은 화장실의 트렌디한 변신! 
+${location} 욕실 리모델링 전문 ${brand}입니다.✨
+
+타일 셀렉부터 수전 하나까지 디테일의 차이가 품격 있는 욕실을 만듭니다. 
+보이지 않는 바닥 3중 방수 작업부터 도기 세팅까지 직접 꼼꼼하게 시공합니다.🔨
+
+✔ 과잉 시공 없는 합리적인 견적
+✔ 다년간 숙련된 전문 시공팀 책임제
+✔ 철저한 일정 준수 및 철저한 A/S 보증
+
+상담 문의는 DM 또는 프로필 링크를 클릭해 주세요!
+📞 전화문의: ${phone}
+
+[BLOCK:INSTAGRAM_HASHTAGS]
+#욕실리모델링 #화장실리모델링 #${location}인테리어 #${location}리모델링 #욕실인테리어 #화장실인테리어 #타일시공 #${brand} #부분인테리어 #무료견적
+
+[BLOCK:CAROUSEL_7]
+## 1. 노후된 욕실의 위험 신호
+욕실 바닥 타일이 깨지거나 실리콘에 곰팡이가 가득하다면 위험 신호입니다.
+보이지 않는 미세 누수가 아랫집 천장 피해로 이어질 수 있습니다.
+이런 증상이 보인다면 전체적인 노후 상태 점검이 필요합니다.
+---
+## 2. 겉만 예쁜 공사가 아닌 방수 중심 설계
+인테리어 시각적 효과도 중요하지만 가장 뼈대가 되는 것은 완벽한 방수입니다.
+3차에 걸친 꼼꼼한 하부 방수층 형성으로 누수 위험을 사전에 차단합니다.
+기초가 튼튼해야 10년 넘게 안심하고 쓸 수 있는 욕실이 됩니다.
+---
+## 3. 엄선된 친환경 자재와 최신 트렌드 타일
+미끄럼 방지 기능이 포함된 포세린 타일과 친환경 메우기 줄눈재를 엄선합니다.
+하루 종일 머물고 싶은 고급스러운 질감과 톤을 구현합니다.
+가족 모두의 안전과 안락함을 동시에 확보하는 맞춤형 자재 구성입니다.
+---
+## 4. 라이프스타일을 고려한 효율적 기구 배치
+이동 동선과 수납 용량을 최적화한 맞춤형 양변기 및 세면대 레이아웃입니다.
+슬라이딩 거울 수납장과 간접 조명 설치로 실용성을 극대화합니다.
+좁은 화장실도 두 배 더 넓어 보이게 만드는 구조 개선입니다.
+---
+## 5. 투명하고 정직한 시공 견적 제시
+필요하지 않은 시공을 억지로 권하지 않고 꼭 필요한 정직한 자재비만 산정합니다.
+상세 내역이 모두 투명하게 공개되는 공정 견적서를 발행합니다.
+시공 중간에 이유 없는 추가금을 요구하지 않는 원칙을 준수합니다.
+---
+## 6. 철저한 마감 테스트와 약속된 A/S 보증
+시공 완료 후 물 빠짐와 수압 테스트를 반복해서 꼼꼼히 확인합니다.
+시공 후에도 혹시 모를 하자에 대비해 1년간 무상 하자 보증서를 발급합니다.
+동네 신뢰를 기반으로 끝까지 책임지는 철저한 사후 보증입니다.
+---
+## 7. 지금 바로 무료 출장 견적 상담을 받아보세요!
+상담 번호인 ${phone}으로 전화 주시면 언제든지 신속히 방문해 드립니다.
+부담 없는 맞춤형 진단으로 가장 합리적인 리모델링 대안을 찾아보세요.
+화장실 인테리어 고민을 정직하고 완벽하게 해결해 드립니다.
+`;
+    }
+
+    // 전송 처리
+    async function handleSend() {
+      const promptText = textarea.value.trim();
+      if (!promptText) return;
+
+      addChatMessage('user', promptText);
+      textarea.value = '';
+      sendBtn.disabled = true;
+      stopBtn.style.display = 'inline-block';
+      log("프롬프트 입력 완료. ChatGPT 생성 작동 시작...");
+
+      setStatus('working');
+      
+      // 3초 후 답변 완성 시뮬레이션
+      await new Promise(r => setTimeout(r, 3000));
+
+      const generated = generateMockContent(promptText);
+      addChatMessage('assistant', generated);
+
+      sendBtn.disabled = false;
+      stopBtn.style.display = 'none';
+      setStatus(switchEl.checked ? 'polling' : 'idle');
+      log("ChatGPT 답변 생성 완료!");
+
+      // 자동화 상태였던 경우 백엔드에 결과 package 등록
+      if (switchEl.checked && currentJobId) {
+        await sendResultToBackend(currentJobId, currentProjectTitle, generated);
+      }
+    }
+
+    function addChatMessage(role, text) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${role}`;
+      
+      const avatarDiv = document.createElement('div');
+      avatarDiv.className = 'avatar';
+      avatarDiv.textContent = role === 'user' ? 'U' : 'GPT';
+
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'content' + (role === 'assistant' ? ' markdown' : '');
+      contentDiv.textContent = text;
+
+      msgDiv.appendChild(avatarDiv);
+      msgDiv.appendChild(contentDiv);
+      chatHistory.appendChild(msgDiv);
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+
+    sendBtn.addEventListener('click', handleSend);
+
+    // 자동화 관련 글로벌 상태
+    let currentJobId = null;
+    let currentProjectTitle = null;
+    let lastMockedJobId = null;
+
+    async function sendResultToBackend(jobId, projectTitle, resultText) {
+      log(`[API/POST] result-package 전송 중... JobID: ${jobId}`);
+      try {
+        const response = await fetch('/api/test/result-package', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            job_id: jobId,
+            project_title: projectTitle,
+            source: 'firefox-worker',
+            result_text: resultText,
+            result_json: {}
+          })
+        });
+        const res = await response.json();
+        if (response.ok && res.ok) {
+          log(`[API/POST] result-package 저장 성공! (결과 길이: ${resultText.length} 자)`);
+        } else {
+          log(`[API/POST] result-package 저장 실패: ${res.message || 'Error'}`);
+        }
+      } catch (err) {
+        log(`[API/POST] 전송 에러: ${err.message}`);
+      }
+    }
+
+    async function checkBackendJob() {
+      if (isWorking) return;
+      try {
+        const response = await fetch('/api/test/trigger-status');
+        const res = await response.json();
+        console.log(`[MockGPT] Poll response: status=${res.status}, jobId=${res.data?.job_id}`);
+        
+        if (response.ok && res.ok && (res.status === 'pending' || (res.status === 'claimed' && res.data?.job_id && res.data.job_id !== lastMockedJobId))) {
+          isWorking = true;
+          setStatus('working');
+          const trigger = res.data;
+          currentJobId = trigger.job_id;
+          currentProjectTitle = trigger.project_title;
+          lastMockedJobId = currentJobId;
+          
+          log(`새 작업 감지! JobID: ${currentJobId}, 프로젝트명: ${currentProjectTitle}`);
+
+          // 1. Acknowledge (Claim) - only if status is pending
+          if (res.status === 'pending') {
+            log(`[API/POST] trigger-ack 전송 중...`);
+            await fetch('/api/test/trigger-ack', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                job_id: currentJobId,
+                status: 'claimed',
+                worker_id: 'firefox-worker'
+              })
+            });
+          }
+
+          // 2. Read latest prompt
+          log(`[API/GET] latest-prompt 획득 중...`);
+          const promptResponse = await fetch('/api/test/latest-prompt');
+          const promptRes = await promptResponse.json();
+          
+          if (promptResponse.ok && promptRes.ok && promptRes.data && promptRes.data.prompt) {
+            const promptText = promptRes.data.prompt;
+            log(`latest-prompt 획득 성공 (${promptText.length} 자). 텍스트 입력창 주입 및 생성 실행.`);
+
+            // 주입 및 실행
+            textarea.value = promptText;
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+            await new Promise(r => setTimeout(r, 1000));
+            await handleSend();
+          } else {
+            log(`[오류] latest-prompt를 가져오지 못했습니다.`);
+            isWorking = false;
+            setStatus('polling');
+          }
+        }
+      } catch (err) {
+        log(`[오류] 폴링 중 에러: ${err.message}`);
+      } finally {
+        isWorking = false;
+      }
+    }
+
+    function startPolling() {
+      log("자동화 폴링 활성화됨.");
+      setStatus('polling');
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(checkBackendJob, 3000);
+      checkBackendJob();
+    }
+
+    function stopPolling() {
+      log("자동화 폴링 중지됨.");
+      setStatus('idle');
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    switchEl.addEventListener('change', function() {
+      if (this.checked) {
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    });
+
+    // URL 파라미터 automate=1 대응
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('automate') === '1') {
+      switchEl.checked = true;
+      startPolling();
+    }
+  </script>
+</body>
+</html>

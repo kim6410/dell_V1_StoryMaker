@@ -1,0 +1,17 @@
+[Unit]
+Description=Supertonic3 StoryMaker API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bourne
+WorkingDirectory=/home/bourne/StoryMaker_1/supertonic
+EnvironmentFile=/etc/supertonic3-api.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/bourne/Supertonic3/.venv/bin/python app.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

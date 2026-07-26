@@ -1,0 +1,1 @@
+CreateObject("Wscript.Shell").Run "cmd /c chcp 65001 >nul && cd /d pythonw studio_controller.pyw", 0, False

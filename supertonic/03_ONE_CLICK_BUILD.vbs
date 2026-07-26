@@ -1,0 +1,1 @@
+CreateObject("WScript.Shell").Run "cmd /c cd /d F:\KKBBQ_SLID && pythonw studio_controller.pyw", 0, False

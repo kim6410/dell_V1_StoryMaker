@@ -1,0 +1,17 @@
+[Unit]
+Description=StoryMaker Beta private database and jobs backup
+After=local-fs.target
+RequiresMountsFor=/mnt/lms_ssd
+
+[Service]
+Type=oneshot
+User=bourne
+Group=bourne
+WorkingDirectory=/home/bourne/StoryMaker_1
+ExecStart=/usr/bin/python3 /home/bourne/StoryMaker_1/Git_추가_비공개_백업/backup_storymaker_complete_private.py
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run StoryMaker Beta private backup every day at 03:30
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+AccuracySec=1min
+Unit=storymaker-beta-private-backup.service
+
+[Install]
+WantedBy=timers.target

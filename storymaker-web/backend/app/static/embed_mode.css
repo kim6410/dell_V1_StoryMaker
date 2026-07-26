@@ -1,0 +1,72 @@
+html.storymaker-embed-mode,
+html.storymaker-embed-mode body,
+body.storymaker-embed-mode {
+  margin: 0 !important;
+  padding: 0 !important;
+  padding-top: 0 !important;
+  min-height: 100vh !important;
+  overflow-x: hidden !important;
+  background: #ffffff !important;
+}
+
+html.storymaker-embed-mode #storymaker-static-global-header,
+body.storymaker-embed-mode #storymaker-static-global-header,
+html.storymaker-embed-mode #sns-ai-global-nav,
+body.storymaker-embed-mode #sns-ai-global-nav,
+html.storymaker-embed-mode #site-header,
+body.storymaker-embed-mode #site-header,
+html.storymaker-embed-mode .sns-ai-nav,
+body.storymaker-embed-mode .sns-ai-nav,
+html.storymaker-embed-mode .tool-topbar,
+body.storymaker-embed-mode .tool-topbar,
+html.storymaker-embed-mode .topbar,
+body.storymaker-embed-mode .topbar,
+html.storymaker-embed-mode .local-topbar,
+body.storymaker-embed-mode .local-topbar,
+html.storymaker-embed-mode .app-topbar,
+body.storymaker-embed-mode .app-topbar,
+html.storymaker-embed-mode .page-topbar,
+body.storymaker-embed-mode .page-topbar,
+html.storymaker-embed-mode .podcast-topbar,
+body.storymaker-embed-mode .podcast-topbar,
+html.storymaker-embed-mode .slideshow-topbar,
+body.storymaker-embed-mode .slideshow-topbar,
+html.storymaker-embed-mode .studio-topbar,
+body.storymaker-embed-mode .studio-topbar {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+}
+
+html.storymaker-embed-mode #storymaker-static-global-header + *,
+body.storymaker-embed-mode #storymaker-static-global-header + *,
+html.storymaker-embed-mode main,
+body.storymaker-embed-mode main,
+html.storymaker-embed-mode .app,
+body.storymaker-embed-mode .app,
+html.storymaker-embed-mode .page,
+body.storymaker-embed-mode .page,
+html.storymaker-embed-mode .container,
+body.storymaker-embed-mode .container {
+  margin-top: 0 !important;
+}
+
+@media (min-width: 761px) {
+  html.storymaker-embed-mode main.shell > .hero-mini,
+  body.storymaker-embed-mode main.shell > .hero-mini,
+  html.storymaker-embed-mode .shell > .hero-mini,
+  body.storymaker-embed-mode .shell > .hero-mini {
+    margin-top: 122px !important;
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}

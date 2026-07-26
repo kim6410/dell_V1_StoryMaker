@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07111f">
+<title>Nemotron Lab · StoryMaker</title>
+<link rel="stylesheet" href="/static/v2/nemotron-lab/styles.css?v=20260715-shell-1">
+</head>
+<body>
+<div class="ambient a"></div><div class="ambient b"></div><div class="scanline"></div>
+<div class="shell">
+<aside class="sidebar">
+<a class="brand" href="/v2"><span class="mark">N</span><span><b>NEMOTRON LAB</b><small>StoryMaker isolated zone</small></span></a>
+<nav><button class="nav active"><i>⌁</i>프롬프트 실험실</button><button class="nav"><i>◫</i>실시간 관제</button><button class="nav"><i>◷</i>오늘의 요청</button></nav>
+<section class="isolation"><h3><span class="dot safe"></span>완전 격리 모드</h3><p>기존 콘텐츠 생성 시스템과 연결되지 않은 독립 실험 공간입니다.</p><dl><dt>운영 작업 접근</dt><dd>차단</dd><dt>모델 호출</dt><dd>미연결</dd><dt>실험 데이터</dt><dd>별도 저장</dd></dl></section>
+<div class="sidefoot"><span>로그인 사용자</span><b id="currentUser">확인 중…</b><a href="/v2">StoryMaker v2로 돌아가기</a></div>
+</aside>
+<main>
+<header class="topbar"><div><p class="eyebrow">NVIDIA NEMOTRON CONTROL CENTER</p><h1>네모트론 관제형 실험실</h1><p>대화·번역·프롬프트 품질을 운영 시스템과 분리해 확인합니다.</p></div><div class="top-actions"><span class="preview"><i></i>UI PREVIEW · MODEL OFFLINE</span><button id="refresh">↻</button></div></header>
+<section class="metrics">
+<article class="metric danger"><label>서비스 상태 <em>LIVE</em></label><strong>연결 전</strong><p>NVIDIA 모델 미연결</p><span class="bar"><i></i></span></article>
+<article class="metric"><label>선택 모델 <em>MODEL</em></label><strong class="model">Nemotron 3 Ultra</strong><p>550B · A55B</p><code>nvidia/nemotron-3-ultra-550b-a55b</code></article>
+<article class="metric"><label>오늘 요청 <em>24H</em></label><strong>0 <small>건</small></strong><p>성공 0 · 실패 0 · 지연 종료 0</p><div class="bars"><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+<article class="metric"><label>누적 토큰 <em>TOKENS</em></label><strong>0</strong><p>입력 0 · 출력 0</p><div class="split"><span>IN 0%</span><span>OUT 0%</span></div></article>
+<article class="metric cleanup"><label>자동 삭제 <em>23:59</em></label><strong id="countdown">--:--:--</strong><p>대화·번역 결과 전체 삭제</p><span class="bar"><i id="dayProgress"></i></span></article>
+</section>
+<section class="workgrid">
+<article class="panel composer">
+<div class="panelhead"><div><p>PROMPT WORKSPACE</p><h2>네모트론과 직접 소통하기</h2></div><div class="tabs"><button class="tab active" data-mode="chat">대화하기</button><button class="tab" data-mode="translate">번역하기</button><button class="tab" data-mode="prompt">프롬프트 테스트</button></div></div>
+<div class="body"><div class="description" id="description">자유롭게 질문하고 네모트론의 한국어 이해력과 답변 품질을 확인합니다.</div>
+<div class="languages hidden" id="languages"><label>원문 언어<select id="sourceLang"><option value="auto">자동 감지</option><option value="ko">한국어</option><option value="en">영어</option><option value="ja">일본어</option><option value="zh">중국어</option></select></label><button id="swap">⇄</button><label>번역 언어<select id="targetLang"><option value="en">영어</option><option value="ko">한국어</option><option value="ja">일본어</option><option value="zh">중국어</option><option value="vi">베트남어</option></select></label></div>
+<label class="promptbox"><span><b id="inputLabel">질문 또는 요청</b><em><i id="chars">0</i> / 4,000자</em></span><textarea id="prompt" maxlength="4000" placeholder="예: 울산에서 수도꼭지 교체 업체를 홍보하는 자연스럽고 신뢰감 있는 문장을 만들어줘."></textarea><footer><div><button data-sample="rewrite">문장 다듬기</button><button data-sample="summary">긴 글 요약</button><button data-sample="marketing">홍보 문구</button><button data-sample="translation">자연스러운 번역</button></div><button id="clearInput">입력 지우기</button></footer></label>
+<div class="params"><label>창의성<input id="temperature" type="range" min="0" max="100" value="35"><b id="tempValue">0.35</b></label><label>최대 출력<select><option>1,024 토큰</option><option selected>2,048 토큰</option><option>4,096 토큰</option></select></label><label class="toggle">스트리밍<input type="checkbox" checked><i></i></label></div>
+<div class="actions"><p><span>✓</span>현재는 실제 모델을 호출하지 않는 안전한 화면 미리보기입니다.</p><button class="primary" id="run"><b id="runLabel">네모트론에게 보내기</b><i>→</i></button></div></div>
+</article>
+<aside class="panel telemetry"><div class="panelhead small"><div><p>LIVE TELEMETRY</p><h2>실시간 상태</h2></div><span class="offline"><i></i>OFFLINE</span></div>
+<div class="radarbox"><div class="radar"><i></i><b></b><span></span></div><div><strong>연결 대기</strong><small>모델 연결 후 자동 진단</small></div></div>
+<div class="health"><p><span><i class="dot idle"></i>NVIDIA Endpoint</span><b>미연결</b></p><p><span><i class="dot safe"></i>StoryMaker Queue</span><b>완전 분리</b></p><p><span><i class="dot safe"></i>Gemini Worker</span><b>접근 차단</b></p><p><span><i class="dot safe"></i>인증 보관소</span><b>서버 전용</b></p><p><span><i class="dot warm"></i>Daily Purge</span><b>설정 예정</b></p></div>
+<div class="latency"><p>최근 응답 <b>— ms</b></p><p>평균 응답 <b>— sec</b></p><p>성공률 <b>— %</b></p></div></aside>
+</section>
+<section class="resultgrid">
+<article class="panel result"><div class="panelhead small"><div><p>MODEL RESPONSE</p><h2>응답 결과</h2></div><div><button id="copy">복사</button><button id="clearResult">초기화</button></div></div><div class="empty" id="result"><span class="orb"><i></i></span><strong>아직 실행된 요청이 없습니다</strong><p>프롬프트를 입력하고 버튼을 누르면 결과 화면의 구조를 미리 볼 수 있습니다.</p></div><div class="meta hidden" id="meta"><span>상태 <b>UI PREVIEW</b></span><span>응답 시간 <b>0.00초</b></span><span>입력 토큰 <b>0</b></span><span>출력 토큰 <b>0</b></span></div></article>
+<article class="panel activity"><div class="panelhead small"><div><p>SESSION ACTIVITY</p><h2>최근 요청</h2></div><span class="today">TODAY</span></div><div class="activity-empty" id="activity"><b>◌</b><p>오늘 생성된 요청이 없습니다.</p><small>상세 내용은 매일 23:59에 자동 삭제됩니다.</small></div></article>
+</section>
+<section class="console"><header><div><i></i><i></i><i></i></div><b>NEMOTRON LAB · ISOLATED CONSOLE</b><span>READ ONLY PREVIEW</span></header><div id="console"><p><time>INIT</time><b>[SAFE]</b> 독립 UI 셸을 시작했습니다.</p><p><time>QUEUE</time><b>[BLOCKED]</b> 기존 작업 큐 접근이 차단되어 있습니다.</p><p><time>MODEL</time><em>[WAIT]</em> NVIDIA 모델 연결 전 상태입니다.</p><p><time>PURGE</time><em>[PLAN]</em> 매일 23:59 자동 삭제가 연결될 예정입니다.</p></div></section>
+<footer class="pagefoot"><span>Nemotron Lab Shell v0.1</span><span>/home/bourne/StoryMaker/nemotron-lab</span><span>운영 시스템 영향 없음</span></footer>
+</main>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/static/v2/nemotron-lab/app.js?v=20260715-shell-1"></script>
+</body>
+</html>

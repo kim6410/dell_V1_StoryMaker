@@ -1,0 +1,14 @@
+backend/venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+*.bak
+*.tmp
+*~
+.DS_Store
+node_modules/
+dist/
+build/

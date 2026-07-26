@@ -1,0 +1,34 @@
+# -*- coding: utf-8 -*-
+# StoryMaker Caddy Reverse Proxy 설정 (Caddyfile)
+
+storymaker.kbbq.kr, storymaker.local {
+    # 내부 FastAPI 백엔드 서비스 컨테이너로 포워딩
+    reverse_proxy storymaker-backend:8090
+
+    # 압축 전송 활성화
+    encode gzip zstd
+
+    # 보안 및 프록시 헤더 설정
+    header {
+        # Clickjacking 방어
+        X-Frame-Options "DENY"
+        # XSS 필터링 강제
+        X-XSS-Protection "1; mode=block"
+        # MIME 스니핑 방지
+        X-Content-Type-Options "nosniff"
+        # HSTS 설정 (HTTPS 강제, 1년)
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    }
+
+    # 기본 로그 설정
+    log {
+        output file /data/caddy_access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+}
+
+app2.mystorymaker.net {
+    reverse_proxy storymaker-backend:8090
+}

@@ -1,0 +1,116 @@
+name: storymaker_v1
+
+services:
+  storymaker-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: storymaker-v1-backend
+    restart: always
+    ports:
+      - "8011:8090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8090 --reload
+    volumes:
+      # 소스코드 및 정적 자산 실시간 동기화 마운트
+      - ./backend:/app
+      - /home/bourne/StoryMaker_1/storymaker-v1-app:/v1_frontend
+      # 호스트의 기존 데이터 경로를 컨테이너 볼륨과 영속 바인딩
+      - /home/bourne/StoryMaker_1/database:/data
+      - /home/bourne/StoryMaker_1/personas:/data/personas
+      - /home/bourne/StoryMaker_1/output_results:/data/output_results
+      - /home/bourne/StoryMaker_1/exports:/data/exports
+      - /home/bourne/StoryMaker_1/backups:/data/backups
+      - /home/bourne/StoryMaker_1/supertonic/music:/data/music:ro
+    environment:
+      - STORYMAKER_ENV=production
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
+      - STORYMAKER_DB_PATH=/data/storymaker.db
+      - STORYMAKER_PERSONA_DIR=/data/personas
+      - STORYMAKER_OUTPUT_DIR=/data/output_results
+      - STORYMAKER_V2_FRONTEND_DIR=/v1_frontend
+      - STORYMAKER_STATIC_V2_DIR=/app/app/static/v1
+      - STORYMAKER_STATIC_V2_BACKUP_DIR=/app/deploy_backups/static_v2_deploy_safe
+      - STORYMAKER_EXPORT_DIR=/data/exports
+      - STORYMAKER_BACKUP_DIR=/data/backups
+      - STORYMAKER_MUSIC_LIBRARY_DIR=/data/music
+      - STORYMAKER_ADMIN_USER=admin
+      - STORYMAKER_ADMIN_PASSWORD=admin
+      - STORYMAKER_JWT_SECRET=storymaker-super-secret-key-2026-kbbq
+      - STORYMAKER_INVITE_CODE=storymaker2026
+      - STORYMAKER_GOOGLE_CLIENT_ID=${STORYMAKER_GOOGLE_CLIENT_ID:-}
+      - PODCAST_API_URL=http://host.docker.internal:8003
+      - SUPERTONIC_API_KEY=${SUPERTONIC_API_KEY}
+      - WORDPRESS_API_URL=${WORDPRESS_API_URL:-http://storymaker_wp/wp-json/wp/v2}
+      - WORDPRESS_USERNAME=${WORDPRESS_USERNAME:-}
+      - WORDPRESS_APP_PASSWORD=${WORDPRESS_APP_PASSWORD:-}
+      - WORDPRESS_STORYMAKER_SECRET_KEY=${WORDPRESS_STORYMAKER_SECRET_KEY:-}
+      - WORDPRESS_STORYMAKER_API_URL=${WORDPRESS_STORYMAKER_API_URL:-https://mystorymaker.net/wp-json/storymaker/v1}
+      - HA_URL=${HA_URL:-https://192.168.0.81:8123}
+      - HA_TOKEN=${HA_TOKEN:-}
+      - HA_WEATHER_ENTITY_ID=${HA_WEATHER_ENTITY_ID:-weather.naver_weather_hanamsi_nalssi_hanamsi}
+
+  storymaker-caddy:
+    image: caddy:2.7-alpine
+    container_name: storymaker-v1-caddy
+    restart: always
+    # 호스트의 80/443 포트가 Nginx Proxy Manager에 의해 사용 중이므로 포트 충돌 우회를 위해 8091/8444로 서빙합니다.
+    # 만약 Nginx Proxy Manager를 내리고 Caddy를 80/443 메인으로 올리고 싶다면 아래 바인딩을 80:80, 443:443으로 변경하시면 됩니다.
+    ports:
+      - "8012:80"
+      - "8445:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - storymaker-backend
+
+  plausible-db:
+    image: postgres:14-alpine
+    container_name: plausible-db
+    restart: always
+    volumes:
+      - plausible-db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=plausible_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+
+  plausible-events-db:
+    image: clickhouse/clickhouse-server:24.3-alpine
+    container_name: plausible-events-db
+    restart: always
+    volumes:
+      - plausible-event-data:/var/lib/clickhouse
+      - ./services/plausible-clickhouse/clickhouse-config.xml:/etc/clickhouse-server/config.d/logging.xml
+      - ./services/plausible-clickhouse/clickhouse-user-config.xml:/etc/clickhouse-server/users.d/plausible-limits.xml
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  plausible:
+    image: plausible/analytics:latest
+    container_name: plausible
+    restart: always
+    command: sh -c "sleep 10 && /entrypoint.sh db createdb && /entrypoint.sh db migrate && /entrypoint.sh run"
+    depends_on:
+      - plausible-db
+      - plausible-events-db
+    ports:
+      - "8000:8000"
+    environment:
+      - BASE_URL=http://mystorymaker.duckdns.org:8000
+      - SECRET_KEY_BASE=k9b8d7c6e5f4g3h2j1k0m9n8p7q6r5s4t3u2v1w0x9y8z7a6b5c4d3e2f1g0h9i8
+      - TOTP_VAULT_KEY=v1w2x3y4z5a6b7c8d9e0f1g2h3i4j5k6
+      - DATABASE_URL=postgres://postgres:postgres@plausible-db:5432/plausible_db
+      - CLICKHOUSE_DATABASE_URL=http://plausible-events-db:8123/plausible_events_db
+      - DISABLE_REGISTRATION=false
+
+volumes:
+  caddy_data:
+  caddy_config:
+  plausible-db-data:
+  plausible-event-data:

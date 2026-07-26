@@ -1,0 +1,9 @@
+/*
+ * StoryMaker App Deep Blue Theme
+ * 2026-07-03 Phase 1/2 준비 완료
+ *
+ * 이 파일은 기존 HTML 연결을 유지하기 위한 호환용 진입점입니다.
+ * 실제 CSS는 /static/css/ 아래 6개 레이어로 분리했습니다.
+ */
+
+@import url('/static/css/app_ui_layers.css?v=20260705-storymaker-hero-restore-1');

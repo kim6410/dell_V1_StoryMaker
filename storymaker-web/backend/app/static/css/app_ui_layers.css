@@ -1,0 +1,41 @@
+/* StoryMaker App UI Layers
+ * CSS 정리 1차 진입점
+ * 순서가 중요하다: base → theme → layout → components → forms → workflow
+ */
+
+@import url('/static/css/base.css?v=20260703-phase1-1');
+@import url('/static/css/theme-dark.css?v=20260703-phase1-1');
+@import url('/static/css/layout.css?v=20260703-phase1-1');
+@import url('/static/css/components.css?v=20260705-button-hierarchy-clean-2');
+@import url('/static/css/forms.css?v=20260703-phase1-1');
+@import url('/static/css/workflow.css?v=20260705-storymaker-hero-restore-1');
+
+/* Hostinger 공통 헤더 삽입 후 앱 본문이 헤더와 앱 탭 아래로 깔리는 문제 방지 */
+body > main,
+.app-dashboard-main,
+.app-shell,
+.storymaker-shell,
+.podcast-shell,
+.slideshow-shell,
+#app,
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+body:not(.storymaker-embed-mode) > main,
+body:not(.storymaker-embed-mode) .app-dashboard-main {
+  padding-top: max(72px, env(safe-area-inset-top));
+}
+
+#sns-ai-global-nav + main,
+#sns-ai-global-nav ~ main.app-dashboard-main {
+  margin-top: 0;
+}
+
+@media (max-width: 768px) {
+  body:not(.storymaker-embed-mode) > main,
+  body:not(.storymaker-embed-mode) .app-dashboard-main {
+    padding-top: max(56px, env(safe-area-inset-top));
+  }
+}

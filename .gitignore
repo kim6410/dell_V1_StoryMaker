@@ -52,6 +52,29 @@ StoryMaker_beta/app/*.root_backup
 StoryMaker_beta/static/*.bak_*
 StoryMaker_beta/tools/*.exe
 
+# V1 private runtime, large models, generated media and historical copies
+storymaker-web/.env
+storymaker-web/.env.backup_*
+storymaker-web/backend/app/static/v1/browser-tts/onnx/
+storymaker-web/backend/app/assets/fonts/
+storymaker-web/**/*.backup_*
+storymaker-web/**/*.before_*
+storymaker-web/**/*.bak_*
+storymaker-web/**/*.disabled_*
+storymaker-web/**/*.root_backup
+supertonic/.env*
+supertonic/music/
+supertonic/tts_cache/
+supertonic/SlidShow/
+supertonic/user_jobs/
+supertonic/**/*.mp3
+supertonic/**/*.mp4
+supertonic/**/*.wav
+supertonic/**/*.otf
+supertonic/**/*.ttf
+supertonic/**/*.pyc
+Git_추가_비공개_백업/__pycache__/
+
 # Editor and OS files
 .DS_Store
 Thumbs.db

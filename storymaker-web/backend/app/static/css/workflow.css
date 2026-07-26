@@ -1,0 +1,76 @@
+/* StoryMaker CSS Layer 06: workflow
+ * 역할: 작업헤더, 워크플로우 네비게이션, 앱 상단 단계 전환 UI 통일
+ */
+
+.hero-mini,
+.sm-mode-bar,
+.container > header {
+  min-height: 66px !important;
+  background: linear-gradient(135deg, rgba(17, 32, 54, 0.96), rgba(7, 17, 32, 0.99)) !important;
+  border: 1px solid var(--sm-border) !important;
+  border-radius: var(--sm-radius) !important;
+  box-shadow: var(--sm-shadow-card) !important;
+}
+
+.hero-mini {
+  padding: 12px 18px !important;
+  margin-bottom: var(--sm-gap) !important;
+}
+
+.sm-mode-bar {
+  margin-bottom: var(--sm-gap) !important;
+}
+
+.sm-mode-acc-head {
+  min-height: 62px !important;
+  padding: 10px 18px !important;
+}
+
+.hero-title,
+.header-brand h1 {
+  background: linear-gradient(45deg, var(--sm-accent, #39a7ff), var(--sm-accent-2, #62e6ff)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+}
+
+.sm-mode-title {
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  color: #eaf5ff !important;
+  text-shadow: 0 0 16px rgba(98,230,255,.22) !important;
+}
+
+.hero-sub,
+.header-brand p {
+  color: var(--sm-text-muted, #aebdd2) !important;
+}
+
+.sm-mode-sub {
+  color: #b8c7dc !important;
+}
+
+.hero-nav-link,
+.sm-hero-nav-link {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  line-height: 42px !important;
+  font-size: 23px !important;
+  background: radial-gradient(circle at 32% 24%, rgba(255,255,255,.30), rgba(57,167,255,.26) 34%, rgba(98,230,255,.10) 58%, rgba(7,18,37,.95) 100%) !important;
+  border-color: rgba(98, 230, 255, 0.72) !important;
+}
+
+@media (max-width: 768px) {
+  .hero-mini,
+  .sm-mode-bar,
+  .container > header {
+    min-height: 74px !important;
+    margin-inline: 0 !important;
+  }
+
+  .sm-mode-acc-head {
+    min-height: 74px !important;
+  }
+}

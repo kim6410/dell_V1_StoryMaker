@@ -1,0 +1,67 @@
+{
+  "media_folder": "",
+  "video_interval": 5,
+  "music_volume": 0.5,
+  "video_volume": 0.5,
+  "player_volume": 0.8,
+  "selected_profile": "default",
+  "openai_api_key": "",
+  "tts_engine": "openai",
+  "edge_male_voice": "ko-KR-InJoonNeural",
+  "edge_female_voice": "ko-KR-SunHiNeural",
+  "character_voice": {
+    "숯불": "onyx",
+    "달록": "fable",
+    "아루": "echo",
+    "알록": "alloy",
+    "방울": "nova",
+    "둥이": "nova",
+    "사랑": "shimmer"
+  },
+  "character_speed": {
+    "숯불": 1.0,
+    "달록": 1.02,
+    "아루": 0.98,
+    "알록": 1.05,
+    "방울": 1.03,
+    "둥이": 1.0,
+    "사랑": 0.97
+  },
+  "edge_style": {
+    "숯불": {
+      "rate": 0,
+      "pitch": -2,
+      "volume": 0
+    },
+    "달록": {
+      "rate": 2,
+      "pitch": -1,
+      "volume": 0
+    },
+    "아루": {
+      "rate": -2,
+      "pitch": -3,
+      "volume": 0
+    },
+    "알록": {
+      "rate": 4,
+      "pitch": 2,
+      "volume": 0
+    },
+    "방울": {
+      "rate": 3,
+      "pitch": 3,
+      "volume": 0
+    },
+    "둥이": {
+      "rate": 0,
+      "pitch": 1,
+      "volume": 0
+    },
+    "사랑": {
+      "rate": -1,
+      "pitch": 4,
+      "volume": 0
+    }
+  }
+}

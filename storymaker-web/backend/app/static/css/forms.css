@@ -1,0 +1,33 @@
+/* StoryMaker CSS Layer 05: forms
+ * 역할: 입력창, textarea, select, placeholder, focus 상태 통일
+ */
+
+input,
+textarea,
+select {
+  background-color: var(--sm-field) !important;
+  border: 1px solid var(--sm-border-soft) !important;
+  color: var(--sm-text-main) !important;
+  border-radius: 10px !important;
+  outline: none !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(159, 179, 204, 0.72) !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: rgba(57, 167, 255, 0.72) !important;
+  box-shadow: 0 0 0 2px rgba(57, 167, 255, 0.14) !important;
+}
+
+label {
+  color: var(--sm-text-main) !important;
+}
+
+textarea {
+  line-height: 1.58 !important;
+}

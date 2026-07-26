@@ -1,0 +1,3074 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta name="robots" content="noindex, nofollow">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SlideShow 생성기 | SNS AI Studio</title>
+  <link rel="stylesheet" href="/static/app_hero_unify.css?v=20260704-pc-hero-center-1">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090d16;
+      --panel: #111827;
+      --panel2: #182235;
+      --line: #2a3850;
+      --text: #eef4ff;
+      --muted: #96a6be;
+      --blue: #3b9cff;
+      --blue2: #7468ff;
+      --green: #35d49a;
+      --red: #ff6b7e;
+      --yellow: #ffc857;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 15% 0, #14243f 0, transparent 32%), var(--bg);
+      color: var(--text);
+      font: 14px/1.45 Inter, "Pretendard", "Malgun Gothic", sans-serif;
+    }
+
+    button, input, select {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    button, a {
+      transition: 0.18s ease;
+    }
+
+    .tool-topbar { display:none !important;
+      height: 54px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      padding: 0 22px;
+      border-bottom: 1px solid rgba(48, 57, 75, 0.8);
+      background: rgba(9, 13, 22, 0.82);
+      backdrop-filter: blur(14px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .topbar-left {
+      justify-self: start;
+      font-weight: 800;
+      font-size: 14px;
+      background: linear-gradient(90deg, #fff, #a7d4ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .home-pill {
+      justify-self: center;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 13px;
+      border: 1px solid rgba(59, 156, 255, 0.45);
+      border-radius: 12px;
+      color: #dcecff;
+      text-decoration: none;
+      font-weight: 800;
+      font-size: 13px;
+      background: rgba(59, 156, 255, 0.08);
+    }
+
+    .home-pill:hover {
+      background: rgba(59, 156, 255, 0.18);
+      border-color: rgba(59, 156, 255, 0.8);
+    }
+
+    .topbar-right {
+      justify-self: end;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-link {
+      color: #b9d9ff;
+      text-decoration: none;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 800;
+      background: rgba(59, 156, 255, 0.05);
+    }
+
+    .nav-link:hover {
+      background: rgba(59, 156, 255, 0.16);
+      border-color: rgba(59, 156, 255, 0.55);
+    }
+
+    .api-state {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      white-space: nowrap;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--yellow);
+      box-shadow: 0 0 8px currentColor;
+    }
+
+    .api-state.ok {
+      color: var(--green);
+    }
+
+    .api-state.error {
+      color: var(--red);
+    }
+
+    .shell {
+      max-width: 1580px;
+      margin: auto;
+      padding: 4px 20px 20px;
+    }
+
+    .hero-mini {
+      position: relative;
+      min-height: 92px;
+      margin: 0 auto 14px;
+      padding: 14px 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(22, 26, 34, 0.75);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
+      text-align: center;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .hero-line {
+      display: grid;
+      grid-template-columns: minmax(46px, 1fr) minmax(0, auto) minmax(46px, 1fr);
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      min-height: 46px;
+      text-align: center;
+    }
+
+    .hero-icon,
+    .hero-nav-link.prev {
+      display: none !important;
+    }
+
+    .hero-title {
+      grid-column: 2;
+      min-width: 0;
+      font-family: 'Outfit', Inter, 'Pretendard', 'Malgun Gothic', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin: 0;
+      text-align: center;
+      background: linear-gradient(45deg, #0088ff, #00e6ff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .hero-sub {
+      position: static;
+      width: 100%;
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      margin: 0;
+    }
+
+    .hero-nav-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 46px;
+      height: 46px;
+      min-width: 46px;
+      margin: 0;
+      border-radius: 999px;
+      border: 2px solid rgba(116, 104, 255, 0.92);
+      color: #d8eaff;
+      text-decoration: none;
+      font-size: 30px;
+      font-weight: 950;
+      padding: 0;
+      line-height: 46px;
+      text-align: center;
+      background: radial-gradient(circle at 32% 24%, rgba(255,255,255,.34), rgba(72,119,255,.22) 34%, rgba(116,104,255,.12) 58%, rgba(10,17,30,.9) 100%);
+      box-shadow: 0 0 16px rgba(116,104,255,.52), 0 0 34px rgba(56,189,248,.24), inset 0 1px 0 rgba(255,255,255,.22);
+      position: relative;
+      overflow: visible;
+      text-shadow: 0 0 10px rgba(167,212,255,.8);
+      animation: heroArrowPulse 1.75s ease-in-out infinite;
+    }
+
+    .hero-nav-link::before {
+      content: "";
+      position: absolute;
+      inset: -12px;
+      border-radius: inherit;
+      background: radial-gradient(circle, rgba(59,130,246,.42) 0, rgba(116,104,255,.22) 38%, transparent 68%);
+      filter: blur(3px);
+      z-index: -1;
+      animation: heroArrowShine 1.75s ease-in-out infinite;
+    }
+
+    .hero-nav-link:hover {
+      border-color: rgba(167,212,255,1);
+      box-shadow: 0 0 22px rgba(116,104,255,.78), 0 0 48px rgba(56,189,248,.46), inset 0 1px 0 rgba(255,255,255,.28);
+    }
+
+    .hero-nav-link.prev { grid-column: 1; justify-self: start; }
+    .hero-nav-link.next { grid-column: 3; justify-self: end; }
+    .hero-nav-link.prev:hover { transform: translateX(-3px) scale(1.06); }
+    .hero-nav-link.next:hover { transform: translateX(3px) scale(1.06); }
+
+    @keyframes heroArrowPulse {
+      0%, 100% { filter: brightness(1); box-shadow: 0 0 16px rgba(116,104,255,.52), 0 0 34px rgba(56,189,248,.24), inset 0 1px 0 rgba(255,255,255,.22); }
+      50% { filter: brightness(1.22); box-shadow: 0 0 24px rgba(116,104,255,.86), 0 0 58px rgba(56,189,248,.48), inset 0 1px 0 rgba(255,255,255,.32); }
+    }
+
+    @keyframes heroArrowShine {
+      0%, 100% { opacity: .54; transform: scale(.96); }
+      50% { opacity: 1; transform: scale(1.08); }
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.03fr) minmax(470px, 0.97fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .card {
+      background: linear-gradient(145deg, rgba(21, 32, 51, 0.94), rgba(12, 19, 33, 0.96));
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px 20px;
+      box-shadow: 0 16px 45px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .card h3 {
+      font-size: 15px;
+      letter-spacing: -0.2px;
+      margin: 0;
+    }
+
+    .step {
+      display: inline-grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      margin-right: 3px;
+      border-radius: 5px;
+      background: rgba(59, 156, 255, 0.15);
+      color: #80c2ff;
+      font-size: 9px;
+      font-weight: bold;
+    }
+
+    .hint, .muted {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .grid3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    .field {
+      margin-bottom: 6px;
+    }
+
+    .compact-field {
+      margin-bottom: 0;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .field input, .field select {
+      width: 100%;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #08101d;
+      color: var(--text);
+      padding: 6px 8px;
+      outline: none;
+      font-size: 13px;
+    }
+
+    .field input:focus, .field select:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(59, 156, 255, 0.12);
+    }
+
+    .btn {
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .btn:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    .btn.secondary {
+      background: #24344f;
+      color: #dbeaff;
+      border: 1px solid #3a4d6d;
+    }
+
+    .btn.danger {
+      background: rgba(255, 107, 126, 0.12);
+      color: #ff9aa8;
+      border: 1px solid rgba(255, 107, 126, 0.35);
+    }
+
+    .btn:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .dropzone {
+      border: 1px dashed rgba(128, 194, 255, 0.55);
+      border-radius: 14px;
+      background: rgba(8, 16, 29, 0.65);
+      padding: 18px;
+      text-align: center;
+      color: #b9d9ff;
+    }
+
+    .dropzone.drag {
+      border-color: var(--green);
+      background: rgba(53, 212, 154, 0.08);
+    }
+
+    .file-list {
+      margin-top: 10px;
+      display: grid;
+      gap: 5px;
+      max-height: 150px;
+      overflow: auto;
+    }
+
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 8px;
+      border: 1px solid rgba(42, 56, 80, 0.85);
+      border-radius: 8px;
+      background: rgba(9, 16, 28, 0.7);
+      font-size: 12px;
+    }
+
+    .toggle-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: #cbd7e8;
+      font-size: 12px;
+    }
+
+    .toggle input {
+      accent-color: var(--blue);
+    }
+
+    .progress-track {
+      height: 6px;
+      margin: 8px 0 5px;
+      border-radius: 99px;
+      background: #090e18;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, #3b9cff, #7468ff, #35d49a, #ffc857);
+      background-size: 240% 100%;
+      transition: width 0.35s;
+      animation: progressGlow 1.4s linear infinite;
+      box-shadow: 0 0 16px rgba(59, 156, 255, 0.45);
+    }
+
+    @keyframes progressGlow {
+      0% {
+        background-position: 0% 50%;
+      }
+      100% {
+        background-position: 240% 50%;
+      }
+    }
+
+    .stage {
+      display: flex;
+      justify-content: space-between;
+      color: #c8d7eb;
+      font-size: 12px;
+    }
+
+    .logs {
+      height: 160px;
+      margin-top: 8px;
+      overflow: auto;
+      padding: 8px 10px;
+      background: #070c15;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      color: #aebdd2;
+      font: 11px/1.35 ui-monospace, monospace;
+      white-space: pre-wrap;
+    }
+
+    .advanced-settings {
+      display: grid;
+      gap: 8px;
+    }
+
+    .advanced-settings.collapsed {
+      display: none;
+    }
+
+    .settings-toggle-btn {
+      width: auto;
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+
+    .video-box {
+      display: grid;
+      place-items: center;
+      background: #050912;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      min-height: 520px;
+      padding: 12px;
+    }
+
+    .video-box video {
+      max-width: 100%;
+      max-height: 680px;
+      border-radius: 10px;
+      background: #000;
+    }
+    .video-box-container.collapsed .video-box { display: none !important; }
+    .video-box-container.collapsed::after { content: "영상 생성이 완료되면 미리보기가 자동으로 펼쳐집니다."; display:block; padding:18px 14px; border:1px dashed rgba(128,194,255,.42); border-radius:12px; color:var(--muted); font-size:12px; text-align:center; background:rgba(8,16,29,.52); }
+
+    .audio-info {
+      padding: 8px 10px;
+      border: 1px solid rgba(42, 56, 80, 0.85);
+      border-radius: 9px;
+      background: #08101d;
+      color: #c9d7ea;
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    .history-list {
+      display: grid;
+      gap: 6px;
+      max-height: 240px;
+      overflow: auto;
+    }
+
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(42, 56, 80, 0.85);
+      background: linear-gradient(135deg, rgba(16, 29, 48, 0.9), rgba(9, 16, 28, 0.92));
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+
+    @media (max-width: 1100px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .video-box {
+        min-height: 420px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .shell {
+        padding-inline: 8px;
+      }
+      .tool-topbar { display:none !important;
+        height: auto;
+        grid-template-columns: auto;
+        justify-items: center;
+        padding: 8px 12px;
+        gap: 8px;
+      }
+      .topbar-right {
+        justify-self: center;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .grid2, .grid3 {
+        grid-template-columns: 1fr;
+      }
+      .card {
+        padding: 10px 12px;
+      }
+      .hero-mini {
+        min-height: 96px;
+        padding: 14px 12px;
+        margin-bottom: 12px;
+        overflow: hidden;
+      }
+      .hero-line {
+        display: flex;
+        flex-direction: row;
+        gap: 10px;
+        min-height: 44px;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+      }
+      .hero-title {
+        order: 1;
+        font-size: 22px;
+        letter-spacing: -0.5px;
+        text-align: center;
+      }
+      .hero-sub {
+        display: none;
+      }
+      .hero-nav-link.prev {
+        display: none !important;
+      }
+      .hero-nav-link.next {
+        order: 2;
+        justify-self: center;
+      }
+      .hero-nav-link {
+        width: 42px;
+        height: 42px;
+        min-width: 42px;
+        line-height: 42px;
+        font-size: 23px;
+        transform: none !important;
+        animation: none;
+        box-shadow: none;
+      }
+      .watermark-card {
+        display: none !important;
+      }
+      .layout > .stack:first-child > .card:first-child .grid2 {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 8px !important;
+      }
+      .layout > .stack:first-child > .card:first-child .field {
+        margin-bottom: 0 !important;
+      }
+      .layout > .stack:first-child > .card:first-child .field label {
+        display: none !important;
+      }
+      .layout > .stack:first-child > .card:first-child input {
+        height: 34px !important;
+        min-height: 34px !important;
+        font-size: 13px !important;
+      }
+      .mobile-hide-title-memo {
+        display: none !important;
+      }
+      .mobile-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+      .card-head {
+        margin-bottom: 0;
+      }
+      .layout > .stack:first-child > .card:nth-of-type(2) .compact-field,
+      .layout > .stack:first-child > .card:nth-of-type(3) {
+        display: block !important;
+      }
+      .mobile-slideshow-status-disabled {
+        display: none !important;
+      }
+      #audio-cards,
+      #content-cards {
+        display: grid !important;
+      }
+      .audio-card,
+      .content-card {
+        min-height: 38px !important;
+        height: 38px !important;
+        align-items: center !important;
+        padding: 7px 10px 7px 34px !important;
+        border-radius: 999px !important;
+        background: rgba(8, 16, 29, 0.78) !important;
+        border: 1px solid rgba(128, 194, 255, 0.32) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.04) !important;
+      }
+      .audio-card-name,
+      .content-card-title {
+        display: block;
+        font-size: 12px !important;
+        max-width: 100% !important;
+      }
+      .audio-card.selected,
+      .content-card.selected {
+        border-color: rgba(80, 244, 230, 0.72) !important;
+        background: rgba(53, 212, 154, 0.09) !important;
+        box-shadow: 0 0 18px rgba(80, 244, 230, 0.16), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+      }
+      .audio-card::before,
+      .content-card::before {
+        content: "";
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        width: 11px;
+        height: 11px;
+        border-radius: 999px;
+        transform: translateY(-50%);
+        background: #64748b;
+        box-shadow: 0 0 8px rgba(100, 116, 139, 0.55);
+      }
+      .audio-card.selected::before {
+        background: #9dff76;
+        box-shadow: 0 0 10px rgba(157,255,118,.75), 0 0 22px rgba(157,255,118,.38);
+        animation: mobileStatusPulse 1.15s ease-in-out infinite;
+      }
+      .content-card.selected::before {
+        background: #50f4e6;
+        box-shadow: 0 0 10px rgba(80,244,230,.75), 0 0 22px rgba(80,244,230,.38);
+        animation: mobileStatusPulse 1.15s ease-in-out infinite;
+      }
+      .audio-card-check {
+        display: none !important;
+      }
+    }
+
+    .mobile-status {
+      display: none;
+    }
+
+    .mobile-status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      box-shadow: 0 0 10px currentColor;
+      animation: mobileStatusPulse 1.15s ease-in-out infinite;
+    }
+
+    .mobile-status.audio .mobile-status-dot {
+      background: #9dff76;
+      color: #9dff76;
+    }
+
+    .mobile-status.content .mobile-status-dot {
+      background: #50f4e6;
+      color: #50f4e6;
+    }
+
+    .mobile-status.empty .mobile-status-dot,
+    .mobile-status.loading .mobile-status-dot {
+      background: #64748b;
+      color: #64748b;
+      animation: none;
+    }
+
+    @keyframes mobileStatusPulse {
+      0%, 100% { opacity: .58; transform: scale(.86); }
+      50% { opacity: 1; transform: scale(1.18); }
+    }
+
+    .thumbnail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+      max-height: 450px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .thumbnail-grid::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .thumbnail-grid::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 3px;
+    }
+
+    .thumbnail-grid::-webkit-scrollbar-thumb {
+      background: rgba(42, 56, 80, 0.8);
+      border-radius: 3px;
+    }
+
+    .thumbnail-item {
+      position: relative;
+      aspect-ratio: 9/16;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #090f1a;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .thumbnail-item:hover {
+      transform: translateY(-2px);
+      border-color: var(--blue);
+    }
+
+    .thumbnail-img-wrapper {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+
+    .thumbnail-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .thumbnail-info {
+      padding: 6px 8px;
+      background: rgba(17, 24, 39, 0.95);
+      border-top: 1px solid var(--line);
+      font-size: 11px;
+    }
+
+    .thumbnail-name {
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 2px;
+    }
+
+    .thumbnail-size {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .thumbnail-del {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(239, 68, 68, 0.85);
+      color: #fff;
+      border: none;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      transition: background 0.15s, transform 0.15s;
+      z-index: 10;
+    }
+
+    .thumbnail-del:hover {
+      background: rgba(239, 68, 68, 1);
+      transform: scale(1.1);
+    }
+
+    .thumbnail-item.dragging {
+      opacity: 0.4;
+      border: 2px dashed var(--blue);
+    }
+
+    .layout > .stack:first-child > .card:nth-of-type(-n+3) {
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+
+    .layout > .stack:first-child > .card:nth-of-type(-n+3) .field:last-child {
+      margin-bottom: 0;
+    }
+
+    /* --- Premium Audio Cards Styling --- */
+    .audio-cards-container {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 6px;
+      margin-top: 4px;
+      max-height: 58px;
+      overflow: hidden;
+      padding-right: 0;
+    }
+
+    .audio-cards-container::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .audio-cards-container::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 3px;
+    }
+
+    .audio-cards-container::-webkit-scrollbar-thumb {
+      background: rgba(42, 56, 80, 0.8);
+      border-radius: 3px;
+    }
+
+    .audio-card {
+      position: relative;
+      background: #0d131f;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 6px 10px;
+      user-select: none;
+      min-height: 50px;
+    }
+
+    .audio-card:hover {
+      border-color: rgba(59, 130, 246, 0.6);
+      background: #111a2c;
+      transform: translateY(-1px);
+    }
+
+    .audio-card.selected {
+      border-color: var(--blue);
+      background: rgba(59, 130, 246, 0.1);
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.25);
+    }
+
+    .audio-card-head {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .audio-card-name {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 85%;
+    }
+
+    .audio-card-check {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      border: 1.5px solid var(--line);
+      display: grid;
+      place-items: center;
+      font-size: 9px;
+      color: transparent;
+      transition: all 0.18s ease;
+      grid-column: 2;
+      grid-row: 1 / span 2;
+    }
+
+    .audio-card.selected .audio-card-check {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .audio-card-path {
+      font-size: 10px;
+      color: var(--muted);
+      word-break: break-all;
+      opacity: 0.75;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .audio-card-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10.5px;
+      color: var(--muted);
+    }
+
+    .queue-monitor-modal[hidden] { display: none; }
+    .queue-monitor-modal { position: fixed; inset: 0; z-index: 120; }
+    .queue-monitor-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.48); backdrop-filter: blur(4px); }
+    .queue-monitor-panel { position: absolute; right: 18px; top: 66px; width: min(920px, calc(100vw - 36px)); height: min(760px, calc(100vh - 88px)); background: #090d16; border: 1px solid rgba(100,223,223,.35); border-radius: 18px; overflow: hidden; box-shadow: 0 24px 70px rgba(0,0,0,.55); }
+    .queue-monitor-head { height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 12px 0 14px; border-bottom: 1px solid rgba(38,52,73,.9); background: linear-gradient(90deg, rgba(15,26,43,.96), rgba(8,13,24,.98)); }
+    .queue-monitor-head strong { font-size: 13px; letter-spacing: -.2px; }
+    .queue-monitor-actions { display: flex; align-items: center; gap: 7px; }
+    .queue-monitor-actions a, .queue-monitor-actions button { border: 1px solid rgba(100,223,223,.34); border-radius: 9px; background: rgba(100,223,223,.08); color: #dcecff; padding: 5px 9px; font-size: 12px; font-weight: 800; text-decoration: none; }
+    .queue-monitor-panel iframe { width: 100%; height: calc(100% - 42px); border: 0; background: #090d16; }
+    #queue-monitor-open { color: #dcecff; }
+    @media (max-width: 760px) { .queue-monitor-panel { left: 8px; right: 8px; top: 64px; width: auto; height: calc(100vh - 76px); border-radius: 14px; } }
+
+    /* --- Premium Content Cards Styling --- */
+    .content-cards-container {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 6px;
+      margin-top: 4px;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    @media (max-width: 560px) {
+      .content-cards-container {
+        grid-template-columns: minmax(0, 1fr);
+        width: 100%;
+        max-width: 100%;
+      }
+      .content-cards-container .content-card,
+      .content-cards-container .content-card > div,
+      .content-cards-container .content-card-title,
+      .content-cards-container .content-card-body {
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+      }
+      .audio-card-meta,
+      .content-card-date,
+      .content-card-body {
+        display: none !important;
+      }
+      .layout > .stack:first-child > .card:nth-of-type(3) .card-head {
+        display: flex !important;
+      }
+      .audio-card-name,
+      .content-card-title {
+        max-width: 100%;
+      }
+    }
+
+    .content-card {
+      position: relative;
+      background: #0d131f;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      user-select: none;
+      min-height: 58px;
+      height: auto;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .content-card:hover {
+      border-color: rgba(59, 130, 246, 0.6);
+      background: #111a2c;
+      transform: translateY(-1px);
+    }
+
+    .content-card.selected {
+      border-color: var(--blue);
+      background: rgba(59, 130, 246, 0.1);
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.25);
+    }
+
+    .content-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 2px;
+      gap: 8px;
+    }
+
+    .content-card-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .content-card-date {
+      font-size: 10.5px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .content-card-body {
+      font-size: 11.5px;
+      color: #c9d7ea;
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .content-card-actions {
+      display: none;
+    }
+
+    .content-card-btn {
+      display: none;
+    }
+
+    /* Modal for full content view */
+    .content-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 150;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .content-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+    }
+    .content-modal-panel {
+      position: relative;
+      width: min(600px, calc(100vw - 32px));
+      max-height: min(650px, calc(100vh - 64px));
+      background: #0d131f;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+    .content-modal-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .content-modal-body {
+      padding: 18px;
+      overflow-y: auto;
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: #eef4ff;
+      white-space: pre-wrap;
+    }
+    .content-modal-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .download-action-pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      align-items: center;
+      min-width: 220px;
+    }
+
+    .download-action-pair .btn {
+      width: 100%;
+      min-width: 0;
+      padding: 8px 9px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .library-btn {
+      border-color: rgba(128,194,255,.42) !important;
+      background: rgba(59,156,255,.10) !important;
+      color: #dcecff !important;
+    }
+
+    .slideshow-library-panel {
+      width: min(520px, calc(100vw - 28px));
+    }
+
+    .slideshow-library-body {
+      min-height: 160px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .library-placeholder-card {
+      border: 1px dashed rgba(128,194,255,.35);
+      border-radius: 12px;
+      padding: 16px;
+      background: rgba(8,16,29,.58);
+    }
+
+    .library-list {
+      display: grid;
+      gap: 9px;
+    }
+
+    .library-item {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid rgba(42, 56, 80, 0.9);
+      border-radius: 12px;
+      background: rgba(8,16,29,.72);
+    }
+
+    .library-item-main {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+    }
+
+    .library-item-main strong {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .library-item-main span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .library-item .btn {
+      width: auto;
+      min-width: 82px;
+      height: 32px;
+      padding: 0 10px;
+      font-size: 11px;
+    }
+
+    /* Mobile preview media guard: keep generated video/thumbnail from pushing layout sideways */
+    @media (max-width: 560px) {
+      html,
+      body {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+      }
+
+      .shell,
+      .layout,
+      .stack,
+      .card {
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+      }
+
+      .preview-media-wrap {
+        width: 66vw !important;
+        max-width: 260px !important;
+        min-width: 220px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+      }
+
+      #video-preview-container,
+      .thumbnail-box-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+      }
+
+      #video-preview-container > div:first-child,
+      .thumbnail-box-container > div:first-child {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+        align-items: stretch !important;
+      }
+
+      #download,
+      #thumbnail-download {
+        width: 100% !important;
+        min-height: 34px !important;
+        height: 34px !important;
+        padding: 0 10px !important;
+        font-size: 12px !important;
+      }
+
+      .download-action-pair {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        width: 100% !important;
+      }
+
+      .download-action-pair .btn {
+        width: 100% !important;
+        min-width: 0 !important;
+        height: 34px !important;
+        min-height: 34px !important;
+        padding: 0 8px !important;
+        font-size: 11px !important;
+        line-height: 1.1 !important;
+        white-space: nowrap !important;
+      }
+
+      .video-box,
+      #thumbnail-preview-box {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        padding: 0 !important;
+        margin: 0 auto !important;
+        overflow: hidden !important;
+        aspect-ratio: 9 / 16 !important;
+      }
+
+      .video-box video,
+      #player,
+      #thumbnail-preview {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        max-height: none !important;
+        object-fit: contain !important;
+        border-radius: 10px !important;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="/static/app_deep_blue_theme.css?v=20260703-prep-1">
+</head>
+<body>
+  <nav class="tool-topbar" aria-label="Slideshow navigation">
+    <div class="topbar-left">StoryMaker Studio</div>
+    
+    <div class="topbar-right">
+      <a class="nav-link" href="/storymaker">StoryMaker</a>
+      <a class="nav-link" href="/podcast">Podcast</a>
+      <a class="nav-link" href="/slideshow">Slideshow</a>
+      <button id="queue-monitor-open" class="nav-link" type="button">Queue Monitor</button>
+      <span id="api-state" class="api-state"><i class="dot"></i><span>API 확인 중</span></span>
+    </div>
+  </nav>
+
+  <div id="queue-monitor-modal" class="queue-monitor-modal" hidden>
+    <div class="queue-monitor-backdrop" data-close-queue-monitor></div>
+    <section class="queue-monitor-panel" aria-label="Queue Monitor popup">
+      <div class="queue-monitor-head">
+        <strong>StoryMaker Queue Monitor</strong>
+        <div class="queue-monitor-actions">
+          <a href="/queue-monitor" target="_blank" rel="noopener">새창</a>
+          <button type="button" data-close-queue-monitor>닫기</button>
+        </div>
+      </div>
+      <iframe src="/queue-monitor" title="StoryMaker Queue Monitor"></iframe>
+    </section>
+  </div>
+
+  <main class="shell">
+    <section class="hero-mini">
+      <div class="hero-line">
+        <a class="hero-nav-link prev" href="https://app.mystorymaker.net/podcast" onclick="sessionStorage.setItem('explicit_nav','true');" aria-label="이전 단계 팟캐스트로 이동">←</a>
+        <div class="hero-title">Reels / Shorts</div>
+        <a class="hero-nav-link next" href="https://app.mystorymaker.net/storymaker" onclick="sessionStorage.setItem('explicit_nav','true');" aria-label="다음 단계 SNS 글쓰기로 이동">→</a>
+      </div>
+      <div class="hero-sub">음성, 자막, 사진을 조합해 쇼츠/릴스 영상과 썸네일을 만듭니다</div>
+    </section>
+
+    <div class="layout">
+      <div class="stack">
+        <!-- Step 1 -->
+        <section class="card">
+          <div class="card-head">
+            <h3><span class="step">1</span>프로젝트 정보</h3>
+
+          </div>
+          <div class="grid2">
+            <div class="field">
+              <label for="project">프로젝트 키</label>
+              <input id="project" maxlength="120">
+            </div>
+            <div class="field mobile-hide-title-memo">
+              <label for="title">영상 제목 메모</label>
+              <input id="title" placeholder="예: 울산 세면대 수리">
+            </div>
+          </div>
+        </section>
+
+        <!-- Step 2 -->
+        <section class="card">
+          <div class="card-head">
+            <h3><span class="step">2</span>오디오 확인</h3>
+
+          </div>
+              <div class="field compact-field">
+            <div id="audio-cards" class="audio-cards-container">
+              <div class="muted" style="padding:15px;text-align:center;color:var(--muted)">MP3 파일을 불러오는 중입니다...</div>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- Step 3 -->
+        <section class="card">
+          <div class="card-head">
+            <h3><span class="step">3</span>내용 확인</h3>
+
+          </div>
+          <div class="field">
+            <div id="content-cards" class="content-cards-container">
+              <div class="muted" style="padding:15px;text-align:center;color:var(--muted)">콘텐츠 목록을 불러오는 중입니다...</div>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- Step 4 -->
+        <section class="card">
+          <div class="card-head">
+            <h3><span class="step">4</span>이미지 업로드</h3>
+            <span id="image-count" class="hint">0장</span>
+          </div>
+          <div id="dropzone" class="dropzone">
+            <p>이미지를 드래그하거나 클릭해서 선택하세요.</p>
+            <p class="hint">JPG, PNG, WEBP를 여러 장 선택할 수 있습니다.</p>
+            <button id="select-images" class="btn secondary" type="button">이미지 선택</button>
+            <input id="images" type="file" accept="image/*" multiple hidden>
+          </div>
+          <div id="file-list" class="thumbnail-grid"></div>
+        </section>
+
+        <!-- Step 5 -->
+        <section class="card watermark-card">
+          <div class="card-head">
+            <h3><span class="step">5</span>워터마크</h3>
+            <span class="hint">하단 상호/전화번호</span>
+          </div>
+          <div class="grid2">
+            <div class="field">
+              <label for="brand">상호명</label>
+              <input id="brand" value="오박사 만능인테리어">
+            </div>
+            <div class="field">
+              <label for="phone">전화번호</label>
+              <input id="phone" value="010-8284-5584">
+            </div>
+          </div>
+          <div class="grid3">
+            <div class="field">
+              <label for="brand-size">상호 크기</label>
+              <input id="brand-size" type="number" min="20" max="120" value="46">
+            </div>
+            <div class="field">
+              <label for="phone-size">전화 크기</label>
+              <input id="phone-size" type="number" min="20" max="120" value="43">
+            </div>
+            <div class="field">
+              <label for="margin-bottom">하단 여백</label>
+              <input id="margin-bottom" type="number" min="20" max="300" value="80">
+            </div>
+          </div>
+          <div class="toggle-row">
+            <label class="toggle"><input id="box-enabled" type="checkbox" checked> 배경박스</label>
+            <label class="toggle"><input id="stroke-enabled" type="checkbox" checked> 테두리</label>
+            <label class="toggle"><input id="shadow-enabled" type="checkbox" checked> 그림자</label>
+          </div>
+        </section>
+      </div>
+
+      <aside class="stack">
+        <!-- Step 6 -->
+        <section class="card">
+          <div class="card-head">
+            <h3><span class="step">6</span>영상 설정</h3>
+            <button id="toggle-advanced" class="btn secondary settings-toggle-btn" type="button">상세 설정</button>
+          </div>
+          
+          <div class="field" style="margin-bottom:12px;background:rgba(53,212,154,0.06);padding:10px 15px;border-radius:8px;border:1px solid rgba(53,212,154,0.18)">
+            <label for="render-target" style="font-weight:bold;color:var(--green);display:block;margin-bottom:6px">렌더링 장비</label>
+            <select id="render-target">
+              <option value="macmini" selected>Server1 - 숏폼 렌더링 전용</option>
+              <option value="dell">Server2 - 기존 렌더링</option>
+            </select>
+            <div style="font-size:11px;color:var(--muted);margin-top:5px">기본값은 Server1입니다. 필요할 때 Server1과 Server2를 전환해 비교합니다.</div>
+          </div>
+
+          <!-- 빠른 초안 모드 체크박스 -->
+          <div class="field" style="margin-bottom:15px;background:rgba(59,130,246,0.06);padding:10px 15px;border-radius:8px;border:1px solid rgba(59,130,246,0.15)">
+            <label class="toggle" style="font-weight:bold;color:var(--blue);display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input id="fast-draft" type="checkbox" style="width:17px;height:17px" checked> 빠른 초안 모드 (최대 속도)
+            </label>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;margin-left:25px">체크 시 해상도 720p, 20fps, p2 프리셋, 줌 효과 해제로 고속 생성합니다.</div>
+          </div>
+
+          <div id="advanced-settings" class="advanced-settings collapsed">
+            <div class="grid3">
+              <div class="field">
+                <label for="resolution-select">해상도</label>
+                <select id="resolution-select">
+                  <option value="1080x1920">고화질 1080x1920</option>
+                  <option value="720x1280">빠른 초안 720x1280</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="fps-select">FPS</label>
+                <select id="fps-select">
+                  <option value="30">30fps 고품질</option>
+                  <option value="24" selected>24fps 권장</option>
+                  <option value="20">20fps 빠른 초안</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="preset-select">NVENC 프리셋</label>
+                <select id="preset-select">
+                  <option value="p4">p4 고화질</option>
+                  <option value="p3" selected>p3 권장</option>
+                  <option value="p2">p2 빠른 초안</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid3">
+              <div class="field"><label for="image-sec">이미지당 초</label><input id="image-sec" type="number" step="0.5" min="1" max="8" value="4.5"></div>
+              <div class="field"><label for="transition-sec">전환 초</label><input id="transition-sec" type="number" step="0.1" min="0.2" max="2" value="2.0"></div>
+              <div class="field"><label for="zoom-intensity">줌 강도</label><input id="zoom-intensity" type="number" step="0.001" min="0" max="0.02" value="0.004"></div>
+            </div>
+            
+            <div class="grid3">
+              <label class="toggle"><input id="subtitle-enabled" type="checkbox" checked> 자막 사용</label>
+              <div class="field"><label for="subtitle-size">자막 크기</label><input id="subtitle-size" type="number" min="8" max="40" value="10"></div>
+              <div class="field"><label for="subtitle-margin">자막 여백</label><input id="subtitle-margin" type="number" min="10" max="200" value="40"></div>
+            </div>
+          </div>
+          
+          <button id="run" class="btn" type="button" style="width:100%;padding:12px;margin-top:4px">슬라이드쇼 생성</button>
+        </section>
+
+        <!-- Step 7 -->
+        <section class="card">
+          <div class="card-head">
+            <h3><span class="step">7</span>생성 진행</h3>
+            <span id="percent" class="hint">0%</span>
+          </div>
+          <div id="progress-track" class="progress-track">
+            <div id="progress" class="progress-bar"></div>
+          </div>
+          <div class="stage">
+            <strong id="stage">대기 중</strong>
+            <span id="job">job_id: -</span>
+          </div>
+          <div id="logs" class="logs">이미지와 오디오를 선택한 뒤 생성하세요.</div>
+        </section>
+
+        <!-- Step 8 -->
+        <section class="card">
+          <div class="card-head">
+            <h3><span class="step">8</span>미리보기</h3>
+          </div>
+          
+          <div class="preview-media-wrap" style="max-width: 360px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px;">
+            <!-- 동영상 영역 -->
+            <div id="video-preview-container" class="video-box-container collapsed" style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong style="font-size: 14px;">동영상 미리보기</strong>
+                <div class="download-action-pair">
+                  <button id="download" class="btn secondary" type="button" disabled>숏폼 다운로드</button>
+                  <button id="video-library-open" class="btn secondary library-btn" type="button">내보관함</button>
+                </div>
+              </div>
+              <div class="video-box" style="min-height: auto; padding: 8px; aspect-ratio: 9/16; width: 100%; max-height: 640px;">
+                <video id="player" controls playsinline preload="metadata" style="max-width: 360px; max-height: 640px; width: 100%; height: 100%; border-radius: 10px; object-fit: contain;"></video>
+                <button id="force-play" class="btn" type="button" style="margin-top:10px;width:100%;padding:10px 12px;font-size:14px;display:none;">▶ 재생 시작</button>
+              </div>
+            </div>
+            
+            <!-- 썸네일 영역 -->
+            <div class="thumbnail-box-container" style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong style="font-size: 14px;">썸네일 미리보기</strong>
+                <div class="download-action-pair">
+                  <button id="thumbnail-download" class="btn secondary" type="button" disabled>썸네일 다운로드</button>
+                  <button id="thumbnail-library-open" class="btn secondary library-btn" type="button">내보관함</button>
+                </div>
+              </div>
+              
+              <div class="video-box" id="thumbnail-preview-box" style="min-height: auto; padding: 8px; aspect-ratio: 9/16; width: 100%; max-height: 640px; display: none;">
+                <img id="thumbnail-preview" alt="썸네일 미리보기" style="max-width: 360px; max-height: 640px; width: 100%; height: 100%; border-radius: 10px; object-fit: contain;">
+              </div>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <div id="slideshow-library-modal" class="content-modal" style="display: none;">
+      <div class="content-modal-backdrop" id="close-library-modal-bg"></div>
+      <div class="content-modal-panel slideshow-library-panel">
+        <div class="content-modal-header">
+          <strong id="slideshow-library-title">내보관함</strong>
+          <button type="button" class="content-modal-close" id="close-library-modal-btn">×</button>
+        </div>
+        <div class="content-modal-body slideshow-library-body" id="slideshow-library-body">
+          <div class="muted">보관함 API 연결 전입니다. 2차 작업에서 사용자별 영상/썸네일 목록을 불러오겠습니다.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for full content view -->
+    <div id="content-modal" class="content-modal" style="display: none;">
+      <div class="content-modal-backdrop" id="close-content-modal-bg"></div>
+      <div class="content-modal-panel">
+        <div class="content-modal-header">
+          <strong id="content-modal-title">콘텐츠 전체 보기</strong>
+          <button type="button" class="content-modal-close" id="close-content-modal-btn">×</button>
+        </div>
+        <div class="content-modal-body" id="content-modal-body-text"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const $=s=>document.querySelector(s);
+    const queueMonitorModal = document.querySelector('#queue-monitor-modal');
+
+    document.querySelector('#queue-monitor-open')?.addEventListener('click', () => {
+      if (queueMonitorModal) queueMonitorModal.hidden = false;
+    });
+
+    document.querySelectorAll('[data-close-queue-monitor]').forEach(el => {
+      el.addEventListener('click', () => {
+        if (queueMonitorModal) queueMonitorModal.hidden = true;
+      });
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && queueMonitorModal) queueMonitorModal.hidden = true;
+    });
+
+    function getStorymakerToken(){
+      const saved = localStorage.getItem('storymaker_token') || '';
+      const fallback = localStorage.getItem('access_token') || sessionStorage.getItem('storymaker_token') || sessionStorage.getItem('access_token') || '';
+      const value = String(saved || fallback || '').trim();
+      if(value && !saved){
+        localStorage.setItem('storymaker_token', value);
+      }
+      return value;
+    }
+
+    let token = getStorymakerToken();
+    let selectedImages=[]; 
+    let currentMp4='';
+    let currentPreviewMp4='';
+    let activeJobId='';
+    let activeCleanupToken='';
+    let cleanupDone=false;
+    let currentThumbnail='';
+    let videoObjectUrl='';
+    let thumbnailPollTimer=null;
+    let pollTimer=null;
+    let draggedIndex=null;
+
+	    let selectedAudioValue='';
+	    let audioItems=[];
+	    const SLIDESHOW_DRAFT_KEY = 'storymaker_slideshow_work_state_v1';
+	    const SLIDESHOW_LAST_RESULT_KEY = 'storymaker_slideshow_last_result_v1';
+	    let slideshowDraftRestored = false;
+    let prevSettings=null;
+    let advancedManuallyOpen=false;
+
+    let selectedContentId = '';
+    let selectedContentPath = '';
+    let selectedContentText = '';
+    let contentItems = [];
+    let activeThumbnailJobId = '';
+    let lastThumbnailLogKey = '';
+    let savedVideoLibraryUrl = '';
+    let savedThumbnailLibraryUrl = '';
+
+    function saveSlideshowDraft(){
+      try{
+        const data = {
+          project: $('#project').value,
+          title: $('#title').value,
+          selectedAudioValue: selectedAudioValue,
+          selectedContentId: selectedContentId,
+          brand: $('#brand').value,
+          phone: $('#phone').value,
+          brandSize: $('#brand-size').value,
+          phoneSize: $('#phone-size').value,
+          marginBottom: $('#margin-bottom').value,
+          boxEnabled: $('#box-enabled').checked,
+          strokeEnabled: $('#stroke-enabled').checked,
+          shadowEnabled: $('#shadow-enabled').checked,
+          renderTarget: $('#render-target').value,
+          fastDraft: $('#fast-draft').checked,
+          updatedAt: new Date().toISOString()
+        };
+        window.localStorage.setItem(SLIDESHOW_DRAFT_KEY, JSON.stringify(data));
+      }catch(e){}
+    }
+
+	    function loadSlideshowDraft(){
+	      try{return JSON.parse(window.localStorage.getItem(SLIDESHOW_DRAFT_KEY)||'{}')||{};}catch(e){return {};}
+	    }
+
+	    function clearSlideshowResult(){
+	      try{window.localStorage.removeItem(SLIDESHOW_LAST_RESULT_KEY);}catch(e){}
+	    }
+
+	    function saveSlideshowResult(data,id){
+	      // 이전 영상이 페이지 재방문 시 자동 재생되는 것을 막기 위해 결과 MP4는 저장하지 않는다.
+	      // 다운로드와 미리보기는 현재 페이지 메모리 상태(currentMp4/currentPreviewMp4)에서만 유지한다.
+	      clearSlideshowResult();
+	    }
+
+	    async function showPreviewVideo(previewUrl){
+	      const directUrl=previewUrl+(previewUrl.includes('?')?'&':'?')+'t='+Date.now();
+	      const player=$('#player');
+	      const videoContainer=$('#video-preview-container');
+	      if(videoContainer) videoContainer.classList.remove('collapsed');
+	      player.controls=true;
+	      player.playsInline=true;
+	      player.autoplay=true;
+	      player.preload='auto';
+	      player.muted=true;
+	      player.volume=1.0;
+	      player.onloadedmetadata=()=>appendLog('[Preview] loadedmetadata: duration='+player.duration);
+	      player.oncanplay=()=>appendLog('[Preview] canplay');
+	      player.onerror=()=>appendLog('[Preview] error: 미리보기 video error code: '+(player.error?.code||'unknown'));
+
+	      try{
+	        if(videoObjectUrl){
+	          URL.revokeObjectURL(videoObjectUrl);
+	          videoObjectUrl='';
+	        }
+
+	        appendLog('[Preview] Final MP4 URL: ' + directUrl);
+
+	        // 1. 생성 완료 후 2초 대기
+	        await new Promise(resolve => setTimeout(resolve, 2000));
+
+	        let lastSize = -1;
+	        let retryCount = 0;
+	        const MIN_SIZE = 5 * 1024 * 1024; // 5MB
+	        const MAX_RETRIES = 30; // 무한 루프 방지
+
+	        while (retryCount < MAX_RETRIES) {
+	          appendLog('[Preview] HEAD 요청 시작 (Retry Count: ' + retryCount + ')');
+	          
+	          let contentLength = 0;
+	          try {
+	            // HEAD 요청 시도
+	            let res = await fetch(directUrl, { method: 'HEAD', headers: auth() });
+	            // 만약 HEAD가 지원되지 않거나 에러가 나면 GET으로 폴백 (Range 헤더로 바이트만 살짝 확인)
+	            if (!res.ok) {
+	              appendLog('[Preview] HEAD 요청 실패(HTTP ' + res.status + '), GET으로 Content-Length 확인 시도');
+	              res = await fetch(directUrl, { method: 'GET', headers: { ...auth(), Range: 'bytes=0-0' } });
+	            }
+	            contentLength = parseInt(res.headers.get('content-length') || '0', 10);
+	          } catch (err) {
+	            appendLog('[Preview] 크기 확인 중 오류 발생: ' + err.message);
+	          }
+
+	          appendLog('[Preview] Content-Length: ' + contentLength);
+
+	          if (contentLength < MIN_SIZE) {
+	            appendLog(`[Preview] 파일 크기가 최소 기준(5MB) 미만입니다. 현재: ${(contentLength / 1024 / 1024).toFixed(2)}MB. 2초 후 재시도합니다.`);
+	            retryCount++;
+	            await new Promise(resolve => setTimeout(resolve, 2000));
+	            continue;
+	          }
+
+	          // 크기가 5MB 이상인 경우, 1초 후 다시 확인하여 크기 변화가 없는지 검증
+	          if (lastSize === -1 || lastSize !== contentLength) {
+	            appendLog(`[Preview] 파일 크기가 변경되었거나 처음 확인되었습니다. (이전: ${lastSize}, 현재: ${contentLength}). 안정화 확인을 위해 1초 대기합니다.`);
+	            lastSize = contentLength;
+	            retryCount++;
+	            await new Promise(resolve => setTimeout(resolve, 1000));
+	            continue;
+	          }
+
+	          // 이전 확인 크기와 현재 크기가 동일하면 안정화된 것으로 판단
+	          appendLog(`[Preview] 파일 크기 안정화 확인 완료 (크기: ${(contentLength / 1024 / 1024).toFixed(2)}MB)`);
+	          break;
+	        }
+
+	        appendLog('[Preview] Blob 생성');
+	        const r=await fetch(directUrl,{headers:auth()});
+	        if(!r.ok)throw new Error('미리보기 파일 요청 실패: HTTP '+r.status);
+	        let blob=await r.blob();
+	        appendLog('[Preview] Blob Size: ' + blob.size);
+
+	        const ct=(r.headers.get('content-type')||blob.type||'').toLowerCase();
+	        const headText=await blob.slice(0,64).text().catch(()=> '');
+	        if(headText && !headText.includes('ftyp') && /[<{]|error|detail|not found|unauthorized/i.test(headText)){
+	          throw new Error('MP4 대신 오류 응답을 받았습니다: '+headText.slice(0,50));
+	        }
+	        if(!ct.includes('video') && !headText.includes('ftyp')){
+	          appendLog('[영상] MP4 시그니처가 불확실합니다. video/mp4 타입으로 보정합니다.');
+	        }
+	        blob=new Blob([blob],{type:'video/mp4'});
+	        videoObjectUrl=URL.createObjectURL(blob);
+	        player.pause();
+	        player.removeAttribute('src');
+	        appendLog('[Preview] video.load()');
+	        player.load();
+	        player.src=videoObjectUrl;
+	        player.load();
+	        $('#download').disabled=false;
+	        appendLog('[영상] MP4 Blob 미리보기 연결 완료');
+
+	        const tryPlay=()=>{
+	          appendLog('[Preview] video.play()');
+	          player.play().then(()=>{
+	            appendLog('[영상] 자동 재생 시작');
+	            setTimeout(()=>{
+	              try{
+	                player.muted=false;
+	                player.volume=1.0;
+	                appendLog('[영상] 볼륨 자동 복구 완료');
+	              }catch(_e){}
+	            },350);
+	          }).catch(err=>{
+	            appendLog('[영상] 자동 재생 보류: 아래 재생 시작 버튼을 눌러주세요. '+(err?.message||''));
+	            showForcePlayButton();
+	          });
+	        };
+	        player.oncanplay=()=>{
+	          appendLog('[Preview] canplay');
+	          appendLog('미리보기 준비 완료');
+	          tryPlay();
+	        };
+	        setTimeout(tryPlay,700);
+	      }catch(e){
+	        appendLog('[영상] 미리보기 연결 실패: '+e.message);
+	        $('#download').disabled=false;
+	      }
+	      focusResultArea('.video-box-container');
+	    }
+
+	    async function forcePlayVideo(){
+	      const player=$('#player');
+	      const btn=$('#force-play');
+	      if(!player){return;}
+	      try{
+	        const sourceUrl=currentPreviewMp4||currentMp4;
+	        if(!sourceUrl && !videoObjectUrl){
+	          throw new Error('재생할 MP4 주소가 없습니다.');
+	        }
+	        if(btn){btn.disabled=true;btn.textContent='영상 준비 중...';}
+	        if(sourceUrl){
+	          appendLog('[영상] 수동 재생용 MP4를 다시 가져오는 중');
+	          const directUrl=sourceUrl+(sourceUrl.includes('?')?'&':'?')+'manual_play='+Date.now();
+	          const r=await fetch(directUrl,{headers:auth()});
+	          if(!r.ok)throw new Error('MP4 요청 실패: HTTP '+r.status);
+	          let blob=await r.blob();
+	          appendLog('[영상] 수동 재생 응답: type='+(r.headers.get('content-type')||blob.type||'unknown')+', size='+blob.size);
+	          blob=new Blob([blob],{type:'video/mp4'});
+	          if(videoObjectUrl){URL.revokeObjectURL(videoObjectUrl);}
+	          videoObjectUrl=URL.createObjectURL(blob);
+	        }
+	        player.pause();
+	        player.removeAttribute('src');
+	        player.load();
+	        player.src=videoObjectUrl;
+	        player.muted=false;
+	        player.volume=1.0;
+	        player.load();
+	        await new Promise(resolve=>{
+	          let done=false;
+	          const finish=()=>{if(done)return;done=true;resolve();};
+	          player.onloadedmetadata=finish;
+	          player.oncanplay=finish;
+	          setTimeout(finish,1200);
+	        });
+	        try{player.currentTime=0;}catch(_e){}
+	        await player.play();
+	        if(btn){btn.style.display='none';btn.disabled=false;btn.textContent='▶ 재생 시작';}
+	        appendLog('[영상] 수동 재생 시작 완료');
+	      }catch(e){
+	        appendLog('[영상] 수동 재생 실패: '+(e?.message||e));
+	        if(btn){btn.disabled=false;btn.textContent='▶ 재생 다시 시도';btn.style.display='block';}
+	      }
+	    }
+
+	    function showForcePlayButton(){
+	      const btn=$('#force-play');
+	      if(!btn)return;
+	      btn.style.display='block';
+	      btn.onclick=forcePlayVideo;
+	    }
+
+	    function restoreSlideshowResult(){
+	      clearSlideshowResult();
+	      currentMp4='';
+	      currentPreviewMp4='';
+	      activeJobId='';
+	      activeCleanupToken='';
+	      cleanupDone=false;
+	    }
+
+	    function getLatestPodcastForSlideshow(){
+      try{
+        return JSON.parse(sessionStorage.getItem('storymaker_latest_podcast_for_slideshow') || localStorage.getItem('storymaker_latest_podcast_for_slideshow') || '{}') || {};
+      }catch(e){return {};}
+    }
+
+    function restoreSlideshowDraftInputs(){
+      if(slideshowDraftRestored) return;
+      const data = loadSlideshowDraft();
+      if(data.project) $('#project').value = data.project;
+      if(data.title) $('#title').value = data.title;
+      if(data.renderTarget) $('#render-target').value = data.renderTarget;
+      if(typeof data.fastDraft === 'boolean') $('#fast-draft').checked = data.fastDraft;
+      if(data.selectedAudioValue) selectedAudioValue = data.selectedAudioValue;
+      if(data.selectedContentId) selectedContentId = data.selectedContentId;
+      // 상호명/전화번호는 페르소나 DB 값을 우선 사용한다.
+      // 이전 localStorage 임시저장값이 최신 페르소나 정보를 덮어쓰지 않도록 brand/phone은 복원하지 않는다.
+      const savedNumberFields = [['brandSize','brand-size'],['phoneSize','phone-size'],['marginBottom','margin-bottom']];
+      savedNumberFields.forEach(pair=>{ if(data[pair[0]]) $('#'+pair[1]).value = data[pair[0]]; });
+      const savedChecks = [['boxEnabled','box-enabled'],['strokeEnabled','stroke-enabled'],['shadowEnabled','shadow-enabled']];
+      savedChecks.forEach(pair=>{ if(typeof data[pair[0]] === 'boolean') $('#'+pair[1]).checked = data[pair[0]]; });
+      slideshowDraftRestored = true;
+    }
+
+
+    const auth=()=>getStorymakerToken()?{Authorization:`Bearer ${getStorymakerToken()}`}:{};
+    const apiFetch=(url, options={})=>fetch(url,{
+      ...options,
+      credentials:'include',
+      headers:{
+        ...(options.headers||{}),
+        ...auth()
+      }
+    });
+    const escapeName=s=>(s||'영상').replace(/[\\/:*?"<>|\s]+/g,'_');
+    const formatDate=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+    function currentUser(){try{return JSON.parse(localStorage.getItem('storymaker_user')||'{}').username||'사용자'}catch{return'사용자'}}
+    function autoProject(){return `${escapeName(currentUser())}_${formatDate(new Date())}_슬라이드쇼`}
+
+
+    function sanitizeLogLine(line){
+      let text = String(line || '').trim();
+      if (!text) return '';
+      if (/project-dir|--project-key|--srt\s+|\/home\/|\/workspace\//i.test(text)) return '';
+      text = text.replace(/\[DONE\].*/i, '영상 생성이 완료되었습니다.');
+      text = text.replace(/저장 위치\s*:.*/i, '다운로드 버튼을 눌러 결과물을 받을 수 있습니다.');
+      text = text.replace(/임시 이미지 폴더가.*삭제되었습니다\.?/i, '작업 정리가 완료되었습니다.');
+      text = text.replace(/MP4 파일 크기\s*:/i, '결과 파일 크기:');
+      text = text.replace(/\[환경변수\]\s*/g, '');
+      text = text.replace(/Mac mini/gi, 'Server1');
+      text = text.replace(/Mac\s*mini/gi, 'Server1');
+      text = text.replace(/Dell/gi, 'Server2');
+      return text;
+    }
+
+    function setLog(lines){
+      const arr=Array.isArray(lines)?lines:[lines];
+      const cleaned=arr.map(sanitizeLogLine).filter(Boolean).slice(-80);
+      $('#logs').textContent=cleaned.join('\n')||'작업 상태를 확인 중입니다.';
+      $('#logs').scrollTop=$('#logs').scrollHeight;
+    }
+
+    function setProgress(n,stage){
+      n=Math.max(0,Math.min(100,Number(n)||0));
+      $('#progress').style.width=n+'%';
+      $('#percent').textContent=Math.round(n)+'%';
+      if(stage)$('#stage').textContent=stage;
+      
+      if(stage==='생성 완료'||stage==='대기 중'||stage==='완료'||n===100){
+        $('#progress-track').style.display='none';
+        $('#percent').style.display='none';
+      }else{
+        $('#progress-track').style.display='block';
+        $('#percent').style.display='inline';
+      }
+    }
+
+    function appendLog(line){
+      const current=$('#logs').textContent || '';
+      setLog([current, line]);
+    }
+
+    function wait(ms){
+      return new Promise(resolve=>setTimeout(resolve, ms));
+    }
+
+    function escapeHtml(value){
+      return String(value ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+    }
+
+    function collectPromptKeywords(){
+      const raw = [
+        extractBlock(selectedContentText, 'INSTAGRAM_HASHTAGS'),
+        extractBlock(selectedContentText, 'INSTAGRAM_POST'),
+        $('#title')?.value || '',
+        $('#project')?.value || ''
+      ].join('\n');
+      const tags = [...raw.matchAll(/#([^\s#,.，]+)/g)].map(m => m[1]);
+      const loose = raw.split(/[,.，\n|/]+/).map(v => v.trim()).filter(v => v.length >= 2 && v.length <= 18);
+      return [...new Set([...tags, ...loose])].slice(0, 12).join(', ');
+    }
+
+    async function readJsonSafe(response){
+      const ct=(response.headers.get('content-type')||'').toLowerCase();
+      const text=await response.text();
+      if(!ct.includes('application/json')){
+        const preview=text.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,240);
+        throw new Error(`JSON이 아닌 응답을 받았습니다. status=${response.status} ${preview||''}`);
+      }
+      try{
+        return JSON.parse(text);
+      }catch(e){
+        throw new Error(`JSON 파싱 실패: ${e.message}`);
+      }
+    }
+
+    async function health(){
+      const el=$('#api-state');
+      try{
+        const r=await fetch('/api/slideshow/health');
+        if(!r.ok)throw 0;
+        el.className='api-state ok';
+        el.lastElementChild.textContent='Slideshow API 정상';
+      }catch{
+        el.className='api-state error';
+        el.lastElementChild.textContent='Slideshow API 연결 실패';
+      }
+    }
+
+    function isDefaultWatermarkBrand(value){
+      const compact = String(value || '').replace(/\s+/g, '').trim();
+      if (!compact) return true;
+      return compact === '오박사만능인테리어' || compact === '상호명' || compact === '업체명';
+    }
+
+    async function loadUserWatermark(){
+      if(!token)return;
+      try{
+        const r=await fetch('/api/auth/personas',{headers:auth()});
+        const data=await readJsonSafe(r);
+        const personas=Array.isArray(data.data)?data.data:[];
+        const persona=personas.find(p=>p.is_default)||personas[0];
+        if(!persona)return;
+        const currentBrand=$('#brand').value.trim();
+        const currentPhone=$('#phone').value.trim();
+        const personaBrand=(persona.company_name||persona.company||persona.business_name||'').trim();
+        const personaPhone=(persona.phone_number||persona.phone||'').trim();
+        if(personaBrand) $('#brand').value=personaBrand;
+        if(personaPhone) $('#phone').value=personaPhone;
+        saveSlideshowDraft();
+      }catch(e){
+        console.warn('watermark profile load failed', e);
+      }
+    }
+
+    function syncAdvancedSettings(){
+      const fast=$('#fast-draft').checked;
+      const panel=$('#advanced-settings');
+      const btn=$('#toggle-advanced');
+      const shouldShow=!fast||advancedManuallyOpen;
+      panel.classList.toggle('collapsed', !shouldShow);
+      btn.textContent=shouldShow?'상세 접기':'상세 설정';
+    }
+
+    async function loadAudio(){
+      restoreSlideshowDraftInputs();
+      try{
+        const r=await apiFetch('/api/slideshow/audio-list');
+        if(!r.ok)throw Error(await r.text());
+        // 오디오 확인 영역은 실제 생성/수정시간 기준 최신 MP3 1개만 표시한다.
+        const audioList = (await readJsonSafe(r)).filter(it=>(it.type||'mp3')==='mp3');
+        audioList.sort((a,b)=>{
+          const av = Number(a.mtime || a.modified || a.created || a.timestamp || 0) || Date.parse(a.mtime_str || a.modified_at || a.created_at || '') || 0;
+          const bv = Number(b.mtime || b.modified || b.created || b.timestamp || 0) || Date.parse(b.mtime_str || b.modified_at || b.created_at || '') || 0;
+          if (bv !== av) return bv - av;
+          return String(b.name || b.filename || b.path || '').localeCompare(String(a.name || a.filename || a.path || ''));
+        });
+        const latestPodcast = getLatestPodcastForSlideshow();
+        if(latestPodcast && latestPodcast.project_key){
+          $('#project').value = latestPodcast.project_key;
+        }
+        let matchedAudio = null;
+        if (latestPodcast && latestPodcast.project_key) {
+          matchedAudio = audioList.find(it => {
+            const hay = [it.path, it.url, it.filename, it.name].filter(Boolean).join(' ');
+            return hay.indexOf(latestPodcast.project_key) !== -1;
+          }) || null;
+        }
+        audioItems = matchedAudio ? [matchedAudio] : audioList.slice(0, 1);
+        selectedAudioValue = '';
+        saveSlideshowDraft();
+        renderAudioCards();
+      }catch(e){
+        $('#audio-cards').innerHTML='<div class="muted" style="padding:15px;text-align:center;color:var(--red)">MP3 목록 불러오기 실패</div>';
+        setLog('오디오 목록 오류: '+e.message);
+      }
+    }
+
+    function renderAudioCards() {
+      const container = $('#audio-cards');
+      if (audioItems.length === 0) {
+        container.innerHTML = '<div class="muted" style="padding:15px;text-align:center;color:var(--muted);">최근 생성된 MP3 파일이 없습니다.</div>';
+        selectedAudioValue = '';
+        updateAudioInfo();
+        return;
+      }
+      
+      container.innerHTML = audioItems.map((it) => {
+        const audioValue = it.path || it.url || it.filename || it.name || '';
+        const audioName = (it.name || it.filename || it.path || audioValue).split('/').pop();
+        const isSelected = selectedAudioValue === audioValue;
+        
+        return `
+          <div class="audio-card ${isSelected ? 'selected' : ''}" data-audio-index="${audioItems.indexOf(it)}">
+            <div class="audio-card-head">
+              <span class="audio-card-name" title="${escapeHtml(audioName)}">${escapeHtml(audioName)}</span>
+              <span class="audio-card-check">✓</span>
+            </div>
+            <div class="audio-card-meta">
+              <span>${it.size_mb || 0} MB</span>
+              <span>${escapeHtml(it.mtime_str || '')}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      container.querySelectorAll('.audio-card').forEach(card=>{
+        card.addEventListener('click',()=>{
+          const idx=Number(card.dataset.audioIndex);
+          const it=audioItems[idx];
+          if(!it)return;
+          const audioValue=it.path||it.url||it.filename||it.name||'';
+          selectAudio(audioValue);
+        });
+      });
+      
+      const currentExists = audioItems.some(it => (it.path || it.url || it.filename || it.name || '') === selectedAudioValue);
+      if (!selectedAudioValue || !currentExists) {
+        const latest = audioItems[0];
+        const latestValue = latest.path || latest.url || latest.filename || latest.name || '';
+        selectAudio(latestValue);
+      } else {
+        updateAudioInfo();
+      }
+    }
+
+    async function loadContent() {
+      restoreSlideshowDraftInputs();
+      try {
+        const r = await apiFetch('/api/slideshow/contents');
+        if (!r.ok) throw Error(await r.text());
+        const contentPayload = await readJsonSafe(r);
+        contentItems = Array.isArray(contentPayload) ? contentPayload : (contentPayload.data || contentPayload.items || contentPayload.contents || []);
+        renderContentCards();
+      } catch (e) {
+        $('#content-cards').innerHTML = '<div class="muted" style="padding:15px;text-align:center;color:var(--red)">콘텐츠 목록 불러오기 실패</div>';
+        setLog('콘텐츠 목록 오류: ' + e.message);
+      }
+    }
+
+    function renderContentCards() {
+      const container = $('#content-cards');
+      // 내용 확인 영역은 최근 생성 콘텐츠 최신 1개만 카드로 표시한다.
+      const itemsToShow = contentItems.slice(0, 1);
+      
+      if (itemsToShow.length === 0) {
+        container.innerHTML = '<div class="muted" style="padding:15px;text-align:center;color:var(--muted);">최근 생성된 콘텐츠가 없습니다.</div>';
+        selectedContentId = '';
+        selectedContentPath = '';
+        selectedContentText = '';
+        updateContentInfo();
+        return;
+      }
+      
+      container.innerHTML = itemsToShow.map((it) => {
+        const isSelected = selectedContentId === it.content_id;
+        let previewText = extractBlock(it.result_text, 'INSTAGRAM_POST');
+        if (!previewText) {
+          previewText = it.result_text || '';
+        }
+        const cleanPreview = previewText.replace(/\s+/g, ' ').trim();
+        const dateOnly = (it.created_at || '').split('T')[0] || '';
+        
+        return `
+          <div class="content-card ${isSelected ? 'selected' : ''}" data-content-id="${it.content_id}">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; min-width: 0; flex: 1;">
+                <span class="content-card-title" style="flex: 1; min-width: 0;">${escapeHtml(it.project_title)}</span>
+                <span class="content-card-date" style="flex-shrink: 0;">${escapeHtml(dateOnly)}</span>
+              </div>
+              <span style="flex-shrink: 0; font-size: 11px; color: ${isSelected ? 'var(--blue)' : 'transparent'}; font-weight: bold; margin-left: 2px;">✓</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px; margin-top: 2px;">
+              <div class="content-card-body" title="${escapeHtml(cleanPreview)}" style="flex: 1; min-width: 0;">${escapeHtml(cleanPreview)}</div>
+
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      container.querySelectorAll('.content-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const cid = card.dataset.contentId;
+          selectContent(cid);
+        });
+      });
+      
+      const currentExists = itemsToShow.some(it => it.content_id === selectedContentId);
+      if (!selectedContentId || !currentExists) {
+        selectContent(itemsToShow[0].content_id);
+      } else {
+        updateContentInfo();
+      }
+    }
+
+    function selectContent(cid) {
+      selectedContentId = cid;
+      setTimeout(saveSlideshowDraft, 0);
+      const it = contentItems.find(x => x.content_id === cid);
+      if (it) {
+        selectedContentPath = it.content_path;
+        selectedContentText = it.result_text;
+      } else {
+        selectedContentPath = '';
+        selectedContentText = '';
+      }
+      
+      const cards = document.querySelectorAll('.content-card');
+      cards.forEach(card => {
+        if (card.dataset.contentId === cid) {
+          card.classList.add('selected');
+        } else {
+          card.classList.remove('selected');
+        }
+      });
+      
+      updateContentInfo();
+    }
+
+    function updateContentInfo() {
+      const contentInfo=$('#content-info');
+      if (!selectedContentId) {
+        if(contentInfo) contentInfo.innerHTML = '선택된 내용이 없습니다.';
+        return;
+      }
+      const it = contentItems.find(x => x.content_id === selectedContentId);
+      const title = it ? it.project_title : '알 수 없음';
+      const time = it ? (it.created_at || '') : '';
+      if(contentInfo) contentInfo.innerHTML = `선택된 내용: <strong style="color:var(--blue)">${escapeHtml(title)}</strong> (${escapeHtml(time)})`;
+    }
+
+    async function openSlideshowLibrary(kind) {
+      const title = kind === 'thumbnail' ? '썸네일/이미지 내보관함' : '전체 내보관함';
+      $('#slideshow-library-title').textContent = title;
+      $('#slideshow-library-body').innerHTML = '<div class="library-placeholder-card">내보관함을 불러오는 중입니다.</div>';
+      $('#slideshow-library-modal').style.display = 'flex';
+      try {
+        await fetch('/api/assets/backfill-existing', { method: 'POST', headers: auth() }).catch(function(){return null;});
+        const r = await fetch('/api/assets?active_only=true&status=READY', { headers: auth() });
+        const data = await readJsonSafe(r);
+        const wantedTypes = kind === 'thumbnail' ? ['thumbnail', 'image'] : ['video', 'thumbnail', 'image'];
+        const rows = (data.assets || data.data || []).filter(item => wantedTypes.includes(item.asset_type)).slice(0, 60);
+        if (!rows.length) {
+          $('#slideshow-library-body').innerHTML = `<div class="library-placeholder-card"><strong style="display:block;color:var(--text);margin-bottom:8px;">저장된 ${kind === 'thumbnail' ? '썸네일' : '숏폼'}이 아직 없습니다.</strong><div>생성 완료 후 다운로드 파일이 자동으로 내보관함에 저장됩니다.</div></div>`;
+          return;
+        }
+        $('#slideshow-library-body').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;"><label class="toggle" style="margin:0;"><input id="library-select-all" type="checkbox"> 전체 선택</label><button id="library-bulk-download" class="btn secondary" type="button" disabled>선택 ZIP 다운로드</button></div><div class="library-list">' + rows.map(item => {
+          const name = item.stored_filename || item.original_filename || (kind === 'thumbnail' ? 'thumbnail.png' : 'shortform.mp4');
+          const project = item.project_key || '프로젝트';
+          const keyword = item.keyword || '';
+          const uploaded = String(item.created_at || '').slice(0, 10);
+          const meta = [project, keyword ? '키워드 ' + keyword : '', uploaded ? '업로드 ' + uploaded : ''].filter(Boolean).join(' · ');
+          const url = item.public_url || item.preview_url || '';
+          return `<div class="library-item"><input class="library-check" type="checkbox" value="${Number(item.id)||0}" aria-label="선택"><div class="library-item-main"><strong title="${escapeHtml(name)}">${escapeHtml(name)}</strong><span>${escapeHtml(meta)}</span></div><button type="button" class="btn secondary" onclick="downloadLibraryAsset('${encodeURIComponent(url)}','${encodeURIComponent(name)}')">다운로드</button></div>`;
+        }).join('') + '</div>';
+        bindLibraryBulkDownload();
+      } catch (e) {
+        $('#slideshow-library-body').innerHTML = `<div class="library-placeholder-card" style="color:var(--red)">내보관함을 불러오지 못했습니다.<br>${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    function saveBlobAs(blob, filename) {
+      const objectUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = filename || 'storymaker_asset';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(objectUrl);
+    }
+
+    function bindLibraryBulkDownload() {
+      const selectAll = $('#library-select-all');
+      const bulkBtn = $('#library-bulk-download');
+      const checks = [...document.querySelectorAll('.library-check')];
+      if (!bulkBtn || !checks.length) return;
+      const refresh = () => {
+        const count = checks.filter(cb => cb.checked).length;
+        bulkBtn.disabled = count === 0;
+        bulkBtn.textContent = count ? `선택 ${count}개 ZIP 다운로드` : '선택 ZIP 다운로드';
+        if (selectAll) selectAll.checked = count > 0 && count === checks.length;
+      };
+      checks.forEach(cb => cb.addEventListener('change', refresh));
+      if (selectAll) selectAll.addEventListener('change', () => { checks.forEach(cb => { cb.checked = selectAll.checked; }); refresh(); });
+      bulkBtn.onclick = downloadSelectedLibraryAssets;
+      refresh();
+    }
+
+    async function downloadSelectedLibraryAssets() {
+      const ids = [...document.querySelectorAll('.library-check:checked')].map(cb => Number(cb.value)).filter(Boolean);
+      if (!ids.length) return;
+      const r = await fetch('/api/assets/bulk-download', {
+        method: 'POST',
+        headers: { ...auth(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ asset_ids: ids })
+      });
+      if (!r.ok) {
+        alert('묶음 다운로드 실패: HTTP ' + r.status);
+        return;
+      }
+      const blob = await r.blob();
+      saveBlobAs(blob, 'storymaker_selected_assets_' + Date.now() + '.zip');
+    }
+
+    function closeSlideshowLibrary() {
+      $('#slideshow-library-modal').style.display = 'none';
+    }
+
+    async function downloadLibraryAsset(encodedUrl, encodedName) {
+      const url = decodeURIComponent(encodedUrl || '');
+      const name = decodeURIComponent(encodedName || 'storymaker_asset');
+      if (!url) return;
+      try {
+        const r = await fetch(url, { headers: auth() });
+        if (!r.ok) throw new Error('파일 요청 실패: HTTP ' + r.status);
+        const blob = await r.blob();
+        const objectUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(objectUrl);
+      } catch (e) {
+        alert('보관함 다운로드 오류: ' + e.message);
+      }
+    }
+    window.downloadLibraryAsset = downloadLibraryAsset;
+
+    async function saveGeneratedAssetToLibrary(kind, url, name) {
+      if (!token || !url) return;
+      if (kind === 'video' && savedVideoLibraryUrl === url) return;
+      if (kind === 'thumbnail' && savedThumbnailLibraryUrl === url) return;
+      try {
+        const fetchUrl = url + (url.includes('?') ? '&' : '?') + 'library_save=' + Date.now();
+        const r = await fetch(fetchUrl, { headers: auth() });
+        if (!r.ok) throw new Error('보관함 저장용 파일 요청 실패: HTTP ' + r.status);
+        const blob = await r.blob();
+        const ext = kind === 'thumbnail' ? '.png' : '.mp4';
+        const filename = escapeName(name || $('#project').value.trim() || (kind === 'thumbnail' ? 'thumbnail' : 'shortform')) + ext;
+        const fd = new FormData();
+        fd.append('project_key', $('#project').value.trim() || autoProject());
+        fd.append('company_name', $('#brand').value.trim());
+        fd.append('prompt_keywords', collectPromptKeywords());
+        fd.append('project_keywords', $('#title').value.trim() || $('#project').value.trim());
+        fd.append('keyword', collectPromptKeywords().split(',')[0]?.trim() || $('#title').value.trim() || $('#project').value.trim());
+        fd.append('role', kind === 'thumbnail' ? 'THUMBNAIL' : 'SHORTFORM');
+        fd.append('source', kind === 'thumbnail' ? 'THUMBNAIL' : 'VIDEO');
+        fd.append('tags', kind === 'thumbnail' ? 'slideshow, thumbnail' : 'slideshow, shortform');
+        fd.append('caption', kind === 'thumbnail' ? '슬라이드쇼 썸네일' : '슬라이드쇼 숏폼 영상');
+        fd.append('files', blob, filename);
+        const upload = await fetch('/api/assets/upload', { method: 'POST', headers: auth(), body: fd });
+        const data = await readJsonSafe(upload);
+        if (!upload.ok || data.ok === false) throw new Error(data.detail || '보관함 저장 실패');
+        if (kind === 'video') savedVideoLibraryUrl = url;
+        if (kind === 'thumbnail') savedThumbnailLibraryUrl = url;
+        appendLog(kind === 'thumbnail' ? '[보관함] 썸네일 저장 완료' : '[보관함] 숏폼 저장 완료');
+      } catch (e) {
+        appendLog('[보관함] 저장 실패: ' + e.message);
+      }
+    }
+
+    function showFullContentModal(title, text) {
+      $('#content-modal-title').textContent = title;
+      $('#content-modal-body-text').textContent = text;
+      $('#content-modal').style.display = 'flex';
+    }
+
+    function closeContentModal() {
+      $('#content-modal').style.display = 'none';
+    }
+
+    $('#close-content-modal-btn').onclick = closeContentModal;
+    $('#close-content-modal-bg').onclick = closeContentModal;
+    $('#close-library-modal-btn').onclick = closeSlideshowLibrary;
+    $('#close-library-modal-bg').onclick = closeSlideshowLibrary;
+    $('#video-library-open').onclick = () => openSlideshowLibrary('video');
+    $('#thumbnail-library-open').onclick = () => openSlideshowLibrary('thumbnail');
+
+    window.selectAudio = function(val) {
+      selectedAudioValue = val;
+      saveSlideshowDraft();
+      const cards = document.querySelectorAll('.audio-card');
+      audioItems.forEach((it, idx) => {
+        const audioValue = it.path || it.url || it.filename || it.name || '';
+        if (cards[idx]) {
+          if (audioValue === val) {
+            cards[idx].classList.add('selected');
+          } else {
+            cards[idx].classList.remove('selected');
+          }
+        }
+      });
+      updateAudioInfo();
+    };
+
+    function updateAudioInfo(){
+      if(!selectedAudioValue){
+        const audioInfo=$('#audio-info');
+        if(audioInfo) audioInfo.innerHTML='선택된 오디오가 없습니다.';
+        return;
+      }
+      const it = audioItems.find(item => (item.path || item.url || item.filename || item.name || '') === selectedAudioValue);
+      const fullAudioName = it ? (it.name || it.filename || it.path || selectedAudioValue) : selectedAudioValue;
+      const audioName = fullAudioName.split('/').pop();
+      const audioInfo=$('#audio-info');
+      if(audioInfo) audioInfo.innerHTML = `선택된 파일: <strong style="color:var(--blue)">${escapeHtml(audioName)}</strong>`;
+      
+      if(!$('#project').value||$('#project').value.endsWith('_슬라이드쇼')||$('#project').value.startsWith('사용자_')){
+        $('#project').value=escapeName(audioName.replace(/\.mp3$/i,''));
+        saveSlideshowDraft();
+      }
+    }
+
+    function renderFiles(){
+      $('#image-count').textContent=selectedImages.length+'장';
+      const container=$('#file-list');
+      if(selectedImages.length===0){
+        container.innerHTML='<div class="muted" style="grid-column:1/-1;padding:20px;text-align:center;">선택된 이미지가 없습니다.</div>';
+        return;
+      }
+      container.innerHTML=selectedImages.map((img,index)=>{
+        const sizeStr=Math.round(img.file.size/1024)+'KB';
+        return `
+          <div class="thumbnail-item" data-index="${index}" draggable="true" ondragstart="dragStart(event, ${index})" ondragover="dragOver(event)" ondragend="dragEnd(event)" ondrop="dragDrop(event, ${index})">
+            <button class="thumbnail-del" type="button" onclick="removeImage(${index})">×</button>
+            <div class="thumbnail-img-wrapper">
+              <img class="thumbnail-img" src="${img.url}" alt="${img.file.name}" draggable="false">
+            </div>
+            <div class="thumbnail-info">
+              <div class="thumbnail-name" title="${img.file.name}">${img.file.name}</div>
+              <div class="thumbnail-size">${sizeStr}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.removeImage=function(index){
+      if(selectedImages[index]){
+        window.URL.revokeObjectURL(selectedImages[index].url);
+        selectedImages.splice(index,1);
+        renderFiles();
+      }
+    };
+
+    window.dragStart=function(e, index){
+      draggedIndex=index;
+      e.dataTransfer.effectAllowed='move';
+      e.target.classList.add('dragging');
+    };
+
+    window.dragOver=function(e){
+      e.preventDefault();
+      e.dataTransfer.dropEffect='move';
+    };
+
+    window.dragEnd=function(e){
+      e.target.classList.remove('dragging');
+      draggedIndex=null;
+    };
+
+    window.dragDrop=function(e, index){
+      e.preventDefault();
+      if(draggedIndex===null||draggedIndex===index)return;
+      const temp=selectedImages[draggedIndex];
+      selectedImages.splice(draggedIndex,1);
+      selectedImages.splice(index,0,temp);
+      renderFiles();
+    };
+
+    const MAX_IMAGE_COUNT = 12;
+
+    function handleFileSelection(files){
+      const incomingFiles=[...files].filter(f=>f.type.startsWith('image/'));
+      const availableSlots=Math.max(0, MAX_IMAGE_COUNT - selectedImages.length);
+      const acceptedFiles=incomingFiles.slice(0, availableSlots);
+      const overLimit=incomingFiles.length > availableSlots;
+      acceptedFiles.forEach(file=>{
+        const url=window.URL.createObjectURL(file);
+        selectedImages.push({file,url});
+      });
+      if(overLimit){
+        alert('입력 한계는 12장입니다.\n앞의 12장만 자동으로 등록했습니다.');
+      }
+      imageInput.value='';
+      renderFiles();
+      if (acceptedFiles.length > 0) {
+        focusBelowElement('#run', 1);
+      }
+    }
+
+    function extractBlock(text, blockName){
+      const raw=String(text||'');
+      const startTag='[BLOCK:'+blockName+']';
+      const start=raw.indexOf(startTag);
+      if(start<0)return'';
+      const rest=raw.slice(start+startTag.length);
+      const next=rest.search(/\n\s*\[BLOCK:[A-Z0-9_]+\]/);
+      return (next>=0?rest.slice(0,next):rest).trim();
+    }
+
+    function getThumbnailSourceIndexes(total){
+      if(total <= 0) return [];
+      const rule = {
+        1: [1],
+        2: [1,2],
+        3: [1,2,3],
+        4: [1,2,4],
+        5: [1,3,5],
+        6: [1,3,6],
+        7: [1,4,7],
+        8: [1,4,8],
+        9: [1,5,9],
+        10: [1,5,10],
+        11: [1,6,11],
+        12: [1,6,12]
+      }[Math.min(total, 12)] || [1, Math.ceil(total / 2), total];
+      return [...new Set(rule.map(n => Math.min(Math.max(n, 1), total) - 1))];
+    }
+
+    function getThumbnailSourceImages(){
+      const indexes = getThumbnailSourceIndexes(selectedImages.length);
+      appendLog('[썸네일] 대표 이미지 선택: ' + indexes.map(i => i + 1).join(', ') + '번');
+      return indexes.map(i => selectedImages[i]).filter(Boolean);
+    }
+
+    function focusResultArea(selector, offsetCm) {
+      const el = document.querySelector(selector);
+      if (!el) return;
+      const cm = typeof offsetCm === 'number' ? offsetCm : 1;
+      const offsetPx = Math.round(37.8 * cm);
+      setTimeout(() => {
+        const rect = el.getBoundingClientRect();
+        const targetY = window.scrollY + rect.top - offsetPx;
+        window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
+        if (typeof el.focus === 'function') {
+          el.setAttribute('tabindex', el.getAttribute('tabindex') || '-1');
+          el.focus({ preventScroll: true });
+        }
+      }, 120);
+    }
+
+    function focusBelowElement(selector, offsetCm) {
+      const el = document.querySelector(selector);
+      if (!el) return;
+      const cm = typeof offsetCm === 'number' ? offsetCm : 1;
+      const offsetPx = Math.round(37.8 * cm);
+      setTimeout(() => {
+        const rect = el.getBoundingClientRect();
+        const targetY = window.scrollY + rect.bottom + offsetPx - Math.round(window.innerHeight * 0.45);
+        window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
+        if (typeof el.focus === 'function') {
+          el.setAttribute('tabindex', el.getAttribute('tabindex') || '-1');
+          el.focus({ preventScroll: true });
+        }
+      }, 160);
+    }
+
+    function setThumbnailStatus(status, percent) {
+      const textEl = $('#thumbnail-status-text');
+      const barEl = $('#thumbnail-progress');
+      const trackEl = $('#thumbnail-progress-track');
+      
+      if (textEl) textEl.textContent = status;
+      if (barEl) barEl.style.width = percent + '%';
+      
+      if (percent === 100 || percent === 0) {
+        if (trackEl) trackEl.style.display = 'none';
+      } else {
+        if (trackEl) trackEl.style.display = 'block';
+      }
+    }
+
+    async function startThumbnailJob(){
+      if(!token || selectedImages.length===0) return null;
+      setThumbnailStatus('AI 썸네일 생성 요청 중...', 20);
+      appendLog('[썸네일] Gemini 작업 요청 준비 중');
+      const fd=new FormData();
+      fd.append('project_title',$('#project').value.trim()||'슬라이드쇼 썸네일');
+      
+      // 선택된 내용에서 instagram_text 추출
+      const instagramText = extractBlock(selectedContentText, 'INSTAGRAM_POST') || selectedContentText || $('#title').value.trim() || '인스타그램 릴스용 썸네일';
+      fd.append('instagram_text', instagramText);
+      fd.append('content_id', selectedContentId);
+      fd.append('content_path', selectedContentPath);
+      
+      getThumbnailSourceImages().forEach(img=>fd.append('images',img.file,img.file.name));
+      try{
+        const r=await fetch('/api/slideshow/thumbnail-start',{method:'POST',headers:auth(),body:fd});
+        const data=await readJsonSafe(r);
+        if(data && data.job_id){
+          activeThumbnailJobId = data.job_id;
+          lastThumbnailLogKey = '';
+          appendLog('[썸네일] 요청 완료: '+data.job_id);
+          appendLog('[썸네일] Firefox/Gemini worker 감지 대기 중');
+          pollThumbnail(data.job_id);
+          return data.job_id;
+        } else {
+          appendLog('[썸네일] 요청 실패: job_id 없음');
+          setThumbnailStatus('썸네일 생성 오류', 0);
+          return null;
+        }
+      }catch(e){
+        appendLog('[썸네일] 요청 오류: '+e.message);
+        setThumbnailStatus('썸네일 생성 오류', 0);
+        return null;
+      }
+    }
+
+    async function pollThumbnail(jobId){
+      clearTimeout(thumbnailPollTimer);
+      try{
+        setThumbnailStatus('Gemini 썸네일 생성 대기 중...', 60);
+        const r=await fetch('/api/test/thumbnail-result/latest?t='+Date.now(),{headers:auth()});
+        const data=await readJsonSafe(r);
+        
+        const latestJobId = data?.job_id || data?.data?.job_id || '';
+        const latestStatus = data?.status || data?.data?.status || 'unknown';
+        const thumb = data?.data?.download_url || data?.download_url;
+        const ready = data?.status === 'thumbnail_ready' || data?.data?.status === 'thumbnail_ready';
+        const logKey = `${latestJobId}|${latestStatus}|${thumb ? 'url' : 'no-url'}`;
+
+        if(logKey !== lastThumbnailLogKey){
+          lastThumbnailLogKey = logKey;
+          if(latestJobId && latestJobId !== jobId){
+            appendLog(`[썸네일] latest job 불일치: 요청=${jobId} / latest=${latestJobId} / 상태=${latestStatus}`);
+          }else{
+            appendLog(`[썸네일] 상태 확인: job=${latestJobId || jobId} / 상태=${latestStatus} / URL=${thumb ? '있음' : '없음'}`);
+          }
+        }
+
+        if (data && ready && thumb && (!latestJobId || latestJobId === jobId)) {
+          currentThumbnail = thumb;
+          const previewEl = $('#thumbnail-preview');
+          previewEl.src = thumb + '?preview=true&t=' + Date.now();
+          $('#thumbnail-preview-box').style.display = 'block';
+          previewEl.style.display = 'block';
+          $('#thumbnail-download').disabled = false;
+          setThumbnailStatus('', 100);
+          appendLog('[썸네일] 다운로드 준비 완료');
+          saveGeneratedAssetToLibrary('thumbnail', thumb, ($('#project').value.trim() || 'thumbnail') + '_thumbnail');
+          focusResultArea('.thumbnail-box-container');
+          return;
+        }
+
+        if (data && ready && !thumb) {
+          appendLog('[썸네일] ready 상태지만 download_url이 없습니다. 저장 API 또는 data_url 저장 단계 확인 필요');
+        }
+        thumbnailPollTimer=setTimeout(()=>pollThumbnail(jobId),3000);
+      }catch(e){
+        setThumbnailStatus('Gemini 썸네일 생성 대기 중...', 60);
+        appendLog('[썸네일] 상태 조회 오류: '+e.message);
+        thumbnailPollTimer=setTimeout(()=>pollThumbnail(jobId),5000);
+      }
+    }
+
+    async function run(){
+      if(!token){
+        console.info('Guest slideshow generation requires login.');
+        location.href='/storymaker';
+        return;
+      }
+      if(!selectedAudioValue){
+        alert('MP3 오디오를 선택해 주세요.');
+        return;
+      }
+      if(!selectedContentId){
+        alert('내용을 선택해 주세요.');
+        return;
+      }
+      if(!selectedImages.length){
+        alert('이미지를 선택해 주세요.');
+        return;
+      }
+      
+      // 생성 전 선택 요약 메시지 구성
+      const audioFilename = selectedAudioValue.split('/').pop() || selectedAudioValue;
+      const contentIt = contentItems.find(x => x.content_id === selectedContentId);
+      const contentTime = contentIt ? (contentIt.created_at || '') : '';
+      const contentTitle = contentIt ? contentIt.project_title : '알 수 없음';
+      
+      const summaryMsg = `[슬라이드쇼 생성 요약]\n\n` +
+                         `- 오디오: ${audioFilename}\n` +
+                         `- 내용: ${contentTitle} (${contentTime})\n\n` +
+                         `이 설정으로 슬라이드쇼 생성을 시작하시겠습니까?`;
+                         
+      if (!confirm(summaryMsg)) {
+        return;
+      }
+
+      focusResultArea('#logs', 1);
+
+      const fd=new FormData();
+      fd.append('project_key',$('#project').value.trim()||autoProject());
+      fd.append('mp3_path',selectedAudioValue);
+      
+      // MP3 선택 시 audio-list가 제공한 실제 srt_path를 우선 사용하고, 없으면 같은 폴더의 SRT를 자동 매칭한다.
+      const selectedAudioItem = audioItems.find(item => (item.path || item.url || item.filename || item.name || '') === selectedAudioValue);
+      const srtPath = selectedAudioItem && selectedAudioItem.srt_path ? selectedAudioItem.srt_path : selectedAudioValue.replace(/\.mp3$/i, '.srt');
+      fd.append('srt_path', srtPath);
+      
+      fd.append('brand_name',$('#brand').value.trim());
+      fd.append('phone_number',$('#phone').value.trim());
+      fd.append('brand_size',$('#brand-size').value);
+      fd.append('phone_size',$('#phone-size').value);
+      fd.append('margin_bottom',$('#margin-bottom').value);
+      fd.append('box_enabled',$('#box-enabled').checked);
+      fd.append('stroke_enabled',$('#stroke-enabled').checked);
+      fd.append('shadow_enabled',$('#shadow-enabled').checked);
+      fd.append('image_sec',$('#image-sec').value);
+      fd.append('transition_sec',$('#transition-sec').value);
+      fd.append('zoom_intensity',$('#zoom-intensity').value);
+      fd.append('subtitle_enabled',$('#subtitle-enabled').checked);
+      fd.append('subtitle_font_size',$('#subtitle-size').value);
+      fd.append('subtitle_margin',$('#subtitle-margin').value);
+      fd.append('mm_sub_lift','95');
+      fd.append('resolution',$('#resolution-select').value);
+      fd.append('fps',$('#fps-select').value);
+      fd.append('nvenc_preset',$('#preset-select').value);
+      fd.append('render_target',$('#render-target').value);
+      fd.append('content_id', selectedContentId);
+      fd.append('content_path', selectedContentPath);
+
+	      selectedImages.forEach(img=>fd.append('images',img.file,img.file.name));
+
+	      $('#run').disabled=true;
+	      clearSlideshowResult();
+	      await cleanupSlideshowFiles('new_render');
+      currentMp4='';
+      currentPreviewMp4='';
+      activeJobId='';
+      activeCleanupToken='';
+      cleanupDone=false;
+      currentThumbnail='';
+      const videoContainer=$('#video-preview-container');
+      if(videoContainer) videoContainer.classList.add('collapsed');
+      const playerReset=$('#player');
+      if(videoObjectUrl){
+        URL.revokeObjectURL(videoObjectUrl);
+        videoObjectUrl='';
+      }
+      if(playerReset){ playerReset.removeAttribute('src'); playerReset.load(); }
+      $('#download').disabled=true;
+      $('#thumbnail-download').disabled=true;
+      $('#thumbnail-preview-box').style.display='none';
+      setThumbnailStatus('썸네일 대기 중', 0);
+      setProgress(2,'썸네일 먼저 요청 중');
+      setLog(`[선택 요약] 오디오: ${audioFilename} / 내용: ${contentTitle} (${contentTime})\n썸네일 작업을 먼저 요청합니다.`);
+      const thumbnailJobId = await startThumbnailJob();
+      if(thumbnailJobId){
+        appendLog('[썸네일] Gemini 페이지 초기화를 위해 5초 대기 후 MP4 렌더링을 시작합니다.');
+        setProgress(3,'썸네일 선요청 후 대기 중');
+        await wait(5000);
+      }else{
+        appendLog('[썸네일] 선요청이 실패했지만 MP4 렌더링은 계속 진행합니다.');
+      }
+      appendLog('[영상] MP4 렌더링 요청 시작');
+      setProgress(3,'업로드 준비 중');
+
+      try{
+        const r=await fetch('/api/slideshow/create',{method:'POST',headers:auth(),body:fd});
+        const data=await readJsonSafe(r);
+        if(!r.ok)throw Error(data.detail||'생성 요청 실패');
+        $('#job').textContent='job_id: '+data.job_id;
+        poll(data.job_id);
+      }catch(e){
+        $('#run').disabled=false;
+        setProgress(0,'오류');
+        setLog('오류: '+e.message);
+      }
+    }
+
+    async function poll(id){
+      clearTimeout(pollTimer);
+      try{
+        const r=await fetch(`/api/slideshow/jobs/${encodeURIComponent(id)}`,{headers:auth()});
+        const data=await readJsonSafe(r);
+        if(!r.ok)throw Error(data.detail||'상태 조회 실패');
+        const queuePosition = Number(data.queue_position || 0);
+        if (queuePosition > 0) {
+          setProgress(0, `현재 대기 순번 : ${queuePosition}`);
+          setLog([
+            `현재 대기 순번 : ${queuePosition}`,
+            '앞 작업 완료 후 자동으로 렌더링이 시작됩니다.',
+            `남은 작업 개수: ${queuePosition}`,
+            ...(data.log || [])
+          ]);
+        } else {
+          setProgress(data.percent, data.stage || data.status);
+          setLog(data.log?.length ? data.log : `상태: ${data.status}`);
+        }
+        if(data.status==='completed'){
+          activeJobId=data.job_id||id;
+          const result=data.result||{};
+          currentMp4=result.mp4_url||result.download_url||result.video_url||result.output_url||result.file_url||data.mp4_url||data.download_url||data.video_url||data.output_url||data.file_url||'';
+          const logText=Array.isArray(data.log)?data.log.join('\n'):String(data.log||'');
+          let finalMatch=logText.match(/SUCCESS:\s*Output file generated at\s+([^\s]+\.mp4)/);
+          let filename='';
+          if(finalMatch){
+            filename=finalMatch[1].split(/[\\/]/).pop();
+          }else if(!currentMp4){
+            const matches=[...logText.matchAll(/([^\s/\\]+\.mp4)/g)].map(m=>m[1]);
+            const preferred=matches.filter(name=>name.toLowerCase().includes('slideshow')||name.toLowerCase().includes('guest_')||name.includes('_팟캐스트_'));
+            filename=(preferred.length?preferred[preferred.length-1]:matches[matches.length-1])||'';
+          }
+          if(filename){
+            currentMp4='/api/slideshow/media/'+encodeURIComponent(filename);
+            appendLog('[영상] 최종 회수 MP4 파일명을 우선 사용합니다: '+filename);
+          }
+          currentPreviewMp4=result.preview_mp4_url||result.preview_url||(currentMp4?(currentMp4+(currentMp4.includes('?')?'&':'?')+'preview=true'):currentMp4);
+          activeCleanupToken=result.cleanup_token||data.cleanup_token||'';
+	          cleanupDone=false;
+	          $('#run').disabled=false;
+	          setProgress(100,'생성 완료');
+	          saveSlideshowResult(data,id);
+	          if(currentMp4){
+	            appendLog('[영상] 미리보기/다운로드 URL 확인 완료');
+	            showPreviewVideo(currentPreviewMp4||currentMp4);
+	            saveGeneratedAssetToLibrary('video', currentMp4, $('#project').value.trim() || 'shortform');
+	          }else{
+	            appendLog('[영상] 완료 상태지만 MP4 URL 필드를 찾지 못했습니다. result 응답 구조 확인 필요');
+	            console.warn('[StoryMaker] slideshow completed without mp4 url', data);
+	          }
+	          return;
+	        }
+        if(data.status==='failed')throw Error(data.stage||'생성 실패');
+        pollTimer=setTimeout(()=>poll(id),2000);
+      }catch(e){
+        $('#run').disabled=false;
+        setProgress(0,'오류');
+        setLog('오류: '+e.message);
+      }
+    }
+
+	    async function cleanupSlideshowFiles(reason, useBeacon=false){
+	      clearSlideshowResult();
+	      if(!activeJobId || !activeCleanupToken || cleanupDone)return;
+	      cleanupDone=true;
+	      if(reason!=='pagehide')clearSlideshowResult();
+	      try{
+        const url=`/api/slideshow/jobs/${encodeURIComponent(activeJobId)}/${useBeacon?'cleanup-beacon':'cleanup'}`;
+        if(useBeacon && navigator.sendBeacon){
+          const fd=new FormData();
+          fd.append('cleanup_token', activeCleanupToken);
+          fd.append('reason', reason);
+          navigator.sendBeacon(url, fd);
+          return;
+        }
+        await fetch(url,{
+          method:'POST',
+          headers:{...auth(),'Content-Type':'application/json'},
+          body:JSON.stringify({cleanup_token:activeCleanupToken,reason}),
+          keepalive:true
+        });
+      }catch(e){
+        console.warn('cleanup failed', e);
+      }
+    }
+
+    /* Slideshow boot is delayed below so mobile auth/session hydration can finish first. */
+    if($('#refresh-audio')) $('#refresh-audio').onclick=loadAudio;
+    ['project','title','render-target','fast-draft','brand','phone','brand-size','phone-size','margin-bottom','box-enabled','stroke-enabled','shadow-enabled'].forEach(id=>{
+      const el = $('#'+id);
+      if(el) el.addEventListener('change', saveSlideshowDraft);
+      if(el && el.tagName === 'INPUT') el.addEventListener('input', saveSlideshowDraft);
+    });
+    
+    const imageInput = $('#images');
+    const selectImagesBtn = $('#select-images');
+    const dropzone = $('#dropzone');
+
+    selectImagesBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      imageInput.click();
+    };
+
+    dropzone.onclick = (e) => {
+      if (e.target && e.target.id === 'select-images') return;
+      imageInput.click();
+    };
+
+    imageInput.onchange = () => handleFileSelection(imageInput.files);
+
+    $('#run').onclick=run;
+
+    $('#fast-draft').onchange = function() {
+      const isChecked = this.checked;
+      if (isChecked) {
+        if(!prevSettings){
+          prevSettings = {
+            resolution: $('#resolution-select').value,
+            fps: $('#fps-select').value,
+            preset: $('#preset-select').value,
+            zoom: $('#zoom-intensity').value
+          };
+        }
+        $('#resolution-select').value = '720x1280';
+        $('#fps-select').value = '20';
+        $('#preset-select').value = 'p2';
+        $('#zoom-intensity').value = '0';
+        
+        $('#resolution-select').disabled = true;
+        $('#fps-select').disabled = true;
+        $('#preset-select').disabled = true;
+        $('#zoom-intensity').disabled = true;
+      } else {
+        advancedManuallyOpen=true;
+        $('#resolution-select').disabled = false;
+        $('#fps-select').disabled = false;
+        $('#preset-select').disabled = false;
+        $('#zoom-intensity').disabled = false;
+        
+        if (prevSettings) {
+          $('#resolution-select').value = prevSettings.resolution;
+          $('#fps-select').value = prevSettings.fps;
+          $('#preset-select').value = prevSettings.preset;
+          $('#zoom-intensity').value = prevSettings.zoom;
+        }
+      }
+      syncAdvancedSettings();
+    };
+
+    $('#toggle-advanced').onclick=function(){
+      advancedManuallyOpen=!advancedManuallyOpen;
+      syncAdvancedSettings();
+    };
+
+    $('#thumbnail-download').onclick=async()=>{
+      if(!currentThumbnail)return;
+      const btn=$('#thumbnail-download');
+      const originalText=btn.textContent;
+      btn.disabled=true;
+      btn.textContent='다운로드 중...';
+      try{
+        const r=await fetch(currentThumbnail,{headers:auth()});
+        if(!r.ok)throw new Error('썸네일 다운로드 실패');
+        const blob=await r.blob();
+        const url=window.URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=url;
+        a.download=escapeName($('#project').value.trim()||'thumbnail')+'_9x16.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }catch(e){
+        alert('썸네일 다운로드 오류: '+e.message);
+      }finally{
+        btn.disabled=false;
+        btn.textContent=originalText;
+      }
+    };
+
+    // 원본 이미지 다운로드 기능 제거됨
+
+    $('#download').onclick=async()=>{
+      if(!currentMp4)return;
+      const btn=$('#download');
+      const originalText=btn.textContent;
+      btn.disabled=true;
+      btn.textContent='다운로드 중...';
+      try{
+        const r=await fetch(currentMp4,{headers:auth()});
+        if(!r.ok){
+          const ct=(r.headers.get('content-type')||'').toLowerCase();
+          if(ct.includes('application/json')){
+            const errData=await r.json();
+            throw new Error(errData.detail||'다운로드 실패');
+          }else{
+            throw new Error(`다운로드 실패 (상태 코드: ${r.status})`);
+          }
+        }
+        const blob=await r.blob();
+        const url=window.URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=url;
+        a.download=escapeName($('#project').value.trim()||'slideshow')+'.mp4';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        await cleanupSlideshowFiles('download_completed');
+      }catch(e){
+        alert('다운로드 중 오류가 발생했습니다: '+e.message);
+      }finally{
+        btn.disabled=false;
+        btn.textContent=originalText;
+      }
+    };
+
+	    window.addEventListener('pagehide',()=>cleanupSlideshowFiles('pagehide',true));
+
+    const dz=$('#dropzone');
+    ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag')}));
+    ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag')}));
+    dz.addEventListener('drop',e=>{
+      handleFileSelection(e.dataTransfer.files);
+    });
+
+    // video 태그 이벤트 로그 출력
+    const playerEl = $('#player');
+    if (playerEl) {
+      const events = ['loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'playing', 'waiting', 'stalled', 'error'];
+      events.forEach(evt => {
+        playerEl.addEventListener(evt, () => {
+          if (evt === 'error') {
+            appendLog(`[Preview] Event: error (code: ${playerEl.error?.code || 'unknown'})`);
+          } else {
+            appendLog(`[Preview] Event: ${evt}`);
+          }
+        });
+      });
+    }
+
+    function bootSlideshowPage(){
+      token = getStorymakerToken();
+      restoreSlideshowDraftInputs();
+      if(!$('#project').value) $('#project').value=autoProject();
+      health();
+      loadUserWatermark();
+      loadAudio();
+      loadContent();
+      renderFiles();
+    }
+
+    setTimeout(bootSlideshowPage, 900);
+	    if($('#refresh-content')) $('#refresh-content').onclick=loadContent;
+	    $('#fast-draft').onchange();
+	    syncAdvancedSettings();
+	    restoreSlideshowResult();
+	  </script>
+  <script src="/static/common_nav_unified.js?v=20260705-mobile-session-menu-3"></script>
+</body>
+</html>

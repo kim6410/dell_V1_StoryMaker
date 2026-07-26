@@ -1,0 +1,13 @@
+{
+  "male_voice": "ko-KR-InJoonNeural",
+  "female_voice": "ko-KR-SunHiNeural",
+  "speed": 1.183673469387755,
+  "pitch": 0,
+  "volume": 0,
+  "music_folder": "D:\\SLID\\SLID\\음악",
+  "music_volume": 0.3,
+  "fade_in": 0.5,
+  "fade_out": 5.0,
+  "random_music": true,
+  "generate_subtitles": true
+}

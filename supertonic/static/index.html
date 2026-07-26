@@ -1,0 +1,383 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>숏폼 스튜디오</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app">
+<!-- 상단바 -->
+<header class="header">
+    <div class="left-header">
+        <button id="newProjectBtn" class="header-btn">새 프로젝트</button>
+        <button id="saveProjectBtn" class="header-btn">프로젝트 저장</button>
+        
+        <div class="project-info">
+            <input type="text" id="clientName" placeholder="업체명" value="오박사만능인테리어">
+            <input type="date" id="projectDate" value="2026-03-04">
+            <input type="text" id="projectTitle" placeholder="제목" value="봄비가내리는저녁">
+            <span class="project-preview" id="projectPreview">00</span>
+        </div>
+    </div>
+    
+    <div class="right-header">
+        <!-- 상호/전화번호 입력 필드 추가 -->
+        <div class="contact-info">
+            <input type="text" id="brandName" placeholder="상호명" value="강경숯불바베큐">
+            <input type="text" id="phoneNumber" placeholder="전화번호" value="0507-1393-5889">
+        </div>
+        
+        <!-- 프로필 관리 영역 -->
+        <div class="profile-section">
+            <select id="profileSelector">
+                <option value="default">기본 프로필</option>
+            </select>
+            <button id="saveProfileBtn">프로필 저장</button>
+            <button id="deleteProfileBtn">삭제</button>
+        </div>
+    </div>
+</header>
+
+        <!-- 3열 레이아웃 -->
+        <div class="main-layout">
+            <!-- 좌측: 작업 패널 -->
+            <div class="left-panel">
+                <div class="panel-header">팟캐스트 생성</div>
+                
+                <div class="script-area">
+                    <textarea id="scriptInput" placeholder="대본을 붙여넣으세요..."></textarea>
+                </div>
+
+                <div class="podcast-options">
+                    <div class="option-row">
+                        <label>남성 음성:</label>
+                        <select id="maleVoice">
+                            <option value="ko-KR-InJoonNeural">인준</option>
+                            <option value="ko-KR-HyunsuNeural">현수</option>
+                        </select>
+                    </div>
+                    <div class="option-row">
+                        <label>여성 음성:</label>
+                        <select id="femaleVoice">
+                            <option value="ko-KR-SunHiNeural">선희</option>
+                            <option value="ko-KR-JiMinNeural">지민</option>
+                        </select>
+                    </div>
+                    <div class="option-row">
+                        <label>속도:</label>
+                        <input type="range" id="speed" min="0.5" max="2.0" step="0.1" value="1.0">
+                        <span id="speedValue">1.0</span>
+                    </div>
+                    <div class="option-row">
+                        <label>대사 볼륨:</label>
+                        <input type="range" id="voiceVolume" min="0.0" max="2.0" step="0.05" value="1.0">
+                        <span id="voiceVolumeValue">1.00</span>
+                    </div>
+
+                    <div class="option-row">
+                        <label>배경 음악 볼륨:</label>
+                        <input type="range" id="musicVolume" min="0.0" max="1.0" step="0.01" value="0.30">
+                        <span id="musicVolumeValue">0.30</span>
+                    </div>
+
+                    <div class="option-row">
+                        <label>음악 랜덤:</label>
+                        <input type="checkbox" id="musicRandom" checked>
+                    </div>
+                </div>
+
+                <button id="runPodcastBtn" class="primary-btn">팟캐스트 생성</button>
+
+                <!-- 진행률 -->
+                <div class="progress-area" id="podcastProgress" style="display:none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="podcastProgressFill" style="width:0%"></div>
+                    </div>
+                    <div class="progress-info">
+                        <span id="podcastStage">대기 중...</span>
+                        <span id="podcastEta"></span>
+                    </div>
+                    <div class="log-console" id="podcastLog"></div>
+                </div>
+
+                <!-- 결과 링크 -->
+                <div class="result-links" id="podcastResult" style="display:none;">
+                    <a href="#" id="podcastMp3Link" target="_blank" onclick="openPopup(event, this.href)">MP3 듣기</a>
+                    <a href="#" id="podcastSrtLink" target="_blank" onclick="openPopup(event, this.href)">SRT 보기</a>
+                </div>
+
+                <div class="panel-divider"></div>
+                <div class="panel-header">
+                    슬라이드쇼 생성
+                    <button id="openSlidMakerBtn" class="small-btn">고급 설정</button>
+                </div>
+
+                <!-- 이미지 업로드 영역 -->
+                <div class="upload-area" id="dropzone">
+                    <div class="upload-message">
+                        이미지를 드래그하거나 클릭하여 업로드
+                        <br><small>파일 여러 개 선택 가능, 폴더도 가능</small>
+                    </div>
+                    <input type="file" id="fileInput" multiple accept="image/*" style="display:none;">
+                    <input type="file" id="folderInput" multiple webkitdirectory style="display:none;">
+                    <div class="upload-buttons">
+                        <button id="selectFilesBtn">파일 선택</button>
+                        <button id="selectFolderBtn">폴더 선택</button>
+                    </div>
+                    <div id="fileList" class="file-list"></div>
+                </div>
+<!-- 진행률 -->
+                <div class="progress-area" id="slideshowProgress" style="display:none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="slideshowProgressFill" style="width:0%"></div>
+                    </div>
+                    <div class="progress-info">
+                        <span id="slideshowStage">대기 중...</span>
+                        <span id="slideshowEta"></span>
+                    </div>
+                    <div class="log-console" id="slideshowLog"></div>
+                </div>
+            </div>
+
+            <!-- 중앙: 히스토리 -->
+            <!-- 중앙: 히스토리 + 슬라이드쇼 설정 -->
+<div class="center-panel">
+    <!-- ===== 상단: 히스토리 (40%) ===== -->
+    <div style="height: 40%; min-height: 200px; display: flex; flex-direction: column;">
+        <div class="panel-header" style="margin-bottom: 8px;">
+            📋 최신 MP3, MP4
+            <input type="text" id="historySearch" placeholder="검색..." style="width: 150px;">
+        </div>
+        <div class="history-list" id="historyList" style="flex: 1; overflow-y: auto;">
+            <!-- JS로 동적 생성 -->
+        </div>
+    </div>
+
+    <div class="panel-divider" style="margin: 10px 0;"></div>
+
+    <!-- ===== 하단: 슬라이드쇼 설정 (60%) ===== -->
+    <div style="height: 60%; overflow-y: auto; padding-right: 5px;">
+
+        <!-- 1. 오디오 선택 영역 (필수) -->
+        <div style="background: #1e2a3a; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span style="color: #94a3b8; font-weight: 600;"> 오디오 선택</span>
+                <span id="selectedAudioBadge" style="background: #2d6c4a; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px;">선택안됨</span>
+            </div>
+
+            <select id="audioSelect" style="width: 100%; background: #0f172a; color: white; border: 1px solid #334155; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                <option value="">=== MP3 파일을 선택하세요 ===</option>
+            </select>
+
+            <div style="display: flex; gap: 6px;">
+                <button id="useCurrentPodcastBtn" class="small-btn" style="flex: 1; background: #2d6cdf;">🎤 현재 팟캐스트</button>
+                <button id="refreshAudioListBtn" class="small-btn" style="flex: 0 0 40px;">🔄</button>
+            </div>
+
+            <div id="selectedAudioInfo" style="margin-top: 8px; font-size: 12px; color: #94a3b8; padding: 6px; background: #0f172a; border-radius: 4px;">
+                선택된 파일: 없음
+            </div>
+            <button id="runSlideshowBtn" class="primary-btn" style="margin-top: 10px; width: 100%;" disabled>슬라이드쇼 생성</button>
+        </div>
+
+        <!-- 2. 워터마크 설정 (프로필과 동기화) -->
+        <div class="bottom-sticky" style="background: #1e2a3a; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <span style="color: #94a3b8; font-weight: 600;">워터마크</span>
+                <label style="color: #94a3b8; font-size: 12px;">
+                    <input type="checkbox" id="syncWatermarkWithProfile" checked> 프로필과 동기화
+                </label>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 70px 1fr 70px 1fr; gap: 8px; align-items: center;">
+                <span style="color: #94a3b8; font-size: 13px;">상호명:</span>
+                <input type="text" id="wmBrandName" value="강경숯불바베큐" style="grid-column: span 3; background: #0f172a; color: white; border: 1px solid #334155; padding: 6px; border-radius: 4px;">
+
+                <span style="color: #94a3b8; font-size: 13px;">전화:</span>
+                <input type="text" id="wmPhoneNumber" value="0507-1393-5889" style="grid-column: span 3; background: #0f172a; color: white; border: 1px solid #334155; padding: 6px; border-radius: 4px;">
+
+                <span style="color: #94a3b8; font-size: 13px;">상호크기:</span>
+                <input type="number" id="wmBrandSize" value="60" min="20" max="100" style="background: #0f172a; color: white; border: 1px solid #334155; padding: 4px; border-radius: 4px;">
+
+                <span style="color: #94a3b8; font-size: 13px;">전화크기:</span>
+                <input type="number" id="wmPhoneSize" value="43" min="20" max="100" style="background: #0f172a; color: white; border: 1px solid #334155; padding: 4px; border-radius: 4px;">
+
+                <span style="color: #94a3b8; font-size: 13px;">하단여백:</span>
+                <input type="number" id="wmMarginBottom" value="91" min="20" max="300" style="background: #0f172a; color: white; border: 1px solid #334155; padding: 4px; border-radius: 4px;">
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-top: 10px;">
+                <label style="color: #94a3b8; font-size: 13px;"><input type="checkbox" id="wmBoxEnabled" checked> 배경박스</label>
+                <label style="color: #94a3b8; font-size: 13px;"><input type="checkbox" id="wmStrokeEnabled" checked> 테두리</label>
+                <label style="color: #94a3b8; font-size: 13px;"><input type="checkbox" id="wmShadowEnabled" checked> 그림자</label>
+            </div>
+        </div>
+
+        <!-- 3. 슬라이드쇼 속도 설정 -->
+        <div style="background: #1e2a3a; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+            <span style="color: #94a3b8; font-weight: 600; margin-bottom: 10px; display: block;"> 재생 속도</span>
+
+            <div style="display: grid; grid-template-columns: 80px 1fr 50px; gap: 8px; align-items: center;">
+                <span style="color: #94a3b8; font-size: 13px;">이미지당:</span>
+                <input type="range" id="ssImageSec" min="1.0" max="5.0" step="0.5" value="2.0" style="width: 100%;">
+                <span id="ssImageSecValue" style="color: white; text-align: right;">2.0초</span>
+
+                <span style="color: #94a3b8; font-size: 13px;">전환시간:</span>
+                <input type="range" id="ssTransitionSec" min="0.3" max="1.5" step="0.1" value="0.8" style="width: 100%;">
+                <span id="ssTransitionSecValue" style="color: white; text-align: right;">0.8초</span>
+
+                <span style="color: #94a3b8; font-size: 13px;">줌 강도:</span>
+                <input type="range" id="ssZoomIntensity" min="0.001" max="0.01" step="0.001" value="0.004" style="width: 100%;">
+                <span id="ssZoomIntensityValue" style="color: white; text-align: right;">0.004</span>
+            </div>
+        </div>
+
+        <!-- 4. 자막 설정 -->
+        <div style="background: #1e2a3a; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <span style="color: #94a3b8; font-weight: 600;">📝 자막</span>
+                <label style="color: #94a3b8; font-size: 13px;">
+                    <input type="checkbox" id="subEnabled" checked> 사용
+                </label>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 80px 1fr; gap: 8px; align-items: center;">
+                <span style="color: #94a3b8; font-size: 13px;">폰트 크기:</span>
+                <input type="number" id="subFontSize" value="10" min="8" max="30" style="background: #0f172a; color: white; border: 1px solid #334155; padding: 4px; border-radius: 4px;">
+
+                <span style="color: #94a3b8; font-size: 13px;">하단 여백:</span>
+                <input type="number" id="subMarginV" value="30" min="10" max="200" style="background: #0f172a; color: white; border: 1px solid #334155; padding: 4px; border-radius: 4px;">
+            </div>
+        </div>
+
+        <!-- 5. Mac mini 전용 보정 설정 -->
+        <div id="macminiTuningPanel" class="macmini-tuning-panel">
+            <span class="section-title">Mac mini 자막/워터마크 보정</span>
+            <div class="macmini-tuning-grid">
+                <span>자막크기+</span>
+                <input type="number" id="mmSubBoost" value="0" min="0" max="80">
+                <span>자막올림</span>
+                <input type="number" id="mmSubLift" value="70" min="0" max="400">
+                <span>워터올림</span>
+                <input type="number" id="mmWmLift" value="0" min="-200" max="300">
+                <span>자막폭</span>
+                <input type="number" id="mmSubWidth" value="72" min="55" max="95">
+                <span>줄간격</span>
+                <input type="number" id="mmSubSpacing" value="8" min="0" max="30">
+                <span>상호/전화 간격</span>
+                <input type="number" id="mmWmGap" value="25" min="0" max="80">
+            </div>
+            <div class="macmini-tuning-help">Dell 공통값은 유지하고 Mac mini 후처리에서만 적용됩니다. 상호/전화 간격은 0이면 좁게, 6은 기본, 12 이상은 넓게 표시됩니다.</div>
+        </div>
+
+        <!-- 6. 현재 선택 상태 요약 -->
+        <div style="background: #2d3748; border-radius: 8px; padding: 8px 12px; margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <span style="color: #94a3b8; font-size: 12px;"> 슬라이드쇼 조합</span>
+                <div style="font-size: 11px; color: #cbd5e0;">
+                    <span id="summaryAudio">오디오: 없음</span> | 
+                    <span id="summaryImages">이미지: 0장</span>
+                </div>
+            </div>
+</div>
+    </div>
+</div>
+
+
+            <!-- 우측: 모바일 프리뷰 + 외부도구 -->
+            <div class="right-panel">
+                <!-- 모바일 프리뷰 (높이 2배) -->
+                <div class="mobile-preview">
+                    <div class="preview-header">
+                        모바일 프리뷰
+                        <button id="openVideoFolderBtn" class="small-btn" style="display:none;">폴더 열기</button>
+                    </div>
+                    <div class="preview-container" style="max-height:480px;">
+                        <video id="mobilePlayer" controls playsinline>
+                            <source src="" type="video/mp4">
+                        </video>
+                    </div>
+                    <div class="audio-preview" style="margin-top:10px;">
+                        <audio id="audioPlayer" controls style="width:100%;">
+                            <source src="" type="audio/mpeg">
+                        </audio>
+                    </div>
+
+                    <div class="preview-controls">
+                        <button id="prevVideoBtn">이전</button>
+                        <span id="currentVideoTitle">선택된 영상 없음</span>
+                        <button id="nextVideoBtn">다음</button>
+                    </div>
+                </div>
+
+                <!-- 외부 도구 패널 -->
+                <div class="external-tool">
+                    <div class="tool-header" onclick="toggleExternalTool()">
+                        외부 도구 <span id="toolToggle">▼</span>
+                    </div>
+                    <div class="tool-content" id="externalToolContent">
+                        <!-- URL 탭 -->
+                        <div class="url-tabs">
+                            <button class="tab-btn active" onclick="switchToolTab('url')">URL</button>
+                            <button class="tab-btn" onclick="switchToolTab('youtube')">유튜브 뮤직</button>
+                        </div>
+                        
+                        <!-- URL 탭 내용 -->
+                        <div id="urlTab" class="tab-content active">
+                            <div class="url-selector">
+                                <select id="siteSelector">
+                                    <option value="https://chatgpt.com">ChatGPT</option>
+                                    <option value="https://claude.ai">Claude</option>
+                                    <option value="https://perplexity.ai">Perplexity</option>
+                                    <option value="https://www.google.com">Google</option>
+                                    <option value="https://www.naver.com">Naver</option>
+                                </select>
+                                <button onclick="loadSelectedSite()">로드</button>
+                                <button onclick="openInNewTab()">새 탭</button>
+                                <button onclick="deleteSelectedSite()" class="delete-btn">삭제</button>
+                            </div>
+                            <div class="add-url">
+                                <input type="text" id="customUrl" placeholder="URL 입력">
+                                <button onclick="addCustomSite()">추가</button>
+                            </div>
+                        </div>
+                        
+                     <!-- 유튜브 뮤직 탭 내용 -->
+<div id="youtubeTab" class="tab-content">
+    <div class="youtube-music">
+        <input type="text" id="youtubeUrl" placeholder="유튜브 뮤직 URL 또는 비디오 ID" value="d27gTrPPAyk">
+        <button onclick="loadYouTubeMusic()">로드</button>
+        <div class="youtube-options">
+            <label><input type="checkbox" id="youtubeAutoplay" checked> 자동재생</label>
+            <label><input type="checkbox" id="youtubeLoop"> 반복재생</label>
+        </div>
+        <div class="iframe-container" id="youtubeContainer" style="height:300px;">
+            <!-- 기본 iframe 직접 추가 - 항상 표시됨 -->
+            <iframe width="100%" height="100%" 
+                    src="https://www.youtube.com/embed/d27gTrPPAyk?autoplay=1&rel=0&modestbranding=1" 
+                    frameborder="0" allow="autoplay; encrypted-media; picture-in-picture" 
+                    allowfullscreen style="border-radius: 8px;">
+            </iframe>
+        </div>
+    </div>
+</div>
+                        
+                        <!-- 기존 iframe 컨테이너 (URL 탭용) -->
+                        <div class="iframe-container" id="urlIframeContainer" style="display:none;">
+                            <iframe id="externalFrame" src="about:blank" style="width:100%; height:100%; border:none;"></iframe>
+                            <div id="iframeFallback" class="fallback-message" style="display: none;">
+                                <p>이 사이트는 iframe으로 표시할 수 없습니다</p>
+                                <p class="small">(보안 정책으로 차단됨)</p>
+                                <button onclick="openInNewTab()">새 탭에서 열기</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/static/script.js"></script>
+</body>
+</html>

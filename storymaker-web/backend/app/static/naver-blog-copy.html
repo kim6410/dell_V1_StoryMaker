@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>StoryMaker Naver Blog Copy Studio</title>
+  <link rel="stylesheet" href="/static/naver_blog_copy.css?v=20260702-header-ghost-fix-1">
+</head>
+<body>
+  <main class="nb-wrap">
+    <header class="nb-hero">
+      <div>
+        <p class="nb-kicker">StoryMaker 하부 모듈</p>
+        <h1>네이버 블로그 복사형 스튜디오</h1>
+        <p class="nb-desc">StoryMaker 산출물을 불러와 제목, 본문, 이미지 앵커, ALT, 해시태그를 한 화면에서 정리하고 복사합니다.</p>
+      </div>
+      <button class="nb-primary" onclick="openNaverWrite()">네이버 글쓰기 열기</button>
+    </header>
+
+    <div class="nb-tab-header-action" style="display: flex; justify-content: flex-end; margin-top: 16px; margin-bottom: -10px;">
+      <a href="https://app.mystorymaker.net/storymaker" onmouseover="this.style.background='rgba(3,199,90,0.06)'" onmouseout="this.style.background='#fff'" style="display: inline-flex; align-items: center; justify-content: center; padding: 7px 14px; font-size: 13px; font-weight: 600; color: var(--green-dark); border: 1px solid var(--green); border-radius: 8px; text-decoration: none; background: #fff; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">스토리메이커로 이동</a>
+    </div>
+
+    <nav class="nb-tabs" aria-label="Copy Studio 채널">
+      <button type="button" class="nb-tab active" data-channel="naver_blog" onclick="switchCopyStudioTab('naver_blog')">네이버 블로그</button>
+      <button type="button" class="nb-tab" data-channel="wordpress" onclick="switchCopyStudioTab('wordpress')">워드프레스</button>
+      <button type="button" class="nb-tab" data-channel="instagram_reels" onclick="switchCopyStudioTab('instagram_reels')">인스타 릴스</button>
+    </nav>
+
+    <section id="pane-naver_blog" class="nb-tab-pane active">
+      <section class="nb-grid">
+        <aside class="nb-panel">
+          <h2>1. 프로젝트 데이터</h2>
+          <label>StoryMaker 프로젝트 불러오기</label>
+          <div class="nb-project-row">
+            <select id="projectSelector">
+              <option value="">로그인 후 프로젝트 목록을 불러옵니다</option>
+            </select>
+            <button type="button" onclick="loadSelectedProjectForBlog()">불러오기</button>
+          </div>
+          <p id="projectLoadStatus" class="nb-mini-status">현재 화면은 StoryMaker 로그인 세션을 사용합니다.</p>
+          <label>업체명</label>
+          <input id="companyName" value="아이빌안경원">
+          <label>전화번호</label>
+          <input id="phoneNumber" value="예약 후 방문 시 다양한 혜택 제공">
+          <label>핵심 키워드</label>
+          <input id="mainKeyword" value="안산 안경원, 상록수역 안경원, 안산시력검사">
+          <label>글 목적</label>
+          <select id="intent">
+            <option>지역 SEO형</option>
+            <option>정보형</option>
+            <option>방문 유도형</option>
+            <option>문제 해결형</option>
+            <option>후기형</option>
+          </select>
+          <label>추가 상황</label>
+          <textarea id="extraContext">스마트폰과 컴퓨터 사용으로 눈이 피로한 고객에게 전문가 상담의 필요성을 자연스럽게 전달</textarea>
+          <button class="nb-primary full" onclick="generateDemoDraft()">샘플 원고 구성</button>
+
+          <div class="nb-section-head top-gap">
+            <h2>프로젝트 산출물</h2>
+            <button type="button" onclick="loadProjectAssetsForBlog()">새로고침</button>
+          </div>
+          <p id="assetLoadStatus" class="nb-mini-status">프로젝트를 불러오면 이미지, MP4, 썸네일이 표시됩니다.</p>
+          <div id="assetGallery" class="nb-asset-gallery"></div>
+        </aside>
+
+        <section class="nb-panel nb-result">
+          <div class="nb-section-head">
+            <h2>2. 추천 제목</h2>
+            <button onclick="copyRecommendedTitles()">추천 제목 복사</button>
+          </div>
+          <div id="titleList" class="nb-title-list"></div>
+
+          <div class="nb-section-head top-gap">
+            <h2>3. 대표 제목</h2>
+            <button onclick="copySelectedTitle()">제목 복사</button>
+          </div>
+          <input id="selectedTitle" class="nb-title-input">
+
+          <div class="nb-section-head top-gap">
+            <h2>4. 블로그 본문</h2>
+            <button onclick="copyBody()">본문 복사</button>
+          </div>
+          <textarea id="bodyText" class="nb-body"></textarea>
+
+          <div class="nb-section-head top-gap">
+            <h2>5. 이미지 앵커 / ALT</h2>
+            <button onclick="copyImageGuide()">이미지 가이드 복사</button>
+          </div>
+          <div id="imageGuide" class="nb-image-guide"></div>
+
+          <div class="nb-section-head top-gap">
+            <h2>6. 해시태그</h2>
+            <button onclick="copyHashtags()">해시태그 복사</button>
+          </div>
+          <textarea id="hashtags" class="nb-tags"></textarea>
+        </section>
+      </section>
+
+      <section class="nb-panel nb-preview-panel">
+        <div class="nb-section-head">
+          <h2>7. 네이버 블로그 미리보기</h2>
+          <button onclick="copyAll()">전체 복사</button>
+        </div>
+        <article id="preview" class="nb-preview"></article>
+      </section>
+    </section>
+
+    <section id="pane-wordpress" class="nb-tab-pane">
+      <section class="nb-panel nb-channel-panel">
+        <div class="nb-section-head">
+          <h2>워드프레스 패키지</h2>
+          <button type="button" onclick="renderWordPressTab()">새로고침</button>
+        </div>
+        <p id="wpStatus" class="nb-mini-status">네이버 블로그 본문을 워드프레스 HTML로 변환합니다.</p>
+        <label>제목</label>
+        <input id="wpTitle">
+        <label>메타디스크립션</label>
+        <textarea id="wpMetaDescription" class="nb-small-textarea"></textarea>
+        <label>포커스 키워드</label>
+        <input id="wpFocusKeyword">
+        <div class="nb-section-head top-gap">
+          <h2>본문 HTML</h2>
+          <button type="button" onclick="copyWordPressHtml()">본문 HTML 복사</button>
+        </div>
+        <textarea id="wpBodyHtml" class="nb-code-box" readonly></textarea>
+        <div class="nb-section-head top-gap">
+          <h2>HTML 미리보기</h2>
+          <button type="button" disabled>초안 전송은 다음 Mission</button>
+        </div>
+        <article id="wpPreview" class="nb-preview nb-wp-preview"></article>
+      </section>
+    </section>
+
+    <section id="pane-instagram_reels" class="nb-tab-pane">
+      <section class="nb-panel nb-channel-panel">
+        <div class="nb-section-head">
+          <h2>인스타 릴스 패키지</h2>
+          <button type="button" onclick="renderInstagramReelsTab()">새로고침</button>
+        </div>
+        <p id="igStatus" class="nb-mini-status">SHORTFORM 영상과 썸네일을 project_assets에서 불러옵니다.</p>
+        <div id="igMedia" class="nb-reels-media"></div>
+        <label>Caption</label>
+        <textarea id="igCaption" class="nb-small-textarea"></textarea>
+        <label>Hashtags</label>
+        <textarea id="igHashtags" class="nb-tags"></textarea>
+        <div class="nb-section-head top-gap">
+          <h2>복사용 텍스트</h2>
+          <button type="button" onclick="copyInstagramReelsText()">Caption + Hashtags 복사</button>
+        </div>
+        <textarea id="igCopyText" class="nb-code-box" readonly></textarea>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast" class="nb-toast">복사 완료</div>
+  <script src="/static/common_nav_unified.js?v=20260704-mobile-menu-polish-2"></script>
+  <script src="/static/naver_blog_copy.js?v=20260702-user-assets-hotfix-2"></script>
+</body>
+</html>

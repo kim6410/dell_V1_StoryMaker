@@ -1,0 +1,32 @@
+{
+  "2026-07-15": {
+    "requests": 76,
+    "success": 66,
+    "failed": 10,
+    "timeouts": 1,
+    "input_tokens": 5675,
+    "output_tokens": 37117,
+    "total_tokens": 42792,
+    "latency_ms_sum": 837871
+  },
+  "2026-07-17": {
+    "requests": 12,
+    "success": 12,
+    "failed": 0,
+    "timeouts": 0,
+    "input_tokens": 1398,
+    "output_tokens": 4433,
+    "total_tokens": 5831,
+    "latency_ms_sum": 79237
+  },
+  "2026-07-18": {
+    "requests": 7,
+    "success": 7,
+    "failed": 0,
+    "timeouts": 0,
+    "input_tokens": 10889,
+    "output_tokens": 13990,
+    "total_tokens": 24879,
+    "latency_ms_sum": 247878
+  }
+}

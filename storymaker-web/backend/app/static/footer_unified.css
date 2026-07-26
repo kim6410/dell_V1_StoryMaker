@@ -1,0 +1,195 @@
+:root {
+  --sns-ai-footer-bg: #07111f;
+  --sns-ai-footer-panel: rgba(255,255,255,0.055);
+  --sns-ai-footer-line: rgba(255,255,255,0.12);
+  --sns-ai-footer-text: rgba(255,255,255,0.86);
+  --sns-ai-footer-muted: rgba(255,255,255,0.62);
+  --sns-ai-footer-strong: #ffffff;
+  --sns-ai-footer-accent: #5dd6ff;
+}
+
+#sns-ai-global-footer {
+  display: block;
+  width: 100%;
+  clear: both;
+  position: relative;
+  z-index: 5;
+}
+
+#sns-ai-global-footer .sns-ai-global-footer,
+.sns-ai-global-footer {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 44px 20px 22px;
+  color: var(--sns-ai-footer-text);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(93, 214, 255, 0.16), transparent 34%),
+    linear-gradient(180deg, #0d2038 0%, var(--sns-ai-footer-bg) 72%);
+  border-top: 1px solid var(--sns-ai-footer-line);
+  font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.sns-ai-footer-inner {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(260px, 1.45fr) repeat(3, minmax(150px, 0.7fr));
+  gap: 28px;
+  align-items: start;
+}
+
+.sns-ai-footer-brand,
+.sns-ai-footer-col {
+  min-width: 0;
+}
+
+.sns-ai-footer-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--sns-ai-footer-strong);
+  text-decoration: none;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+}
+
+.sns-ai-footer-logo:hover,
+.sns-ai-footer-logo:focus {
+  color: var(--sns-ai-footer-strong);
+  text-decoration: none;
+}
+
+.sns-ai-footer-logo-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  color: #07111f;
+  background: linear-gradient(135deg, #8fe7ff, #ffffff);
+  box-shadow: 0 12px 28px rgba(93, 214, 255, 0.26);
+  font-weight: 950;
+}
+
+.sns-ai-footer-logo-text {
+  font-size: 1.15rem;
+}
+
+.sns-ai-footer-copy {
+  margin: 16px 0 6px;
+  color: var(--sns-ai-footer-strong);
+  font-size: 1rem;
+  line-height: 1.65;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+}
+
+.sns-ai-footer-subcopy {
+  margin: 0;
+  color: var(--sns-ai-footer-muted);
+  font-size: 0.93rem;
+  line-height: 1.75;
+  letter-spacing: -0.025em;
+}
+
+.sns-ai-footer-col strong {
+  display: block;
+  margin: 0 0 12px;
+  color: var(--sns-ai-footer-strong);
+  font-size: 0.96rem;
+  letter-spacing: -0.02em;
+}
+
+.sns-ai-footer-col a {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 8px 0;
+  color: var(--sns-ai-footer-muted);
+  text-decoration: none;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  letter-spacing: -0.025em;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.sns-ai-footer-col a:hover,
+.sns-ai-footer-col a:focus {
+  color: var(--sns-ai-footer-accent);
+  text-decoration: none;
+}
+
+.sns-ai-footer-bottom {
+  width: min(1180px, 100%);
+  margin: 28px auto 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--sns-ai-footer-line);
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  color: rgba(255,255,255,0.54);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.sns-ai-footer-note {
+  text-align: right;
+}
+
+body.storymaker-embed-mode #sns-ai-global-footer,
+html.storymaker-embed-mode #sns-ai-global-footer {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  #sns-ai-global-footer .sns-ai-global-footer,
+  .sns-ai-global-footer {
+    padding: 36px 18px 20px;
+  }
+
+  .sns-ai-footer-inner {
+    grid-template-columns: 1fr 1fr;
+    gap: 24px 18px;
+  }
+
+  .sns-ai-footer-brand {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  #sns-ai-global-footer .sns-ai-global-footer,
+  .sns-ai-global-footer {
+    padding: 32px 16px 18px;
+  }
+
+  .sns-ai-footer-inner {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .sns-ai-footer-col {
+    padding: 16px;
+    border: 1px solid var(--sns-ai-footer-line);
+    border-radius: 18px;
+    background: var(--sns-ai-footer-panel);
+  }
+
+  .sns-ai-footer-col a {
+    width: 100%;
+    padding: 3px 0;
+  }
+
+  .sns-ai-footer-bottom {
+    flex-direction: column;
+    margin-top: 22px;
+    gap: 6px;
+    text-align: left;
+  }
+
+  .sns-ai-footer-note {
+    text-align: left;
+  }
+}

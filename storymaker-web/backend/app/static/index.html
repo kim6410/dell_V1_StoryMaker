@@ -1,0 +1,1865 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta name="robots" content="noindex, nofollow">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 브라우저 캐시 완전 방지 헤더 설정 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <!-- Plausible Analytics 오픈소스 CE 자바스크립트 트래커 연동 -->
+    <script defer data-domain="mystorymaker.duckdns.org" src="https://storymaker-analytics.duckdns.org/js/script.js?v=1.1.2"></script>
+    <script src="/static/app_core.js?v=20260704-auth-no-auto-logout-1" defer></script>
+    <script src="/static/common_nav_unified.js?v=20260705-mobile-session-menu-3" defer></script>
+    <script src="/static/app_auth.js?v=20260705-register-modal-only-1" defer></script>
+    <script src="/static/auth_modal_unified.js?v=20260705-auth-action-2" defer></script>
+    <script src="/static/app_persona.js?v=20260704-persona-industry-sync-2" defer></script>
+    <script src="/static/mypage_modal.js?v=20260704-confirm-1" defer></script>
+    <script src="/static/app_ideas.js?v=1.2.2" defer></script>
+    <script src="/static/app_analytics.js?v=1.2.2" defer></script>
+    <script src="/static/app_admin.js?v=20260702-admin-lazy-load-1" defer></script>
+    <script src="/static/app_project.js?v=20260704-persona-project-sync-1" defer></script>
+    <script src="/static/app_generator_parser.js?v=20260702-recommend-title-box-1" defer></script>
+    <script src="/static/app_generator_renderer.js?v=20260705-podcast-next-1" defer></script>
+    <script src="/static/app_generator_actions.js?v=20260704-prompt-preview-clean-1" defer></script>
+    <script src="/static/app_generator_wordpress.js?v=1.2.2" defer></script>
+    <script src="/static/app_generator_progress.js?v=1.2.2" defer></script>
+    <script src="/static/app_generator_engine.js?v=20260704-ai-header-prompt-count-1" defer></script>
+    <script src="/static/app_generator_worker.js?v=1.2.2" defer></script>
+    <script src="/static/user_mode_split.js?v=20260705-storymaker-hero-restore-1" defer></script>
+    <script src="/static/sm_tester_polish.js?v=20260701-tester-polish-2" defer></script>
+    <script src="/static/reference_lookup.js?v=20260704-reference-lookup-8" defer></script>
+    <script src="/static/reference_lookup_fix.js?v=20260704-detail-fulltext-1" defer></script>
+    <script src="/static/reference_source_button.js?v=20260704-source-button-5" defer></script>
+    <script src="/static/user_settings_compact.js?v=x2" defer></script>
+    <script src="/static/user_keyword_chips.js?v=20260701-keyword-chips-1" defer></script>
+    <script src="/static/ai_auto_generate_console.js?v=20260702-ai-auto-console-5" defer></script>
+    <script src="/static/persona_db_sync_guard.js?v=20260704-company-name-sync-1" defer></script>
+    <script src="/static/user_ui_cleanup_guard.js?v=20260702-user-ui-cleanup-1" defer></script>
+    <script src="/static/action_button_layout_guard.js?v=20260702-action-layout-2" defer></script>
+    <script src="/static/mobile_overflow_guard.js?v=20260702-mobile-overflow-1" defer></script>
+    <script src="/static/pc_inner_align_guard.js?v=20260702-pc-inner-align-1" defer></script>
+    <!-- accordion temporarily disabled for shake test -->
+    <script src="/static/main_accordion_guard.js?v=20260702-main-accordion-1" defer></script>
+    <title>StoryMaker | SNS AI Studio</title>
+    <!-- 구글 프리미엄 폰트 Outfit 및 Inter 로드 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap&v=1.1.2" rel="stylesheet">
+    <link rel="stylesheet" href="/static/index.css?v=20260705-button-hierarchy-clean-1">
+    <link rel="stylesheet" href="/static/app_deep_blue_theme.css?v=20260705-storymaker-hero-restore-1">
+    <link rel="stylesheet" href="/static/mypage_modal.css?v=20260704-confirm-1">
+    <link rel="stylesheet" href="/static/mypage_session_exit.css?v=20260704-confirm-1">
+    <link rel="stylesheet" href="/static/app_hero_unify.css?v=20260704-hide-legacy-home-1">
+    <style>
+      #user-info-bar {
+        display: none;
+      }
+
+      @media (max-width: 768px) {
+        html,
+        body {
+          width: 100% !important;
+          max-width: 100% !important;
+          overflow-x: hidden !important;
+          position: relative !important;
+        }
+
+        *,
+        *::before,
+        *::after {
+          box-sizing: border-box !important;
+        }
+
+        body {
+          overscroll-behavior-x: none !important;
+        }
+
+        .container,
+        .wrap,
+        .app-container,
+        .storymaker-container,
+        .panel,
+        .card,
+        .section,
+        .workspace,
+        .workspace-right-column,
+        textarea,
+        input,
+        select {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          box-sizing: border-box !important;
+        }
+
+        textarea,
+        input,
+        select {
+          overflow-x: hidden !important;
+        }
+
+        #admin-modal,
+        #preview-modal,
+        #feature-request-modal,
+        #persona-help-modal {
+          padding: 8px !important;
+        }
+
+        #admin-modal > .card,
+        #preview-modal > .card,
+        #feature-request-modal > .card,
+        #persona-help-modal > .card {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          margin: 0 !important;
+          box-sizing: border-box !important;
+          max-height: 98vh !important;
+        }
+      }
+    </style>
+</head>
+<body>
+
+
+    <!-- 마이페이지 모달 -->
+    <div id="mypage-modal" aria-hidden="true" style="display:none;">
+        <div class="card mypage-modal-card">
+            <h3 class="mypage-modal-titlebar">
+                <span class="mypage-title-text">마이페이지</span>
+                <button type="button" class="mypage-close-btn" onclick="closeMyPageModal()" aria-label="마이페이지 닫기">닫기</button>
+                <button type="button" id="mypage-session-exit-btn" class="mypage-session-exit-btn" aria-label="로그아웃">로그아웃</button>
+            </h3>
+            
+            <!-- 공통 정보 카드 -->
+            <div style="background:var(--panel-card); border:1px solid var(--border); padding:16px; border-radius:var(--radius-md); margin-bottom:20px; display:grid; grid-template-columns: 1fr 1fr; gap:12px; font-size:13px; flex-shrink:0;">
+                <div><span style="color:var(--muted);">사용자명:</span> <strong id="my-username">-</strong></div>
+                <div><span style="color:var(--muted);">역할:</span> <strong id="my-role" style="color:var(--accent);">-</strong></div>
+                <div><span style="color:var(--muted);">회원 등급:</span> <strong id="my-tier" style="color:var(--warning);">-</strong></div>
+                <div><span style="color:var(--muted);">내 프로젝트 수:</span> <strong id="my-project-count" style="color:var(--success);">0</strong>개</div>
+            </div>
+
+            <!-- 마이페이지 내부 탭 메뉴 (Premium 디자인 적용) -->
+            <div class="tab-header" style="margin-bottom:20px; border-bottom:1px solid var(--border); display:flex; gap:8px; flex-shrink:0;">
+                <button type="button" class="tab-btn active" id="btn-mypage-tab-persona" onclick="switchMyPageTab('persona')" style="padding: 8px 16px; font-size:13px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; background: transparent; border: none; color: var(--text); cursor: pointer; border-bottom: 2px solid var(--accent); transition: var(--transition); font-weight: 600;">업체 페르소나 관리</button>
+                <button type="button" class="tab-btn" id="btn-mypage-tab-settings" onclick="switchMyPageTab('settings')" style="padding: 8px 16px; font-size:13px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; background: transparent; border: none; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: var(--transition); font-weight: 500;">계정 및 연동 설정</button>
+            </div>
+
+            <!-- 탭 1: 업체 페르소나 관리 -->
+            <section id="mypage-persona-section" style="display:block; margin-bottom:10px; padding:18px; background:var(--panel-card); border:1px solid var(--border); border-radius:var(--radius-md);">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px;">
+                    <div>
+                        <h4 style="font-size:15px; color:var(--text);">내 업체 페르소나</h4>
+                        <p style="font-size:11px; color:var(--muted);">업체별 말투, 전문성, 고객층과 핵심 키워드를 저장합니다.</p>
+                    </div>
+                    <button type="button" class="secondary" onclick="showPersonaHelp()" style="width:auto; padding:7px 12px; font-size:11px;">작성법 도움말</button>
+                </div>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label for="mypage-persona-selector">저장된 페르소나</label>
+                    <select id="mypage-persona-selector" onchange="selectMyPersona()">
+                        <option value="__new__">＋ 새 페르소나 작성</option>
+                    </select>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label for="mypage-persona-industry">업종</label>
+                        <select id="mypage-persona-industry">
+                            <option value="general">일반 소상공인</option>
+                            <optgroup label="홈 케어 및 생활 시공">
+                                <option value="home_repair">집수리/인테리어</option>
+                                <option value="boiler_facility">보일러/설비</option>
+                                <option value="appliance_clean">가전 세척/케어</option>
+                                <option value="general_cleaning">종합 청소</option>
+                                <option value="window_screen">방충망/창호</option>
+                                <option value="key_doorlock">열쇠/도어락</option>
+                                <option value="lighting_electric">조명/전기공사</option>
+                                <option value="drain_unclog">하수구/싱크대 막힘</option>
+                            </optgroup>
+                            <optgroup label="외식 및 라이프스타일">
+                                <option value="restaurant">음식점</option>
+                                <option value="meat_korean">고깃집/한식</option>
+                                <option value="cafe">카페</option>
+                                <option value="bakery_dessert">베이커리/디저트</option>
+                                <option value="pub_bar">이자카야/포차</option>
+                                <option value="mealkit_sidedish">밀키트/반찬가게</option>
+                                <option value="workshop_class">공방/원데이클래스</option>
+                                <option value="partyroom_studio">파티룸/스튜디오</option>
+                                <option value="camping">캠핑장</option>
+                            </optgroup>
+                            <optgroup label="뷰티 및 웰니스">
+                                <option value="beauty_wellness">뷰티/웰니스 일반</option>
+                                <option value="hair_salon">미용실/헤어샵</option>
+                                <option value="nail_art">네일아트/패디</option>
+                                <option value="skin_care">피부관리/에스테틱</option>
+                                <option value="fitness_pt">피트니스/PT</option>
+                                <option value="body_massage">바디케어/마사지</option>
+                            </optgroup>
+                            <optgroup label="자동차 및 이동 수단">
+                                <option value="car_repair">자동차 정비/카센터</option>
+                                <option value="car_detailing">디테일링/손세차</option>
+                                <option value="car_rental">렌트카/출장차량</option>
+                            </optgroup>
+                            <optgroup label="반려동물 및 가족 케어">
+                                <option value="pet_beauty_hotel">애견 미용/호텔</option>
+                                <option value="veterinary_clinic">동물병원</option>
+                                <option value="flower_shop">꽃집/플라워샵</option>
+                                <option value="kids_cafe">키즈카페/어린이시설</option>
+                            </optgroup>
+                            <optgroup label="로컬 전문 서비스 및 교육">
+                                <option value="real_estate">공인중개사</option>
+                                <option value="education_academy">보습/입시학원</option>
+                                <option value="study_cafe">공유오피스/스터디카페</option>
+                                <option value="professional_service">행정사/세무사</option>
+                                <option value="moving_service">이삿짐/용달</option>
+                                <option value="logistics">물류/3PL</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="mypage-persona-company">업체명</label>
+                        <input id="mypage-persona-company" type="text" maxlength="100" placeholder="예: 우리동네 인테리어">
+                    </div>
+                    <div class="form-group">
+                        <label for="mypage-persona-phone">전화번호</label>
+                        <input id="mypage-persona-phone" type="tel" maxlength="30" placeholder="010-1234-5678">
+                    </div>
+                    <div class="form-group">
+                        <label for="mypage-persona-website">홈페이지/SNS</label>
+                        <input id="mypage-persona-website" type="text" maxlength="500" placeholder="홈페이지, 블로그, 인스타그램, 스마트플레이스 URL">
+                    </div>
+                </div>
+                <div class="form-group">
+                        <label for="mypage-persona-keywords">핵심 키워드</label>
+                        <input id="mypage-persona-keywords" type="text" placeholder="울산 집수리, 욕실 리모델링, 타일 교체">
+                </div>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label for="mypage-persona-content">페르소나 상세 설명</label>
+                    <textarea id="mypage-persona-content" maxlength="10000" style="min-height:150px;" placeholder="경력, 전문 분야, 주요 고객, 말투, 지역, 차별점, 반드시 포함할 표현과 피할 표현을 구체적으로 작성하세요."></textarea>
+                </div>
+                <div id="mypage-persona-error" style="display:none; color:var(--danger); font-size:12px; margin-bottom:10px;"></div>
+                <div style="display:flex; gap:8px; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+                    <button type="button" class="secondary" onclick="showFeatureRequestModal(); closeMyPageModal();" style="width:auto; padding:8px 14px; font-size:12px;">수정요청 남기기</button>
+                    <div style="display:flex; gap:8px; justify-content:flex-end; align-items:center; flex-wrap:wrap;">
+                        <button type="button" class="secondary" onclick="newMyPersona()" style="width:auto; padding:8px 14px; font-size:12px;">새로 작성</button>
+                        <button type="button" class="secondary" id="mypage-persona-delete" onclick="deleteMyPersona()" style="display:none; width:auto; padding:8px 14px; font-size:12px; color:var(--danger);">삭제</button>
+                        <button type="button" onclick="saveMyPersona()" style="width:auto; padding:8px 16px; font-size:12px;">저장 / 수정</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 탭 2: 계정 및 연동 설정 -->
+            <section id="mypage-settings-section" style="display:none; flex-direction:column; gap:16px;">
+                <!-- 비밀번호 변경 -->
+                <div class="card" style="background:var(--panel-card); padding:18px; border:1px solid var(--border); border-radius:var(--radius-md);">
+                    <h4 style="font-size:14px; font-weight:600; margin-bottom:12px; color:var(--text); border:none; padding:0;">비밀번호 변경</h4>
+                    <div id="mypage-error" style="color:var(--danger); font-size:12px; margin-bottom:12px; display:none; font-weight:600; padding:8px; background-color:rgba(255,23,68,0.1); border:1px solid rgba(255,23,68,0.2); border-radius:var(--radius-sm);"></div>
+                    <form id="change-password-form" onsubmit="handleChangePassword(event)">
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label for="change-current-password" style="font-size:11px; color:var(--muted);">현재 비밀번호</label>
+                            <input type="password" id="change-current-password" required style="padding:8px 12px; font-size:13px; height:36px; background:var(--panel); border-color:var(--border);">
+                        </div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label for="change-new-password" style="font-size:11px; color:var(--muted);">새 비밀번호</label>
+                            <input type="password" id="change-new-password" required style="padding:8px 12px; font-size:13px; height:36px; background:var(--panel); border-color:var(--border);">
+                        </div>
+                        <button type="submit" style="padding:8px 16px; font-size:13px; height:36px; margin-bottom:12px;">비밀번호 변경</button>
+                    </form>
+                </div>
+
+                <!-- AI 자동 생성 설정 -->
+                <div class="card" style="background:var(--panel-card); padding:18px; border:1px solid var(--border); border-radius:var(--radius-md);">
+                    <h4 style="font-size:14px; font-weight:600; margin-bottom:12px; color:var(--text); border:none; padding:0;">AI 자동 생성 설정</h4>
+                    <div class="form-group" style="margin-bottom:16px;">
+                        <label for="mypage-api-key" style="font-size:12px; color:var(--text); display:block; margin-bottom:6px;">OpenAI API Key</label>
+                        <input type="password" id="mypage-api-key" placeholder="sk-... 형식의 API 키를 입력하세요." style="padding:10px 12px; font-size:13px; height:36px; border-color: rgba(0, 229, 255, 0.3); background:var(--panel);">
+                    </div>
+                    <button type="button" onclick="saveApiKey()" style="padding:8px 16px; font-size:13px; height:36px; background-color: var(--accent); border-radius: var(--radius-sm); border: none; color: #fff; cursor: pointer;">API 키 저장</button>
+                </div>
+
+                <!-- 워드프레스 자동 연동 설정 -->
+                <div class="card" style="background:var(--panel-card); padding:18px; border:1px solid var(--border); border-radius:var(--radius-md);">
+                    <h4 style="font-size:14px; font-weight:600; margin-bottom:12px; color:var(--text); border:none; padding:0;">워드프레스 연동 설정</h4>
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                        <div style="flex: 1;">
+                            <span style="font-size:13px; font-weight:600; color:var(--text); display:block; margin-bottom:4px;">워드프레스 자동 초안 등록 활성화</span>
+                            <span style="font-size:11px; color:var(--muted); display:block; line-height:1.4;">글 생성 결과 화면에서 워드프레스에 원클릭으로 초안을 바로 전송하는 기능을 켜거나 끕니다. (Premium 결제 사용자 전용)</span>
+                        </div>
+                        <label class="switch-container" style="position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; margin-left: 12px;">
+                            <input type="checkbox" id="mypage-wp-enabled" onchange="toggleWpEnabled(this)" style="opacity: 0; width: 0; height: 0;">
+                            <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #4e5969; transition: .4s; border-radius: 24px;"></span>
+                        </label>
+                    </div>
+                    <div id="mypage-wp-status-msg" style="font-size:12px; color:var(--danger); display:none; font-weight:500; margin-top:12px; padding:6px 10px; background:rgba(255,23,68,0.08); border:1px solid rgba(255,23,68,0.15); border-radius:var(--radius-sm);"></div>
+                </div>
+            </section>
+            
+            <div class="mypage-bottom-close-wrap">
+                <button type="button" class="mypage-bottom-close" onclick="closeMyPageModal()">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="persona-help-modal" style="position:fixed; inset:0; background:rgba(10,12,16,0.92); backdrop-filter:blur(8px); z-index:10001; display:none; justify-content:center; align-items:center;">
+        <div class="card" style="width:94%; max-width:680px; max-height:88vh; overflow-y:auto; padding:28px; background:var(--panel);">
+            <h3 style="display:flex; justify-content:space-between; font-size:18px; margin-bottom:18px;"><span>업체 페르소나 작성 가이드</span><span onclick="closePersonaHelp()" style="font-size:12px; color:var(--muted); cursor:pointer;">✕ 닫기</span></h3>
+            <div style="display:flex; flex-direction:column; gap:16px; font-size:13px; color:var(--text); line-height:1.7;">
+                <div><strong style="color:var(--accent);">1. 업체 정체성</strong><p style="color:var(--muted);">업종, 활동 지역, 경력, 자격·기술을 적습니다. 예: “울산에서 30년간 주택 보수를 해 온 생활밀착형 집수리 전문가”.</p></div>
+                <div><strong style="color:var(--accent);">2. 주요 고객과 문제</strong><p style="color:var(--muted);">누구를 돕고 어떤 문제를 해결하는지 씁니다. 예: “노후 주택 누수와 욕실 파손으로 급한 40~60대 자가 거주 고객”.</p></div>
+                <div><strong style="color:var(--accent);">3. 말투와 글의 방식</strong><p style="color:var(--muted);">친근함·전문성·문장 길이·설명 순서를 지정합니다. 예: “현장 경험이 드러나는 존댓말, 문제→원인→시공→관리법 순서”.</p></div>
+                <div><strong style="color:var(--accent);">4. 차별점과 신뢰 요소</strong><p style="color:var(--muted);">당일 대응, 직접 시공, 견적 원칙, 보증, 실제 사례 등 경쟁 업체와 다른 점을 구체적으로 적습니다.</p></div>
+                <div><strong style="color:var(--accent);">5. 핵심 키워드 입력법</strong><p style="color:var(--muted);">쉼표로 구분해 지역+서비스 중심으로 5~15개를 권장합니다. 예: “울산 집수리, 북구 누수 수리, 욕실 리모델링, 타일 교체, 긴급 보수”. 같은 뜻의 과도한 반복은 피합니다.</p></div>
+                <div><strong style="color:var(--accent);">6. 전화번호</strong><p style="color:var(--muted);">고객에게 공개할 대표 연락처를 입력합니다. 지역번호 또는 휴대전화 번호를 하이픈과 함께 정확히 확인해 주세요.</p></div>
+                <div><strong style="color:var(--accent);">7. 포함·금지 표현</strong><p style="color:var(--muted);">브랜드 문구, 연락 유도 방식과 함께 과장 표현·가격 단정·경쟁사 비방처럼 사용하지 않을 표현도 명시합니다.</p></div>
+                <div style="padding:14px; background:rgba(0,136,255,0.08); border:1px solid rgba(0,136,255,0.25); border-radius:var(--radius-md);"><strong>작성 예시</strong><p style="margin-top:6px; color:var(--muted);">“울산 북구에서 30년간 집수리와 욕실 리모델링을 직접 시공한 전문가다. 누수나 타일 파손으로 불편한 자가 거주 고객에게 원인과 해결 과정을 쉬운 존댓말로 설명한다. 현장 상태, 작업 과정, 사후 관리 팁 순서로 쓰며 ‘빨리박사 오박사’ 문구를 자연스럽게 사용한다. 확인되지 않은 최저가·무조건·완벽 같은 과장 표현은 쓰지 않는다.”</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모바일 미리보기 모달 -->
+    <div id="preview-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(10,12,16,0.85); backdrop-filter:blur(8px); z-index:9998; display:none; justify-content:center; align-items:center; transition: var(--transition);">
+        <div class="card" style="width:95%; max-width:440px; padding:24px; border:1px solid var(--border); background-color:var(--panel); box-shadow: 0 20px 50px rgba(0,0,0,0.5); display:flex; flex-direction:column; max-height:90vh;">
+            <h3 style="font-family:'Outfit',sans-serif; font-size:16px; font-weight:600; margin-bottom:16px; color:var(--text); border:none; padding:0; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; border-bottom:1px dashed var(--border); padding-bottom:10px;">
+                <span id="preview-modal-title">모바일 미리보기</span>
+                <span style="font-size:12px; color:var(--muted); cursor:pointer;" onclick="closePreviewModal()">✕ 닫기</span>
+            </h3>
+            
+            <!-- 모바일 폰 뷰포트 시뮬레이션 -->
+            <div style="flex:1; overflow-y:auto; background:#ffffff; color:#222222; border:1px solid #ddd; border-radius:12px; padding:20px; font-size:14px; line-height:1.6; word-break:break-all; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; box-shadow:inset 0 0 10px rgba(0,0,0,0.05);" id="preview-modal-content">
+                <!-- 동적 렌더링 영역 -->
+            </div>
+            
+            <div style="margin-top:16px; text-align:right; flex-shrink:0; display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" class="secondary" style="width:auto; padding:8px 16px; font-size:12px; border-radius: var(--radius-sm);" onclick="closePreviewModal()">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 수정요청 입력 모달 -->
+    <div id="feature-request-modal" style="position:fixed; inset:0; background:rgba(10,12,16,0.86); backdrop-filter:blur(8px); z-index:10002; display:none; justify-content:center; align-items:center; padding:18px;">
+        <div class="card" style="width:94%; max-width:520px; padding:24px; background:var(--panel); border:1px solid rgba(0,136,255,0.38); box-shadow:0 20px 55px rgba(0,0,0,0.55);">
+            <h3 style="font-size:18px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                <span>수정요청 남기기</span>
+                <span onclick="closeFeatureRequestModal()" style="font-size:12px; color:var(--muted); cursor:pointer;">✕ 닫기</span>
+            </h3>
+            <p style="font-size:12px; color:var(--muted); line-height:1.6; margin-bottom:16px;">불편한 점, 추가되면 좋은 기능, 화면 수정 의견을 남겨주세요. 관리자 화면의 게시판에서 확인됩니다.</p>
+            <div id="feature-request-error" style="display:none; color:var(--danger); font-size:12px; margin-bottom:10px;"></div>
+            <div class="form-group">
+                <label for="feature-request-title">요청 제목</label>
+                <input type="text" id="feature-request-title" maxlength="200" placeholder="예: 브라우저 미리보기 글자 크기 조정 요청">
+            </div>
+            <div class="form-group">
+                <label for="feature-request-content">요청 내용</label>
+                <textarea id="feature-request-content" maxlength="5000" style="min-height:150px;" placeholder="어떤 화면에서 무엇이 불편한지, 어떻게 바뀌면 좋은지 적어주세요."></textarea>
+            </div>
+            <div style="display:flex; gap:8px; justify-content:flex-end;">
+                <button type="button" class="secondary" style="width:auto; padding:9px 15px; font-size:12px;" onclick="closeFeatureRequestModal()">취소</button>
+                <button type="button" style="width:auto; padding:9px 18px; font-size:12px;" onclick="submitFeatureRequest()">요청 등록</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 관리자 대시보드 모달 (전체 화면의 98%, 최대 1350px로 쾌적화) -->
+    <div id="admin-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(10,12,16,0.94); backdrop-filter:blur(12px); z-index:9997; display:none; justify-content:center; align-items:center; transition: var(--transition);">
+        <div class="card" style="width:98%; max-width:1350px; padding:24px; border:1px solid var(--border); background-color:var(--panel); box-shadow: 0 24px 60px rgba(0,0,0,0.7); display:flex; flex-direction:column; max-height:95vh;">
+            <h3 style="font-family:'Outfit',sans-serif; font-size:22px; font-weight:700; margin-bottom:16px; color:var(--text); border:none; padding:0; display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed var(--border); padding-bottom:10px; flex-shrink:0;">
+                <span style="background:linear-gradient(45deg, #0088ff, #00e6ff); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">관리자 종합 통계 센터 (StoryMaker Audit Center)</span>
+                <span style="font-size:13px; color:var(--muted); cursor:pointer; font-weight:500;" onclick="closeAdminDashboard()">✕ 닫기</span>
+            </h3>
+            
+            <!-- 관리자 모달 탭 메뉴: 인덱스 노트형 UI -->
+            <div class="admin-tabs-wrap">
+                <div class="admin-tabs-note">
+                    <button type="button" class="admin-note-tab admin-note-tab-blue active" id="btn-admin-tab-dashboard" onclick="switchAdminTab('dashboard')">종합 대시보드</button>
+                    <button type="button" class="admin-note-tab admin-note-tab-green" id="btn-admin-tab-analytics" onclick="switchAdminTab('analytics')">Analytics (사용 통계)</button>
+                    <button type="button" class="admin-note-tab admin-note-tab-sky" id="btn-admin-tab-requests" onclick="switchAdminTab('requests')">수정요청 게시판</button>
+                    <button type="button" class="admin-note-tab admin-note-tab-purple" id="btn-admin-tab-content-upload" onclick="switchAdminTab('content-upload')">시공사례/컨텐츠 업로드</button>
+                    <button type="button" class="admin-note-tab admin-note-tab-yellow" id="btn-admin-tab-industry" onclick="switchAdminTab('industry')">업종별 관리</button>
+                </div>
+            </div>
+            
+            <!-- 탭 1: 종합 대시보드 (기존 메인 바디 영역) -->
+            <div id="admin-dashboard-tab-content" style="flex:1; overflow-y:auto; padding-right:6px; display:flex; flex-direction:column; gap:24px;">
+                
+                <!-- 1. 상단 통계 카드 영역 (10개 카드, 2행 그리드 배치) -->
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;" id="admin-stats-grid">
+                    <!-- 자바스크립트로 10개 지표 카드 렌더링 -->
+                </div>
+
+                <!-- 2. 중단 그래프 섹션 (최근 일자별 사용량 및 사용자별 랭킹 시각화) -->
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                    <!-- 2-1. 일자별 프로젝트 생성 현황 -->
+                    <div class="card" style="background-color:var(--panel-card); padding:16px; border-color:var(--border);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <span style="font-size:14px; font-weight:700; color:var(--text);">일자별 프로젝트 생성량</span>
+                            <select id="chart-proj-days" onchange="loadAdminCharts()" style="padding:2px 6px; font-size:11px; height:24px; width:70px; margin:0; background-color:var(--panel); border-color:var(--border);">
+                                <option value="7">7일</option>
+                                <option value="30">30일</option>
+                            </select>
+                        </div>
+                        <div style="position:relative; height:180px; width:100%;">
+                            <canvas id="chart-proj-canvas" style="width:100%; height:100%;"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- 2-2. 일자별 로그인 액티브 유저 현황 -->
+                    <div class="card" style="background-color:var(--panel-card); padding:16px; border-color:var(--border);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <span style="font-size:14px; font-weight:700; color:var(--text);">일자별 활성 사용자 (로그인 기준)</span>
+                            <select id="chart-login-days" onchange="loadAdminCharts()" style="padding:2px 6px; font-size:11px; height:24px; width:70px; margin:0; background-color:var(--panel); border-color:var(--border);">
+                                <option value="7">7일</option>
+                                <option value="30">30일</option>
+                            </select>
+                        </div>
+                        <div style="position:relative; height:180px; width:100%;">
+                            <canvas id="chart-login-canvas" style="width:100%; height:100%;"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 2-3. 사용자별 프로젝트 수 (상위 10명) -->
+                    <div class="card" style="background-color:var(--panel-card); padding:16px; border-color:var(--border);">
+                        <div style="margin-bottom:12px;">
+                            <span style="font-size:14px; font-weight:700; color:var(--text);">사용자별 프로젝트 수 (상위 10명)</span>
+                        </div>
+                        <div style="position:relative; height:180px; width:100%;">
+                            <canvas id="chart-user-proj-canvas" style="width:100%; height:100%;"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 2-4. 사용자별 사용시간 (상위 10명) -->
+                    <div class="card" style="background-color:var(--panel-card); padding:16px; border-color:var(--border);">
+                        <div style="margin-bottom:12px;">
+                            <span style="font-size:14px; font-weight:700; color:var(--text);">사용자별 누적 체류 시간 (상위 10명)</span>
+                        </div>
+                        <div style="position:relative; height:180px; width:100%;">
+                            <canvas id="chart-user-time-canvas" style="width:100%; height:100%;"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. 하단 데이터 테이블 및 랭킹 섹션 -->
+                <div style="display:grid; grid-template-columns: 1.1fr 2fr; gap:20px; align-items: start;">
+                    <!-- 3-1. 사용자별 사용시간 체류 랭킹 -->
+                    <div class="card" style="background-color:var(--panel-card); padding:16px; border-color:var(--border); display:flex; flex-direction:column; max-height:480px;">
+                        <span style="font-size:14px; font-weight:700; color:var(--text); margin-bottom:12px; border-bottom:1px dashed var(--border); padding-bottom:8px;">사용자 누적 사용량 랭킹</span>
+                        <div style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px;" id="admin-user-ranking-list">
+                            <!-- 자바스크립트로 랭킹 렌더링 -->
+                        </div>
+                    </div>
+
+                    <!-- 3-2. 사용자 계정 관리 테이블 -->
+                    <div class="card" style="background-color:var(--panel-card); padding:16px; border-color:var(--border); display:flex; flex-direction:column;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px dashed var(--border); padding-bottom:8px;">
+                            <span style="font-size:14px; font-weight:700; color:var(--text);">전체 가입자 계정 목록</span>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <button type="button" class="btn-header" style="background-color:var(--danger); border-color:var(--danger); font-size:11px; padding:3px 10px; width:auto; height:24px; display:inline-flex; align-items:center; gap:4px; color:white;" onclick="deleteSelectedUsers()">선택 일괄 삭제</button>
+                                <span style="font-size:11px; color:var(--muted); margin-left:8px;">정렬:</span>
+                                <select id="admin-user-sort" onchange="loadAdminUsers()" style="padding:2px 6px; font-size:11px; height:24px; width:110px; margin:0; background-color:var(--panel); border-color:var(--border);">
+                                    <option value="join">최근 가입순</option>
+                                    <option value="activity">최근 활동순</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%; border-collapse:collapse; text-align:left; font-size:12px;" id="admin-users-table">
+                                <thead>
+                                    <tr style="background-color:rgba(46,53,70,0.5); border-bottom:1px solid var(--border); color:var(--muted); font-weight:600;">
+                                        <th style="padding:10px 12px; width:40px; text-align:center;"><input type="checkbox" id="admin-user-select-all" onclick="toggleSelectAllUsers(this); event.stopPropagation();"></th>
+                                        <th style="padding:10px 12px;">사용자명</th>
+                                        <th style="padding:10px 12px;">권한</th>
+                                        <th style="padding:10px 12px;">등급</th>
+                                        <th style="padding:10px 12px;">상태</th>
+                                        <th style="padding:10px 12px; text-align:center;">프로젝트</th>
+                                        <th style="padding:10px 12px;">가입일시</th>
+                                        <th style="padding:10px 12px;">최근 로그인</th>
+                                        <th style="padding:10px 12px; text-align:center;">관리 액션</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-users-tbody">
+                                    <!-- 동적 유저 테이블 행 바인딩 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+            </div> <!-- admin-dashboard-tab-content 닫기 -->
+
+            <!-- 탭 2: Plausible Analytics (사용 통계) -->
+            <div id="admin-analytics-tab-content" style="flex:1; display:none; flex-direction:column; gap:16px; height:100%; overflow:hidden;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-shrink:0; background:rgba(255,255,255,0.02); padding:12px 18px; border-radius:var(--radius-md); border:1px solid var(--border);">
+                    <div>
+                        <h4 style="font-size:15px; font-weight:700; color:var(--text); margin-bottom:4px;">StoryMaker 사용 통계 (Plausible Analytics)</h4>
+                        <p style="font-size:12px; color:var(--muted);">실시간 트래픽, 인기 페이지, 사용자 디바이스 등 상세한 통계 데이터를 제공합니다. (AGPL 라이선스 기반)</p>
+                    </div>
+                    <a href="https://storymaker-analytics.duckdns.org/sites" target="_blank" rel="noopener noreferrer" class="btn-header" style="width:auto; padding:8px 16px; font-size:12px; border-radius:var(--radius-sm); display:inline-flex; align-items:center; gap:6px; text-decoration:none; color:#fff; background:var(--accent);">
+                        Plausible 관리자 열기 ↗
+                    </a>
+                </div>
+                
+                <div style="flex:1; width:100%; background-color:#161d2b; border:1px solid var(--border); border-radius:var(--radius-md); min-height:520px; overflow:hidden;">
+                    <iframe
+                        id="plausible-admin-frame"
+                        src="https://storymaker-analytics.duckdns.org/sites"
+                        title="Plausible Analytics Dashboard"
+                        loading="lazy"
+                        style="width:100%; height:72vh; min-height:520px; border:0; background:#ffffff; border-radius:var(--radius-md);"
+                    ></iframe>
+                </div>
+                
+                <p style="font-size:11px; color:var(--muted); text-align:center; flex-shrink:0; margin-top:4px;">
+                    💡 Plausible Analytics는 AGPL 라이선스를 준수하는 개인정보 친화형 분석 플랫폼입니다. 
+                    우측 상단의 'Plausible 관리자 열기' 버튼을 클릭하여 새 탭에서 확인해 주세요.
+                </p>
+            </div>
+
+            <!-- 탭 3: 수정요청 게시판 -->
+            <div id="admin-requests-tab-content" style="flex:1; display:none; flex-direction:column; gap:12px; height:100%; overflow-y:auto;">
+                <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); padding:12px 16px; border:1px solid var(--border); border-radius:var(--radius-md);">
+                    <div>
+                        <h4 style="font-size:15px; color:var(--text); margin-bottom:4px;">사용자 수정요청 게시판</h4>
+                        <p style="font-size:12px; color:var(--muted);">사용자가 상단 수정요청 버튼으로 남긴 의견을 확인하고 처리 상태를 변경합니다.</p>
+                    </div>
+                    <button type="button" class="btn-header" style="width:auto; padding:8px 14px; font-size:12px;" onclick="loadFeatureRequests()">새로고침</button>
+                </div>
+                <div id="feature-requests-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+            </div>
+
+            <!-- 탭 4: 시공사례/컨텐츠 직접 업로드 -->
+            <div id="admin-content-upload-tab-content" style="flex:1; display:none; flex-direction:column; gap:16px; height:100%; overflow-y:auto; padding-right:6px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); padding:12px 16px; border:1px solid var(--border); border-radius:var(--radius-md); flex-shrink:0;">
+                    <div>
+                        <h4 style="font-size:15px; color:var(--text); margin-bottom:4px;">시공사례 및 컨텐츠 수동 업로드 (WordPress 등록)</h4>
+                        <p style="font-size:12px; color:var(--muted);">관리자가 직접 텍스트나 마크다운/HTML 형태의 시공사례 자료를 입력하여 워드프레스에 즉시 업로드합니다.</p>
+                    </div>
+                </div>
+
+                <div class="card" style="background:var(--panel-card); padding:20px; border:1px solid var(--border); border-radius:var(--radius-md); display:flex; flex-direction:column; gap:14px; flex-shrink:0;">
+                    <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:12px;">
+                        <div class="form-group">
+                            <label for="admin-upload-title" style="font-size:12px; font-weight:600; color:var(--text); display:block; margin-bottom:6px;">글 제목 *</label>
+                            <input id="admin-upload-title" type="text" placeholder="예: 울산 남구 야음동 욕실 리모델링 및 타일 교체 시공사례" style="padding:8px 12px; font-size:13px; height:36px; background:var(--panel); border-color:var(--border);">
+                        </div>
+                        <div class="form-group">
+                            <label for="admin-upload-slug" style="font-size:12px; font-weight:600; color:var(--text); display:block; margin-bottom:6px;">슬러그 (Slug)</label>
+                            <input id="admin-upload-slug" type="text" placeholder="예: ulsan-bathroom-remodeling (영어/소문자/하이픈)" style="padding:8px 12px; font-size:13px; height:36px; background:var(--panel); border-color:var(--border);">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="admin-upload-content" style="font-size:12px; font-weight:600; color:var(--text); display:block; margin-bottom:6px;">본문 내용 (마크다운 또는 HTML 입력) *</label>
+                        <textarea id="admin-upload-content" style="min-height:220px; padding:12px; font-size:13px; line-height:1.6; font-family:monospace; background:var(--panel); border-color:var(--border); border-radius:var(--radius-sm);" placeholder="여기에 업로드할 포스트의 내용을 입력하세요. 마크다운과 HTML 문법을 모두 지원합니다.&#10;예:&#10;### 울산 남구 야음동 현장 이야기&#10;안녕하세요, 우리동네 인테리어입니다!&#10;오늘은 울산 남구 야음동 아파트 욕실 리모델링 현장을 소개해 드립니다..."></textarea>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                        <div class="form-group">
+                            <label for="admin-upload-categories" style="font-size:12px; font-weight:600; color:var(--text); display:block; margin-bottom:6px;">카테고리 (쉼표로 구분)</label>
+                            <input id="admin-upload-categories" type="text" placeholder="예: 시공사례, 욕실인테리어, 집수리" style="padding:8px 12px; font-size:13px; height:36px; background:var(--panel); border-color:var(--border);">
+                        </div>
+                        <div class="form-group">
+                            <label for="admin-upload-tags" style="font-size:12px; font-weight:600; color:var(--text); display:block; margin-bottom:6px;">태그 (쉼표로 구분)</label>
+                            <input id="admin-upload-tags" type="text" placeholder="예: 리모델링, 타일교체, 욕실공사, 야음동" style="padding:8px 12px; font-size:13px; height:36px; background:var(--panel); border-color:var(--border);">
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                        <div class="form-group">
+                            <label for="admin-upload-excerpt" style="font-size:12px; font-weight:600; color:var(--text); display:block; margin-bottom:6px;">요약글 (Excerpt)</label>
+                            <input id="admin-upload-excerpt" type="text" placeholder="검색 결과나 소셜 공유 시 요약 설명글로 쓰입니다. 비워두면 본문 앞부분이 자동 지정됩니다." style="padding:8px 12px; font-size:13px; height:36px; background:var(--panel); border-color:var(--border);">
+                        </div>
+                        <div class="form-group">
+                            <label for="admin-upload-image-alt" style="font-size:12px; font-weight:600; color:var(--text); display:block; margin-bottom:6px;">대표 이미지 ALT 텍스트</label>
+                            <input id="admin-upload-image-alt" type="text" placeholder="대표 이미지의 대체 설명 텍스트를 입력하세요. (SEO 최적화용)" style="padding:8px 12px; font-size:13px; height:36px; background:var(--panel); border-color:var(--border);">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; border-top:1px dashed var(--border); padding-top:14px;">
+                        <span id="admin-upload-status-msg" style="font-size:12px; color:var(--success); font-weight:500;"></span>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" class="secondary" onclick="clearAdminUploadForm()" style="width:auto; padding:10px 18px; font-size:13px;">폼 초기화</button>
+                            <button type="button" id="btn-admin-content-upload-submit" onclick="submitAdminContentToWp('draft')" style="width:auto; padding:10px 20px; font-size:13px; background:#0284c7; border-color:#38bdf8;">임시저장(초안) 업로드</button>
+                            <button type="button" id="btn-admin-content-upload-submit-pub" onclick="submitAdminContentToWp('publish')" style="width:auto; padding:10px 20px; font-size:13px; background:var(--success); border-color:var(--success);">즉시 발행 업로드</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 탭 5: 업종별 관리 -->
+            <div id="admin-industry-tab-content" style="flex:1; display:none; flex-direction:column; gap:16px; height:100%; overflow-y:auto; padding-right:6px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); padding:12px 16px; border:1px solid var(--border); border-radius:var(--radius-md); flex-shrink:0;">
+                    <div>
+                        <h4 style="font-size:15px; color:var(--text); margin-bottom:4px;">업종별 관리</h4>
+                        <p style="font-size:12px; color:var(--muted);">마이페이지에서 선택한 업종별 작성 흐름, 키워드 힌트, 말투, 금지 표현을 관리합니다.</p>
+                    </div>
+                    <button type="button" class="btn-header" style="width:auto; padding:8px 14px; font-size:12px;" onclick="createNewIndustryTemplate()">+ 업종 추가</button>
+                    <button type="button" class="btn-header" style="width:auto; padding:8px 14px; font-size:12px;" onclick="saveIndustryOrder()">순서 저장</button>
+                    <button type="button" class="btn-header" style="width:auto; padding:8px 14px; font-size:12px;" onclick="loadIndustryTemplates()">새로고침</button>
+                </div>
+                <div style="display:grid; grid-template-columns: 320px 1fr; gap:16px; align-items:start;">
+                    <div class="card" style="background:var(--panel-card); padding:14px; border:1px solid var(--border); border-radius:var(--radius-md); max-height:64vh; overflow-y:auto;">
+                        <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">업종 목록</div>
+                        <div id="admin-industry-template-list" style="display:flex; flex-direction:column; gap:7px;"></div>
+                    </div>
+                    <div class="card" style="background:var(--panel-card); padding:18px; border:1px solid var(--border); border-radius:var(--radius-md);">
+                        <div id="admin-industry-empty" style="padding:30px; text-align:center; color:var(--muted); font-size:13px; border:1px dashed var(--border); border-radius:var(--radius-md);">왼쪽에서 업종을 선택해 주세요.</div>
+                        <div id="admin-industry-editor" style="display:none; flex-direction:column; gap:12px;">
+                            <div style="display:grid; grid-template-columns: 1fr 1fr 100px 120px; gap:10px;">
+                                <div class="form-group" style="margin-bottom:0;"><label>업종명</label><input id="admin-industry-label" type="text"></div>
+                                <div class="form-group" style="margin-bottom:0;"><label>분류</label><select id="admin-industry-category"><option value="공통">공통</option></select></div>
+                                <div class="form-group" style="margin-bottom:0;"><label>정렬</label><input id="admin-industry-sort" type="text"></div>
+                                <div class="form-group" style="margin-bottom:0;"><label>활성</label><select id="admin-industry-active"><option value="true">활성</option><option value="false">비활성</option></select></div>
+                            </div>
+                            <div class="form-group"><label>작성 흐름</label><input id="admin-industry-flow" type="text" placeholder="예: 문제 상황 → 원인 진단 → 해결 과정 → 결과"></div>
+                            <div class="form-group"><label>핵심 포인트</label><textarea id="admin-industry-guidance" style="min-height:120px;"></textarea></div>
+                            <div class="form-group"><label>키워드 힌트</label><textarea id="admin-industry-keywords" style="min-height:70px;"></textarea></div>
+                            <div class="form-group"><label>문체 힌트</label><textarea id="admin-industry-tone" style="min-height:70px;"></textarea></div>
+                            <div class="form-group"><label>피해야 할 표현</label><textarea id="admin-industry-avoid" style="min-height:70px;"></textarea></div>
+                            <div id="admin-industry-status" style="font-size:12px; color:var(--muted);"></div>
+                            <div style="display:flex; justify-content:flex-end; gap:8px;">
+                                <button type="button" class="secondary" style="width:auto; padding:9px 14px; font-size:12px;" onclick="loadIndustryTemplates()">취소/다시불러오기</button>
+                                <button type="button" style="width:auto; padding:9px 18px; font-size:12px;" onclick="saveIndustryTemplate()">저장</button><button type="button" style="width:auto; padding:9px 18px; font-size:12px; background:#ff1744;" onclick="purgeIndustryTemplate()">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 사용자 상세 감사 팝업 모달 (프로젝트 / 세션 기록 / 활동 로그 3단 탭) -->
+    <div id="admin-user-detail-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(10,12,16,0.9); backdrop-filter:blur(8px); z-index:9999; display:none; justify-content:center; align-items:center; transition: var(--transition);">
+        <div class="card" style="width:95%; max-width:720px; padding:24px; border:1px solid var(--border); background-color:var(--panel); box-shadow: 0 20px 50px rgba(0,0,0,0.6); display:flex; flex-direction:column; max-height:85vh;">
+            <h3 style="font-family:'Outfit',sans-serif; font-size:18px; font-weight:700; margin-bottom:16px; color:var(--text); border:none; padding:0; display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed var(--border); padding-bottom:10px; flex-shrink:0;">
+                <span>가입자 상세 모니터링: <strong id="admin-target-user-name" style="color:var(--accent);">-</strong></span>
+                <span style="font-size:13px; color:var(--muted); cursor:pointer; font-weight:500;" onclick="closeAdminUserDetailModal()">✕ 닫기</span>
+            </h3>
+            
+            <!-- 사용자 상세 탭 네비게이션 -->
+            <div style="display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:16px; flex-shrink:0;">
+                <button type="button" id="tab-detail-proj" class="tab-btn active" style="flex:1; padding:8px 4px; font-size:13px;" onclick="switchDetailTab('proj')">작업 프로젝트</button>
+                <button type="button" id="tab-detail-personas" class="tab-btn" style="flex:1; padding:8px 4px; font-size:13px;" onclick="switchDetailTab('personas')">저장 페르소나</button>
+                <button type="button" id="tab-detail-sess" class="tab-btn" style="flex:1; padding:8px 4px; font-size:13px;" onclick="switchDetailTab('sess')">접속 세션 기록</button>
+                <button type="button" id="tab-detail-logs" class="tab-btn" style="flex:1; padding:8px 4px; font-size:13px;" onclick="switchDetailTab('logs')">실시간 활동 로그</button>
+            </div>
+            
+            <!-- 각 탭별 컨텐츠 윈도우 영역 -->
+            <div style="flex:1; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius-md); background-color:var(--panel-card); padding:12px;">
+                <!-- 탭 1: 프로젝트 목록 -->
+                <div id="pane-detail-proj" class="tab-content active" style="display:block;">
+                    <div id="admin-user-projects-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+                </div>
+
+                <div id="pane-detail-personas" class="tab-content" style="display:none;">
+                    <div id="admin-user-personas-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+                </div>
+                
+                <!-- 탭 2: 세션 기록 -->
+                <div id="pane-detail-sess" class="tab-content" style="display:none; overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; text-align:left; font-size:11px;" id="admin-user-sessions-table">
+                        <thead>
+                            <tr style="border-bottom:1px solid var(--border); color:var(--muted); font-weight:600; background-color:rgba(0,0,0,0.15);">
+                                <th style="padding:8px;">로그인 시각</th>
+                                <th style="padding:8px;">로그아웃 시각</th>
+                                <th style="padding:8px; text-align:right;">체류시간</th>
+                                <th style="padding:8px;">IP 주소</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-user-sessions-tbody"></tbody>
+                    </table>
+                </div>
+                
+                <!-- 탭 3: 활동 로그 목록 -->
+                <div id="pane-detail-logs" class="tab-content" style="display:none; display:flex; flex-direction:column; gap:8px;">
+                    <div id="admin-user-logs-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+                </div>
+            </div>
+            
+            <div style="margin-top:16px; text-align:right; flex-shrink:0;">
+                <button type="button" class="secondary" style="width:auto; padding:8px 16px; font-size:12px; border-radius: var(--radius-sm);" onclick="closeAdminUserDetailModal()">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="context-help-modal" class="modal-backdrop" aria-hidden="true">
+        <div class="help-modal" role="dialog" aria-modal="true" aria-labelledby="context-help-title">
+            <h3 id="context-help-title"></h3>
+            <p id="context-help-body"></p>
+            <div id="context-help-example" class="help-example" style="display:none;"></div>
+            <div id="context-help-tip" class="help-tip" style="display:none;"></div>
+            <div class="help-actions">
+                <button type="button" id="context-help-mypage" style="display:none;">마이페이지 이동</button>
+                <a id="context-help-link" href="#" target="_blank" rel="noopener noreferrer" class="btn-copy" style="display:none; width:auto; text-decoration:none;">네이버 블로그 열기</a>
+                <button type="button" class="secondary" data-help-close>닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 토스트 알림 컴포넌트 -->
+    <div id="toast-message" class="toast-container">
+        <span class="toast-icon"></span>
+        <span id="toast-text">복사가 완료되었습니다.</span>
+    </div>
+
+    <div class="container">
+        <!-- 헤더 및 상태배지 -->
+        <!-- 슬림화된 1줄 명료한 헤더 -->
+        <header class="legacy-storymaker-local-header" aria-hidden="true" style="display:none !important; visibility:hidden !important; opacity:0 !important; pointer-events:none !important; width:0 !important; height:0 !important; min-width:0 !important; min-height:0 !important; margin:0 !important; padding:0 !important; overflow:hidden !important; position:relative;">
+            <a class="global-home-center is-hidden-legacy-home" href="https://app.mystorymaker.net/" aria-label="앱홈" style="display:none !important; visibility:hidden !important; opacity:0 !important; pointer-events:none !important;">앱홈</a>
+            <div style="display:flex; align-items:center; gap:14px;">
+                <div class="header-brand" onclick="navigateHome()" style="cursor: pointer; display: flex; flex-direction: column; gap: 2px;">
+                    <h1 style="font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 700; background: linear-gradient(45deg, #0088ff, #00e6ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.5px;">StoryMaker</h1>
+                    <span style="font-size: 10px; color: var(--muted); font-weight: 500; letter-spacing: 0.5px;">소상공인 콘텐츠 통합 제작툴</span>
+                </div>
+            </div>
+            
+            <!-- 우측 사용자 정보 & 로그아웃 단출화 -->
+            <div id="user-info-bar" style="display:none; align-items:center; gap:12px;">
+                <span id="logged-in-user" style="font-size:12px; font-weight:600; color:#99ccff; letter-spacing: 0.2px;"></span>
+                <button type="button" class="btn-header secondary" style="width:auto; padding:5px 12px; font-size:11px; border-radius:30px; border:none; background-color:rgba(255,255,255,0.05); color:var(--text); transition: var(--transition);" onmouseover="this.style.backgroundColor='rgba(255,255,255,0.1)';" onmouseout="this.style.backgroundColor='rgba(255,255,255,0.05)';" onclick="showMyPageModal()">마이페이지</button>
+                <button type="button" id="admin-menu-btn" class="btn-header secondary" style="width:auto; padding:5px 12px; font-size:11px; border-radius:30px; border:none; background-color:rgba(255,255,255,0.05); color:var(--accent); display:none; transition: var(--transition);" onmouseover="this.style.backgroundColor='rgba(0,136,255,0.15)';" onmouseout="this.style.backgroundColor='rgba(255,255,255,0.05)';" onclick="showAdminDashboard()">Admin</button>
+
+            </div>
+        </header>
+
+        <!-- 얇은 가로 작업바 (Toolbar) 영역 추가 -->
+        <div class="card workspace-toolbar" style="padding: 10px 16px; margin-bottom: 20px; display: flex; align-items: center; justify-content: flex-start; gap: 2cm; flex-wrap: wrap; background-color: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md);">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1;">
+                <!-- 새 프로젝트 버튼 -->
+                <button type="button" class="btn-header secondary" onclick="showNewProjectModal()">+ 새 프로젝트</button>
+                
+                <!-- 입력 영역 접기/펼치기 토글 버튼 -->
+                <button type="button" id="btn-toggle-input" class="btn-header secondary" style="width: auto; padding: 7px 14px; font-size: 12px; transition: var(--transition);" onclick="toggleInputCard()">입력 설정 접기</button>
+                
+                <!-- 저장된 프로젝트 선택 드롭다운 -->
+                <select class="project-select" id="project-selector" onchange="loadSelectedProject()" style="width: 210px; padding: 7px 12px; font-size: 12px; height: 32px; margin: 0;">
+                    <option value="">-- 저장된 프로젝트 선택 --</option>
+                </select>
+                <button type="button" class="help-icon" data-help="project" aria-label="프로젝트 선택 도움말">?</button>
+                
+                <!-- 프로젝트 명 인풋 -->
+                <input type="text" class="project-title-input" id="project-title" value="새 프로젝트" placeholder="프로젝트명 입력" style="width: 250px; padding: 7px 12px; font-size: 12px; height: 32px; margin: 0;">
+                
+                <!-- 프로젝트 수동 저장 버튼 -->
+                <button type="button" class="btn-header secondary" onclick="saveProject(true)">저장</button>
+            </div>
+            
+            <!-- 우측 저장 상태 표시 및 연결 정보 극소화 -->
+            <div style="display: flex; align-items: center; gap: 12px; margin-left:2cm; margin-right:auto;">
+                <span id="save-status-text" style="font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: -0.2px;">모든 작업 저장됨</span>
+                <span class="status-badge connected" id="api-status-badge" style="padding: 7px 10px; border-radius: 6px; background:rgba(0,230,118,0.06); border:1px solid rgba(0,230,118,0.16); display:flex; align-items:center; gap:7px;">
+                    <span class="status-dot" id="api-status-dot" style="width:9px; height:9px; background:#00ff88; box-shadow:0 0 8px rgba(0,255,136,0.9);"></span>
+                    <span id="api-status-text" class="status-text" style="font-size:12px; font-weight:700; color:var(--success); letter-spacing:0.04em;">CONNECTED</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- 새 프로젝트 생성 모달 다이얼로그 -->
+        <div id="new-project-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(10,12,16,0.85); backdrop-filter:blur(8px); z-index:9998; display:none; justify-content:center; align-items:center; transition: var(--transition);">
+            <div class="card" style="width:90%; max-width:440px; padding:28px; border:1px solid var(--border); background-color:var(--panel); box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+                <h3 style="font-family:'Outfit',sans-serif; font-size:17px; font-weight:600; margin-bottom:12px; color:var(--text); border:none; padding:0;">새 프로젝트 생성</h3>
+                <p style="font-size:12px; color:var(--muted); margin-bottom:16px; line-height: 1.5;">새로운 마케팅 작업 폴더를 생성합니다. 프로젝트 이름은 업체명과 날짜를 포함하여 파일명처럼 정교하게 자동 관리됩니다.</p>
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label for="new-project-name" style="font-size:11px; font-weight:600; color:var(--muted); margin-bottom:6px; display:block;">프로젝트 이름</label>
+                    <input type="text" id="new-project-name" placeholder="예: 오박사_욕실리모델링_20260624" style="padding: 10px 12px; font-size: 13px; height: 36px;">
+                </div>
+                <div style="display:flex; gap:10px; justify-content: flex-end; margin-top:24px;">
+                    <button type="button" class="secondary" style="width:auto; padding:8px 16px; font-size:12px; border-radius: var(--radius-sm);" onclick="closeNewProjectModal()">취소</button>
+                    <button type="button" style="width:auto; padding:8px 20px; font-size:12px; border-radius: var(--radius-sm);" onclick="confirmCreateNewProject()">확인</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 메인 작업 화면 -->
+        <div class="workspace">
+            <!-- 좌측: 입력 영역 -->
+            <div class="card" id="input-card">
+                <h2 class="heading-with-help" onclick="toggleAccordion()" style="cursor: pointer; display: flex; justify-content: flex-start; align-items: center; gap:2cm; user-select: none;">
+                    <span style="display: flex; align-items: center; gap: 8px;">
+                        <span class="step-label-inline">1. 작업 정보 입력</span>
+                        <button type="button" class="help-icon" data-help="inputs" aria-label="입력 설정 도움말" onclick="event.stopPropagation()">?</button>
+                    </span>
+                    <span id="accordion-icon" style="font-size: 14px; color: var(--muted);">▼</span>
+                </h2>
+                
+                <form id="prompt-form" onsubmit="event.preventDefault();">
+                    <input type="hidden" id="company" required>
+                    <input type="hidden" id="phone_number">
+                    <input type="hidden" id="industry_key" value="general">
+                    <input type="hidden" id="keywords">
+                    <textarea id="persona" style="display:none;"></textarea>
+
+                    <div id="accordion-content" style="display: none; margin-bottom: 15px;">
+                        <div class="work-flow-note">
+                            <div>업체명, 전화번호, 핵심 키워드, 업체 페르소나는 <strong>마이페이지에서 한 번만 등록</strong>합니다. 아래 카드나 제목을 누르면 바로 수정 화면으로 이동합니다.</div>
+                        </div>
+
+                        <div class="profile-lock-card" onclick="showMyPageModal()" role="button" tabindex="0" onkeydown="if(event.key==='Enter')showMyPageModal()">
+                            <div class="profile-lock-head">
+                                <strong><span class="step-badge-aqua step-1">1</span> 마이페이지 업체 정보</strong>
+                                <span class="mypage-guide-pill">마이페이지에서 등록/수정</span>
+                            </div>
+                            <div class="profile-lock-sub">아래 정보는 이 화면에서 직접 수정하지 않습니다. 모든 콘텐츠의 기본값으로 자동 적용됩니다.</div>
+                            <div class="profile-summary-grid">
+                                <div class="profile-summary-item"><span>업체명</span><b id="profile-company-summary">마이페이지 등록 필요</b></div>
+                                <div class="profile-summary-item"><span>전화번호</span><b id="profile-phone-summary">마이페이지 등록 필요</b></div>
+                                <div class="profile-summary-item full"><span>핵심 키워드</span><b id="profile-keywords-summary">마이페이지 등록 필요</b></div>
+                                <div class="profile-summary-item full"><span>업체 페르소나</span><b id="profile-persona-summary">마이페이지에서 상세 설명을 등록해 주세요</b></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="editable-work-card">
+                        <div class="form-group">
+                            <div class="label-with-help"><label for="base_content"><span class="step-label-inline">기초내용 입력</span></label><button type="button" class="help-icon" data-help="base" aria-label="기초내용 도움말">?</button></div>
+                            <textarea id="base_content" style="min-height:140px;" placeholder="오늘 업로드할 우리 사업장의 컨텐츠를 육하원칙에 의거해서 입력해 주시면 좋아요~"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 블로그 글감 찾기 통합 엔진 섹션 -->
+                    <div class="content-idea-engine admin-only-panel" id="contentIdeaEngine">
+                        <!-- 1. 헤더 -->
+                        <div class="idea-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
+                            <div>
+                                <span class="idea-badge">소재 찾기 도우미</span>
+                                <h3 class="idea-title" style="margin-top:4px;">블로그 글감 찾기</h3>
+                                <p class="idea-desc">내 업종, 직접 검색 또는 개별 네이버 블로그 링크를 입력하여 어울리는 글감을 찾습니다.</p>
+                            </div>
+                            <div class="mode-toggle-container" id="ideaAdminModeToggle" style="display:none; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--border); padding:6px 12px; border-radius:8px;">
+                                <span style="font-size:11px; font-weight:600; color:var(--text-muted);">보기 모드:</span>
+                                <button type="button" id="btn-mode-user" class="card-btn" style="padding:4px 8px; font-size:11px; font-weight:700; background:var(--focus); color:white; border:none; border-radius:4px; cursor:pointer;" onclick="setViewMode('user')">User Mode</button>
+                                <button type="button" id="btn-mode-admin" class="card-btn" style="padding:4px 8px; font-size:11px; font-weight:600; background:transparent; color:var(--text); border:1px solid var(--border); border-radius:4px; cursor:pointer;" onclick="setViewMode('admin')">Admin Mode</button>
+                            </div>
+                        </div>
+                        <div id="ideaStatusMessage" style="display:none; font-size:12px; color:var(--focus); background:rgba(0,186,219,0.12); border:1px solid rgba(0,186,219,0.3); padding:8px 12px; border-radius:6px; margin-top:10px; font-weight:600; animation:ideaFadeIn 0.2s ease;"></div>
+
+                        <!-- 2. 탭 네비게이션 -->
+                        <div class="idea-tabs" role="tablist">
+                            <button type="button" class="idea-tab-btn is-active" role="tab" aria-selected="true" data-tab="tab-industry" onclick="switchIdeaTab(event, 'tab-industry')">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                                내 업종으로 찾기
+                            </button>
+                            <button type="button" class="idea-tab-btn" role="tab" aria-selected="false" data-tab="tab-keyword" onclick="switchIdeaTab(event, 'tab-keyword')">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                직접 키워드
+                            </button>
+                            <button type="button" class="idea-tab-btn" role="tab" aria-selected="false" data-tab="tab-url" onclick="switchIdeaTab(event, 'tab-url')">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                                블로그 주소
+                            </button>
+                            <button type="button" class="idea-tab-btn" id="btn-tab-ailab" role="tab" aria-selected="false" data-tab="tab-ailab" onclick="switchIdeaTab(event, 'tab-ailab')" style="display:none;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                                Admin Console
+                            </button>
+                            <button type="button" class="idea-tab-btn" id="btn-tab-pattern" role="tab" aria-selected="false" data-tab="tab-pattern" onclick="switchIdeaTab(event, 'tab-pattern')" style="display:none;">
+                                Pattern Knowledge
+                            </button>
+                            <button type="button" class="idea-tab-btn" id="btn-tab-performance" role="tab" aria-selected="false" data-tab="tab-performance" onclick="switchIdeaTab(event, 'tab-performance')" style="display:none;">
+                                Content Performance
+                            </button>
+                            <button type="button" class="idea-tab-btn" id="btn-tab-brain" role="tab" aria-selected="false" data-tab="tab-brain" onclick="switchIdeaTab(event, 'tab-brain')" style="display:none;">
+                                AI Brain
+                            </button>
+                        </div>
+
+                        <!-- 3. 탭별 콘텐츠 -->
+                        <!-- 탭 1: 내 업종으로 찾기 -->
+                        <div class="idea-tab-content is-active" id="tab-industry" role="tabpanel">
+                            <div class="idea-form-grid">
+                                <div class="form-group">
+                                    <label class="form-label" for="industryInput">내 업종</label>
+                                    <input type="text" class="form-input" id="industryInput" value="집수리" placeholder="예: 집수리, 음식점 등">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="locationInput">내 지역</label>
+                                    <input type="text" class="form-input" id="locationInput" value="울산 북구" placeholder="예: 울산 북구">
+                                </div>
+                            </div>
+                            
+                            <div class="recommend-keyword-section">
+                                <h4 class="recommend-title">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                    자동 추천 키워드
+                                </h4>
+                                <div class="recommend-chips" id="recommendChips">
+                                    <span class="keyword-chip" onclick="selectIndustryChip(this, '울산 집수리')">울산 집수리</span>
+                                    <span class="keyword-chip" onclick="selectIndustryChip(this, '울산 욕실 수리')">울산 욕실 수리</span>
+                                    <span class="keyword-chip" onclick="selectIndustryChip(this, '울산 누수 수리')">울산 누수 수리</span>
+                                    <span class="keyword-chip" onclick="selectIndustryChip(this, '울산 도배 장판')">울산 도배 장판</span>
+                                    <span class="keyword-chip" onclick="selectIndustryChip(this, '울산 전세집 수리')">울산 전세집 수리</span>
+                                </div>
+                            </div>
+
+                            <button type="button" class="idea-search-btn" id="industrySearchBtn" onclick="searchBlogIdeasFromIndustry()" disabled>
+                                글감 찾기
+                            </button>
+                        </div>
+
+                        <!-- 탭 2: 직접 키워드로 찾기 -->
+                        <div class="idea-tab-content" id="tab-keyword" role="tabpanel">
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label class="form-label" for="keywordInput">글감 키워드 입력</label>
+                                <div class="single-input-row">
+                                    <input type="text" class="form-input" id="keywordInput" placeholder="예: 양주 숯불바베큐, 하남 들깨칼국수" onkeypress="handleKeywordEnter(event)">
+                                    <button type="button" class="idea-search-btn" onclick="searchBlogIdeasFromKeyword()">
+                                        검색
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="recommend-keyword-section">
+                                <h4 class="recommend-title">추천 검색어 예시</h4>
+                                <div class="recommend-chips">
+                                    <span class="keyword-chip" onclick="clickExampleChip('양주 숯불바베큐')">양주 숯불바베큐</span>
+                                    <span class="keyword-chip" onclick="clickExampleChip('하남 들깨칼국수')">하남 들깨칼국수</span>
+                                    <span class="keyword-chip" onclick="clickExampleChip('네이버 플레이스 상위노출')">네이버 플레이스 상위노출</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 탭 3: 블로그 주소로 가져오기 (기존 기능 흡수) -->
+                        <div class="idea-tab-content" id="tab-url" role="tabpanel">
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label class="form-label" for="naver-blog-url">네이버 블로그 주소(URL)</label>
+                                <div class="single-input-row">
+                                    <!-- 기존에 사용되던 naver-blog-url id를 그대로 유지하여 임시저장(Autosave) 로직 및 수동 상태 로드가 그대로 보장됩니다. -->
+                                    <input type="text" class="form-input" id="naver-blog-url" placeholder="https://blog.naver.com/아이디/글번호" onkeypress="handleUrlEnter(event)">
+                                    <button type="button" class="idea-search-btn" id="btn-scrape" onclick="importBlogUrlAndExtract()">
+                                        본문 가져오기
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 탭 4: Admin Intelligence Console (관리자 전용) -->
+                        <div class="idea-tab-content" id="tab-ailab" role="tabpanel">
+                            <div class="ai-lab-console" style="background:var(--card-bg); border:1px solid var(--border); padding:16px; border-radius:10px;">
+                                <h4 style="margin:0 0 12px 0; color:var(--focus); display:flex; align-items:center; gap:8px;">
+                                    Admin Intelligence Console v1.0
+                                </h4>
+                                <div id="admin-pipeline-console" style="margin-bottom:16px;"></div>
+                                <div class="lab-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-bottom:16px;">
+                                    <div class="lab-card" style="background:rgba(255,255,255,0.03); border:1px solid var(--border); padding:12px; border-radius:8px;">
+                                        <div style="font-size:12px; color:var(--text-muted); font-weight:600; margin-bottom:4px;">SQLite Database Status</div>
+                                        <div id="lab-sqlite-status" style="font-size:13px; font-family:monospace; line-height:1.4;">조회 중...</div>
+                                    </div>
+                                    <div class="lab-card" style="background:rgba(255,255,255,0.03); border:1px solid var(--border); padding:12px; border-radius:8px;">
+                                        <div style="font-size:12px; color:var(--text-muted); font-weight:600; margin-bottom:4px;">Content / Business Engine</div>
+                                        <div style="font-size:13px; line-height:1.4;">
+                                            <div>Analysis Version: <span style="font-weight:700; color:var(--focus);">2.0</span></div>
+                                            <div>Analyzer Name: <span style="font-size:11px; font-family:monospace;">Content Intelligence v2.0</span></div>
+                                            <div>Caching Window: <span style="font-weight:700; color:#10b981;">1 Hour</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="lab-section" style="margin-top:16px;">
+                                    <h5 style="margin:0 0 8px 0; font-size:13px; color:var(--text); font-weight:600;">Developer Panel</h5>
+                                    <div id="admin-dev-panel" style="border:1px solid var(--border); padding:10px; border-radius:6px; font-size:11px; font-family:monospace; background:rgba(0,0,0,0.15); line-height:1.55; color:var(--text-muted);">
+                                        검색을 실행하면 추천 알고리즘 계산 과정이 표시됩니다.
+                                    </div>
+                                </div>
+                                
+                                <div class="lab-section" style="margin-top:16px;">
+                                    <h5 style="margin:0 0 8px 0; font-size:13px; color:var(--text); font-weight:600;">Deduplication Log (중복/광고 제거 목록)</h5>
+                                    <div id="lab-dedup-log" style="max-height:150px; overflow-y:auto; border:1px solid var(--border); padding:8px; border-radius:6px; font-size:11px; font-family:monospace; background:rgba(0,0,0,0.15); line-height:1.4; color:var(--text-muted);">
+                                        중복 제거 내역이 없습니다. (검색을 먼저 실행하세요)
+                                    </div>
+                                </div>
+
+                                <div class="lab-section" style="margin-top:16px;">
+                                    <h5 style="margin:0 0 8px 0; font-size:13px; color:var(--text); font-weight:600;">Prompt Builder Preview (text_block 전송본)</h5>
+                                    <pre id="lab-prompt-preview" style="white-space:pre-wrap; max-height:220px; overflow-y:auto; border:1px solid var(--border); padding:10px; border-radius:6px; font-size:11px; font-family:monospace; background:rgba(0,0,0,0.25); color:#a7f3d0; margin:0; line-height:1.4;">검색 결과의 [이 글감 참고하기]를 누르면 여기에 프롬프트 text_block 미리보기가 노출됩니다.</pre>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="idea-tab-content" id="tab-pattern" role="tabpanel">
+                            <div class="pattern-knowledge-console" style="background:var(--card-bg); border:1px solid var(--border); padding:16px; border-radius:10px;">
+                                <h4 style="margin:0 0 12px 0; color:var(--focus);">Pattern Knowledge Engine v1.0</h4>
+                                <div style="display:grid; grid-template-columns:320px 1fr; gap:16px; align-items:start;">
+                                    <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                        <h5 style="margin:0 0 10px 0; font-size:13px;">Learning Target Manager</h5>
+                                        <input id="pattern-company-name" class="form-input" placeholder="업체명" style="margin-bottom:8px;">
+                                        <input id="pattern-industry" class="form-input" placeholder="업종" style="margin-bottom:8px;">
+                                        <input id="pattern-region" class="form-input" placeholder="지역" style="margin-bottom:8px;">
+                                        <input id="pattern-primary-keywords" class="form-input" placeholder="대표 키워드 쉼표 구분" style="margin-bottom:8px;">
+                                        <input id="pattern-secondary-keywords" class="form-input" placeholder="보조 키워드 쉼표 구분" style="margin-bottom:8px;">
+                                        <select id="pattern-priority" class="form-input" style="margin-bottom:8px;">
+                                            <option value="HIGH">HIGH - 매일</option>
+                                            <option value="MEDIUM" selected>MEDIUM - 주 3회</option>
+                                            <option value="LOW">LOW - 주 1회</option>
+                                        </select>
+                                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-muted); margin-bottom:10px;">
+                                            <input type="checkbox" id="pattern-is-active" checked style="width:auto;"> 수집 활성화
+                                        </label>
+                                        <button type="button" class="idea-search-btn" onclick="savePatternLearningTarget()">학습 대상 저장</button>
+                                        <button type="button" class="card-btn secondary" style="margin-top:8px;" onclick="runPatternLearningOnce()">수동 1회 실행</button>
+                                    </div>
+                                    <div style="display:flex; flex-direction:column; gap:12px;">
+                                        <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                            <h5 style="margin:0 0 8px 0; font-size:13px;">Health Monitor</h5>
+                                            <div id="pattern-health" style="font-size:12px; line-height:1.6; font-family:monospace;">조회 전</div>
+                                        </div>
+                                        <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                            <h5 style="margin:0 0 8px 0; font-size:13px;">학습 대상</h5>
+                                            <div id="pattern-target-list" style="font-size:12px; line-height:1.6;">조회 전</div>
+                                        </div>
+                                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                            <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                                <h5 style="margin:0 0 8px 0; font-size:13px;">Trend Engine</h5>
+                                                <div id="pattern-trends" style="font-size:12px; line-height:1.6;">조회 전</div>
+                                            </div>
+                                            <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                                <h5 style="margin:0 0 8px 0; font-size:13px;">Keyword Discovery</h5>
+                                                <input id="pattern-discovery-seed" class="form-input" value="울산 집수리" style="margin-bottom:8px;">
+                                                <button type="button" class="card-btn secondary" onclick="discoverPatternKeywords()">추천 키워드 생성</button>
+                                                <div id="pattern-keywords" style="font-size:12px; line-height:1.6; margin-top:8px;">조회 전</div>
+                                            </div>
+                                        </div>
+                                        <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                            <h5 style="margin:0 0 8px 0; font-size:13px;">Learning History / Pattern Snapshot</h5>
+                                            <div id="pattern-history" style="font-size:12px; line-height:1.6; max-height:180px; overflow-y:auto;">조회 전</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="idea-tab-content" id="tab-performance" role="tabpanel">
+                            <div class="content-performance-console" style="background:var(--card-bg); border:1px solid var(--border); padding:16px; border-radius:10px;">
+                                <h4 style="margin:0 0 12px 0; color:var(--focus);">Content Performance Intelligence Engine v1.0</h4>
+                                <div style="display:grid; grid-template-columns:320px 1fr; gap:16px; align-items:start;">
+                                    <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                        <h5 style="margin:0 0 10px 0; font-size:13px;">Performance Score Engine</h5>
+                                        <input id="perf-title" class="form-input" placeholder="콘텐츠 제목" style="margin-bottom:8px;">
+                                        <input id="perf-keyword" class="form-input" placeholder="키워드" style="margin-bottom:8px;">
+                                        <input id="perf-region" class="form-input" placeholder="지역" style="margin-bottom:8px;">
+                                        <input id="perf-industry" class="form-input" placeholder="업종" style="margin-bottom:8px;">
+                                        <textarea id="perf-content-text" class="form-input" placeholder="분석할 생성 콘텐츠. 저장하지 않고 점수만 계산합니다." style="min-height:120px; margin-bottom:8px;"></textarea>
+                                        <button type="button" class="idea-search-btn" onclick="scoreContentPerformance()">성과 점수 계산</button>
+                                        <button type="button" class="card-btn secondary" style="margin-top:8px;" onclick="runPerformanceAnalysisOnce()">성과 분석 1회 실행</button>
+                                    </div>
+                                    <div style="display:flex; flex-direction:column; gap:12px;">
+                                        <div style="display:grid; grid-template-columns:repeat(5, minmax(120px, 1fr)); gap:10px;">
+                                            <div class="perf-metric-card" style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);"><strong>평균 Performance</strong><span id="perf-avg-score">-</span></div>
+                                            <div class="perf-metric-card" style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);"><strong>SEO Score</strong><span id="perf-seo-score">-</span></div>
+                                            <div class="perf-metric-card" style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);"><strong>Ranking 변화</strong><span id="perf-ranking-change">-</span></div>
+                                            <div class="perf-metric-card" style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);"><strong>Pattern 성공률</strong><span id="perf-pattern-rate">-</span></div>
+                                            <div class="perf-metric-card" style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);"><strong>Trend Score</strong><span id="perf-trend-score">-</span></div>
+                                        </div>
+                                        <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                            <h5 style="margin:0 0 8px 0; font-size:13px;">Health Monitor</h5>
+                                            <div id="perf-health" style="font-size:12px; line-height:1.6; font-family:monospace;">조회 전</div>
+                                        </div>
+                                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                            <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                                <h5 style="margin:0 0 8px 0; font-size:13px;">콘텐츠 Top 10</h5>
+                                                <div id="perf-top-content" style="font-size:12px; line-height:1.6;">조회 전</div>
+                                            </div>
+                                            <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                                <h5 style="margin:0 0 8px 0; font-size:13px;">개선 필요 콘텐츠</h5>
+                                                <div id="perf-needs-improvement" style="font-size:12px; line-height:1.6;">조회 전</div>
+                                            </div>
+                                        </div>
+                                        <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                            <h5 style="margin:0 0 8px 0; font-size:13px;">최근 개선 사항 / Ranking History</h5>
+                                            <div id="perf-improvements" style="font-size:12px; line-height:1.6;">조회 전</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="idea-tab-content" id="tab-brain" role="tabpanel">
+                            <div class="ai-brain-console" style="background:var(--card-bg); border:1px solid var(--border); padding:16px; border-radius:10px;">
+                                <h4 style="margin:0 0 12px 0; color:var(--focus);">AI Content Intelligence Brain v1.0</h4>
+                                <div style="display:grid; grid-template-columns:320px 1fr; gap:16px; align-items:start;">
+                                    <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                        <h5 style="margin:0 0 10px 0; font-size:13px;">Prompt Intelligence Score</h5>
+                                        <input id="brain-keyword" class="form-input" placeholder="키워드" style="margin-bottom:8px;">
+                                        <input id="brain-region" class="form-input" placeholder="지역" style="margin-bottom:8px;">
+                                        <input id="brain-industry" class="form-input" placeholder="업종" style="margin-bottom:8px;">
+                                        <textarea id="brain-prompt-text" class="form-input" placeholder="점수화할 Prompt. 저장하지 않고 점수와 Feedback만 저장합니다." style="min-height:120px; margin-bottom:8px;"></textarea>
+                                        <button type="button" class="idea-search-btn" onclick="scoreAiBrainPrompt()">Prompt Score 계산</button>
+                                        <button type="button" class="card-btn secondary" style="margin-top:8px;" onclick="runAiBrainOnce()">Brain 1회 실행</button>
+                                    </div>
+                                    <div style="display:flex; flex-direction:column; gap:12px;">
+                                        <div style="display:grid; grid-template-columns:repeat(5, minmax(130px, 1fr)); gap:10px;">
+                                            <div class="brain-metric-card" style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);"><strong>Overall Score</strong><span id="brain-overall-score">-</span></div>
+                                            <div class="brain-metric-card" style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);"><strong>Prompt Quality</strong><span id="brain-prompt-quality">-</span></div>
+                                            <div class="brain-metric-card" style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);"><strong>Learning Status</strong><span id="brain-learning-status">-</span></div>
+                                            <div class="brain-metric-card" style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);"><strong>Best Industry</strong><span id="brain-best-industry">-</span></div>
+                                            <div class="brain-metric-card" style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);"><strong>Health Status</strong><span id="brain-health-status">-</span></div>
+                                        </div>
+                                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                            <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                                <h5 style="margin:0 0 8px 0; font-size:13px;">Best Pattern</h5>
+                                                <div id="brain-best-pattern" style="font-size:12px; line-height:1.6; white-space:pre-wrap;">조회 전</div>
+                                            </div>
+                                            <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                                <h5 style="margin:0 0 8px 0; font-size:13px;">Worst Pattern</h5>
+                                                <div id="brain-worst-pattern" style="font-size:12px; line-height:1.6;">조회 전</div>
+                                            </div>
+                                        </div>
+                                        <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                            <h5 style="margin:0 0 8px 0; font-size:13px;">Prompt Evolution / Recommendation</h5>
+                                            <div id="brain-evolution" style="font-size:12px; line-height:1.6; white-space:pre-wrap;">조회 전</div>
+                                        </div>
+                                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                            <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                                <h5 style="margin:0 0 8px 0; font-size:13px;">Quality Trend</h5>
+                                                <div id="brain-quality-trend" style="font-size:12px; line-height:1.6; font-family:monospace;">조회 전</div>
+                                            </div>
+                                            <div style="border:1px solid var(--border); border-radius:8px; padding:12px; background:rgba(255,255,255,0.03);">
+                                                <h5 style="margin:0 0 8px 0; font-size:13px;">Today's Learning</h5>
+                                                <div id="brain-todays-learning" style="font-size:12px; line-height:1.6;">조회 전</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 4. 공통 저작권 준수 고지 박스 -->
+                        <div class="idea-notice-box">
+                            <div class="idea-notice-title">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                                소재 활용 가이드라인
+                            </div>
+                            수집된 글은 그대로 복사하지 않고, 사장님의 매장 상황에 맞는 새로운 SNS 글을 만들기 위한 <strong>글감 및 영감 참고자료</strong>로만 사용됩니다. (원문 본문 전체 복사는 제한되며 이미지는 다운로드되지 않습니다)
+                        </div>
+
+                        <!-- 5. 로딩 애니메이션 바 -->
+                        <div class="loader-container" id="ideaLoader">
+                            <div class="spinner"></div>
+                            <div class="loader-text" id="ideaLoaderText">네이버 블로그에서 최적의 글감을 찾고 있습니다...</div>
+                        </div>
+
+                        <!-- 6. 검색 결과 리스트 컨테이너 -->
+                        <div class="results-container" id="ideaResultsContainer">
+                            <div class="results-header">
+                                <h4 class="results-title">
+                                    추천 글감 <span class="results-count" id="ideaResultsCount">0</span>개
+                                </h4>
+                            </div>
+
+                            <div id="ideaPipelineVisualization" style="display:none; margin-bottom:16px;"></div>
+                            <div class="idea-cards-list" id="ideaCardsList"></div>
+
+                            <!-- 결과 없음 빈 화면 -->
+                            <div class="empty-state" id="ideaEmptyState">
+                                <div class="empty-icon">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                                </div>
+                                <h5 class="empty-title">매칭되는 참고 글감을 찾지 못했습니다.</h5>
+                                <p class="empty-desc">다른 키워드나 지역명을 조합하여 다시 글감을 검색해 주세요.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="editable-work-card">
+                        <div class="form-group">
+                            <div class="label-with-help"><label for="reference_text"><span class="step-label-inline" data-help="reference" role="button" tabindex="0" style="cursor:pointer; text-decoration:underline; text-underline-offset:3px;">참고자료 입력</span></label><button type="button" class="help-icon" data-help="reference" aria-label="참고자료 도움말">?</button></div>
+                            <textarea id="reference_text" class="reference-waiting" placeholder="참고할 텍스트 문체나 타사 참고용 포스트 내용을 입력하세요.">대기중</textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="input-row">
+                            <div>
+                                <div class="label-with-help"><label for="style"><span class="step-label-inline"><span class="step-badge-aqua step-5">5</span> 글쓰기 스타일</span></label><button type="button" class="help-icon" data-help="style" aria-label="글쓰기 스타일 도움말">?</button></div>
+                                <select id="style">
+                                    <option value="스토리형" selected>스토리형 (기본)</option>
+                                    <option value="대화형">대화형</option>
+                                    <option value="뉴스형">뉴스형</option>
+                                </select>
+                            </div>
+                            <div>
+                                <div class="label-with-help"><label for="ai_preset">지역/날씨</label><button type="button" class="help-icon" data-help="ai" aria-label="지역/날씨 도움말">?</button></div>
+                                <select id="ai_preset">
+                                    <option value="서울" selected>서울</option>
+                                    <option value="인천">인천</option>
+                                    <option value="경기">경기</option>
+                                    <option value="강원">강원</option>
+                                    <option value="대전">대전</option>
+                                    <option value="충청">충청</option>
+                                    <option value="광주">광주</option>
+                                    <option value="전라">전라</option>
+                                    <option value="대구">대구</option>
+                                    <option value="경북">경북</option>
+                                    <option value="부산">부산</option>
+                                    <option value="울산">울산</option>
+                                    <option value="경남">경남</option>
+                                    <option value="제주">제주</option>
+                                    <option value="양양">양양</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 20px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                            <label><span class="step-label-inline" style="font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">콘텐츠 감성 레벨</span></label>
+                            <span style="font-size: 11px; color: var(--muted);">최대 5개 선택, 2~3개 권장</span>
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                            <label class="tone-checkbox-label">
+                                <input type="checkbox" name="tone-level" value="차분함">
+                                <span>차분함</span>
+                            </label>
+                            <label class="tone-checkbox-label">
+                                <input type="checkbox" name="tone-level" value="따뜻함" checked>
+                                <span>따뜻함</span>
+                            </label>
+                            <label class="tone-checkbox-label">
+                                <input type="checkbox" name="tone-level" value="전문가" checked>
+                                <span>전문가</span>
+                            </label>
+                            <label class="tone-checkbox-label">
+                                <input type="checkbox" name="tone-level" value="친근함">
+                                <span>친근함</span>
+                            </label>
+                            <label class="tone-checkbox-label">
+                                <input type="checkbox" name="tone-level" value="감동">
+                                <span>감동</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div style="display:flex; align-items:center; gap:6px;"><button type="button" class="secondary" onclick="extractKeywords()" style="flex:1;">키워드 빈도 추출</button><button type="button" class="help-icon" data-help="extract" aria-label="키워드 빈도 도움말">?</button></div>
+                        <div style="display:flex; align-items:center; gap:6px;"><button type="button" onclick="generatePromptWithValidation()" style="flex:1;"><span class="step-badge-aqua step-6">6</span> 통합 프롬프트 만들기</button><button type="button" class="help-icon" data-help="generate" aria-label="프롬프트 만들기 도움말">?</button></div>
+                    </div>
+                </form>
+
+                <div class="card console-card" style="margin-top:18px; padding:14px; width:100%;">
+                    <div class="console-logs" id="console-logs-box">
+                        <!-- 로그 출력 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 우측: 결과 작업 영역 (Workspace) -->
+            <div class="workspace-right-column">
+                
+                <!-- 1. Prompt Workspace -->
+                <div class="card accordion-card" id="workspace-prompt" style="display:none !important;">
+                    <div class="accordion-header" onclick="toggleAccordionSection('prompt'); if (document.getElementById('workspace-prompt')?.classList.contains('open')) toggleAccordionSection('ai', true);">
+                        <span class="accordion-toggle-icon">▶</span>
+                        <span class="accordion-title"><span class="step-badge-aqua">6-1</span> <!-- 글쓰기 프롬프트 숨김 --></span>
+                        <span class="accordion-header-info" id="prompt-header-info" style="margin-left:auto;"></span>
+                        <button type="button" class="btn-copy accordion-copy-btn" onclick="copyAccordionContent(event, 'prompt')">복사</button>
+                    </div>
+                    <div class="accordion-content" id="prompt-accordion-content">
+                        <div class="prompt-ready-summary" id="prompt-ready-summary" style="display:none;">
+                            <div class="prompt-ready-left"><span class="prompt-ready-dot"></span><strong>글쓰기 준비 완료</strong></div>
+                            <div class="prompt-ready-count">전체 <b id="prompt-char-count">0</b>자</div>
+                        </div>
+                        <div class="preview-box" id="prompt-preview-area">
+                            <div class="preview-header">
+                                <span>프롬프트</span><small style="display:block; margin-top:4px; color:var(--muted); font-size:12px;">직접 수정하실 수 있습니다.</small>
+                            </div>
+                            <pre class="pre-box" id="generated-prompt-box" contenteditable="true" spellcheck="false" aria-label="<!-- 글쓰기 프롬프트 숨김 --> 직접 수정 입력창">통합 프롬프트를 생성하면 이곳에 표시됩니다.</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. AI Result Workspace -->
+                <div class="card accordion-card" id="workspace-ai">
+                    <div class="accordion-header" onclick="toggleAccordionSection('ai')">
+                        <span class="accordion-toggle-icon">▶</span>
+                        <span class="accordion-title">2. AI 콘텐츠 제작</span>
+                        <span class="accordion-header-info" id="ai-header-info" onclick="openPromptHtmlPreview(event)" title="생성된 통합 프롬프트 HTML 미리보기" style="cursor:pointer;"></span>
+                    </div>
+                    <div class="accordion-content" id="ai-accordion-content">
+                        <div class="preview-box" id="raw-input-area">
+                            <div class="ai-action-panel">
+                                <div class="ai-action-buttons">
+
+                                    <button type="button" class="btn-ai-auto" style="flex:0 1 calc(100% - 48px);" onclick="generateAIContentAutomatically(this)"><span class="ai-mini-icon">AI</span> AI 자동생성</button>
+                                    <button type="button" class="help-icon" data-help="ai-auto" aria-label="AI 자동생성 도움말" style="margin-left:8px; flex:0 0 34px; align-self:center;">?</button>
+                                </div>
+                                <div class="ai-action-desc-grid">
+                                    <div>프롬프트를 복사해 사용 중인 AI에 넣고, 완성된 결과를 아래 입력칸에 붙여넣습니다.</div>
+
+                                </div>
+                                <div id="ai-generation-status" class="ai-status-bar" aria-live="polite">
+                                    <div class="ai-status-line">
+                                        <span id="ai-generation-status-text">AI 자동생성 준비 중...</span>
+                                        <span class="ai-status-dots"><span></span><span></span><span></span></span>
+                                    </div>
+                                    <div class="ai-status-progress"></div>
+                                </div>
+                            </div>
+                            <div class="preview-header" style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>SNS 데이터 전체 내용</span>
+                            </div>
+                            <textarea id="chatgpt-raw-input" style="min-height: 110px; border-color: rgba(0,136,255,0.4);" placeholder="AI 결과가 생성되면 이곳에 표시됩니다."></textarea>
+                            <div class="ai-action-panel" style="margin-top:14px; margin-bottom:0;">
+                                <div class="sm-action-row" style="display:flex; align-items:center; gap:10px; width:52%; max-width:820px; min-width:420px; margin:0;">
+                                    <button type="button" class="secondary" style="flex:1 1 auto; width:auto; margin:0;" onclick="parseChatGPTResult()">
+                                        SNS별 분리
+                                    </button>
+                                    <button type="button" class="help-icon" data-help="split" aria-label="SNS 분리 도움말" style="display:inline-flex; align-items:center; justify-content:center; flex:0 0 36px; width:36px; height:36px; margin:0;">?</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. SNS 입력자료 -->
+                <div class="card accordion-card" id="workspace-sns">
+                    <div class="accordion-header" onclick="toggleAccordionSection('sns')">
+                        <span class="accordion-toggle-icon">▶</span>
+                        <span class="accordion-title">3. SNS 입력자료</span>
+
+
+                    </div>
+                    <div class="accordion-content" id="sns-accordion-content" style="padding-top:14px;">
+                        <!-- 최초 접속 시 보여줄 Placeholder -->
+                        <div id="sns-placeholder" style="padding: 24px; text-align: center; color: var(--muted); border: 1px dashed var(--border); border-radius: var(--radius-md); font-size: 13px;">
+                            SNS 분리가 완료되면 이곳에 표시됩니다.
+                        </div>
+
+                        <!-- 파싱된 탭 결과 화면 -->
+                        <div class="preview-box" id="parsed-tabs-container" style="display: none;">
+                            <div class="tabs-header" id="tabs-header-bar">
+                                <!-- 동적으로 탭 추가 -->
+                            </div>
+                            <div id="tabs-content-panes">
+                                <!-- 동적으로 콘텐츠 창 추가 -->
+                            </div>
+                            
+                            <!-- 채널별 바로가기는 각 탭의 본문 복사 버튼 오른쪽에 표시됩니다. -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const authParams = new URLSearchParams(window.location.search);
+            const forceJoin = authParams.get('force_join') === '1';
+            if (false && forceJoin) {
+                try {
+                    localStorage.removeItem('storymaker_token');
+                    localStorage.removeItem('storymaker_user');
+                    localStorage.removeItem('current_project_id');
+                } catch(e) {}
+                // ponytail: keep the old force_join endpoint harmless without opening the retired auth overlay.
+                window.history.replaceState(null, null, window.location.pathname);
+            }
+            syncPromptVisibility();
+            const box = document.getElementById('generated-prompt-box');
+            if (box) box.addEventListener('input', syncPromptVisibility);
+            setInterval(syncPromptVisibility, 700);
+        });
+
+        const HELP_CONTENT = {
+            project: { title: '프로젝트 선택', content: '저장된 프로젝트를 불러오거나 새 프로젝트를 만들 수 있습니다.\n업체별, 고객별, 작업 유형별로 나누어 관리하면 편합니다.' },
+            inputs: { title: '입력 매개변수 설정', content: '글을 만들기 위한 기본 정보를 넣는 곳입니다.\n업체 정보, 키워드, 현장 내용을 입력하면 통합 프롬프트가 만들어집니다.' },
+            keywords: { title: '핵심 키워드', content: '네이버 검색에 노출되고 싶은 단어를 입력하세요.\n지역명 + 작업명 조합이 좋습니다.\n\n예: 울산 북구 욕실 리모델링, 세면대 수리, 타일 교체' },
+            persona: { title: '업체 페르소나', content: '페르소나는 글의 말투와 방향을 정하는 기준입니다.\n우리 업체가 어떤 사람처럼 말할지 적어주세요.\n\n예시:\n울산 지역에서 30년 경력으로 집수리를 해온 실무형 전문가.\n말투는 친근하지만 과장하지 않고, 현장 경험을 바탕으로 쉽게 설명하는 스타일.\n\n업체 정보와 기본 소개는 마이페이지에서 미리 관리할 수 있습니다.', mypageLabel: '마이페이지에서 업체 정보 수정하기' },
+            base: { title: '기초내용 입력', content: '기초내용은 오늘 작업한 실제 현장 이야기입니다.\n문제 상황, 고객 요청, 작업 과정, 교체 부품, 결과를 편하게 적어주세요.\n\n예시:\n울산 북구 신천동 아파트 욕실 리모델링 다음날 방문.\n고객이 욕실 타일 메지 사이가 검게 변해 상담 요청.\n기존 타일 상태를 확인하고 부분 보수보다 전체 정리를 권장.\n작업 후 물때와 곰팡이 흔적이 줄고 욕실이 훨씬 밝아짐.\n\n사진이 있다면 사진 속 상황도 함께 적으면 더 자연스러운 글이 만들어집니다.', mypageLabel: '마이페이지에서 업체 정보 확인하기' },
+            blogUrl: { title: '콘텐츠 불러오기', content: '{{로그인 사용자}}님의 블로그 글을 참고하고 싶을 때\n블로그 URL을 입력한 뒤 가져오기 버튼을 눌러 주세요.\n\n본문을 자동으로 불러와 정리한 뒤\n참고자료로 사용할 수 있습니다.', linkUrl: 'https://section.blog.naver.com/BlogHome.naver?directoryNo=0&currentPage=1&groupId=0', linkLabel: '네이버 블로그 열기' },
+            reference: { title: '참고자료 입력', content: '컨텐츠를 만들 때 AI가 참고할 자료를 넣는 공간입니다.\n\n현장 메모, 고객 질문, 작업 과정, 사용 자재, 참고하고 싶은 글감, 피해야 할 표현을 자유롭게 적어주세요.\n\n글감 조회로 찾고 선택한 자료를 선택하면 이 칸에 자동으로 들어가고, 해당 자료를 참고로 하게 됩니다.\n\n입력한 내용은 최종 글의 소재와 설명 흐름에 반영됩니다.\n\n정확하지 않은 가격, 개인정보, 과장 표현은 넣지 않는 것이 좋습니다.' },
+            style: { title: '글쓰기 스타일', content: '블로그 글의 분위기를 선택합니다.\n스토리형은 자연스럽고 감성적인 후기 글에 적합합니다.' },
+            ai: { title: '지역/날씨', content: '글에 반영할 지역을 선택합니다.\n선택한 지역은 프롬프트에 함께 들어가며, 다음 단계에서 오늘 날씨와 기온까지 자동으로 붙일 수 있습니다.' },
+            extract: { title: '키워드 빈도 추출', content: '입력한 내용에서 자주 등장하는 단어를 확인합니다.\nSEO 키워드가 자연스럽게 들어갔는지 점검할 때 사용합니다.' },
+            generate: { title: '통합 프롬프트 만들기', content: '입력한 내용을 바탕으로 ChatGPT에 붙여넣을 최종 프롬프트를 만듭니다.' },
+            review: { title: 'AI 결과 만들기 / 붙여넣기', content: '생성된 프롬프트와 ChatGPT 결과물을 확인하고 SNS별로 분리하는 곳입니다.' },
+            'ai-auto': { title: 'AI 자동생성', content: 'Firefox AI Worker가 프롬프트를 자동 전송하고, 결과를 자동 생성합니다.' },
+            split: { title: 'SNS별 분리', content: 'AI가 만든 결과를 블로그, 인스타그램, 당근마켓, 구글 비즈니스 등 SNS채널 별 게시글로 정리하여 분리합니다.' }
+        };
+
+        function showContextHelp(key) {
+            const help = HELP_CONTENT[key];
+            if (!help) return;
+            document.getElementById('context-help-title').innerText = help.title;
+            document.getElementById('context-help-body').innerText = resolveHelpContent(help.body || help.content || '');
+            const exampleEl = document.getElementById('context-help-example');
+            exampleEl.style.display = help.example ? 'block' : 'none';
+            exampleEl.innerText = help.example ? `입력 예시\n${help.example}` : '';
+            const tipEl = document.getElementById('context-help-tip');
+            tipEl.style.display = help.tip ? 'block' : 'none';
+            tipEl.innerText = help.tip ? `사용 팁\n${help.tip}` : '';
+            const myPageButton = document.getElementById('context-help-mypage');
+            myPageButton.style.display = help.mypageLabel ? 'inline-flex' : 'none';
+            myPageButton.innerText = help.mypageLabel || '마이페이지 이동';
+            myPageButton.onclick = help.mypageLabel ? openMyPageFromHelp : null;
+            const linkButton = document.getElementById('context-help-link');
+            if (linkButton) {
+                linkButton.style.display = help.linkUrl ? 'inline-flex' : 'none';
+                linkButton.href = help.linkUrl || '#';
+                linkButton.innerText = help.linkLabel || '새창에서 열기';
+            }
+            const modal = document.getElementById('context-help-modal');
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeContextHelp() {
+            const modal = document.getElementById('context-help-modal');
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        function openMyPageFromHelp() {
+            closeContextHelp();
+            showMyPageModal();
+        }
+
+        document.addEventListener('click', function(event) {
+            const helpButton = event.target.closest('[data-help]');
+            if (helpButton) {
+                event.preventDefault();
+                showContextHelp(helpButton.dataset.help);
+                return;
+            }
+            if (event.target && event.target.id === 'context-help-modal') {
+                closeContextHelp();
+                return;
+            }
+            if (event.target.closest('[data-help-close]')) {
+                closeContextHelp();
+            }
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeContextHelp();
+            }
+        });
+
+        function showFeatureRequestModal() {
+            document.getElementById('feature-request-error').style.display = 'none';
+            document.getElementById('feature-request-title').value = '';
+            document.getElementById('feature-request-content').value = '';
+            document.getElementById('feature-request-modal').style.display = 'flex';
+            setTimeout(() => document.getElementById('feature-request-title').focus(), 80);
+        }
+
+        function closeFeatureRequestModal() {
+            document.getElementById('feature-request-modal').style.display = 'none';
+        }
+
+        async function submitFeatureRequest() {
+            const titleEl = document.getElementById('feature-request-title');
+            const contentEl = document.getElementById('feature-request-content');
+            const errorEl = document.getElementById('feature-request-error');
+            const title = titleEl.value.trim();
+            const content = contentEl.value.trim();
+            errorEl.style.display = 'none';
+            if (title.length < 2 || content.length < 5) {
+                errorEl.innerText = '제목은 2자 이상, 내용은 5자 이상 입력해 주세요.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            try {
+                const response = await fetchWithAuth('/api/feature-requests', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, content })
+                });
+                const res = await response.json();
+                if (!response.ok || !res.ok) throw new Error(res.detail || res.message || '수정요청 등록에 실패했습니다.');
+                closeFeatureRequestModal();
+                showToast('수정요청이 접수되었습니다.');
+                log('[수정요청] 사용자 요청이 관리자 게시판에 등록되었습니다.', 'success');
+            } catch (err) {
+                errorEl.innerText = err.message;
+                errorEl.style.display = 'block';
+                log(`수정요청 등록 실패: ${err.message}`, 'error');
+            }
+        }
+
+        async function loadFeatureRequests() {
+            const listEl = document.getElementById('feature-requests-list');
+            if (!listEl) return;
+            listEl.innerHTML = '<div style="padding:18px; color:var(--muted); font-size:13px;">수정요청을 불러오는 중...</div>';
+            try {
+                const response = await fetchWithAuth('/api/admin/feature-requests');
+                const res = await response.json();
+                if (!response.ok || !res.ok) throw new Error(res.detail || res.message || '수정요청 목록 조회 실패');
+                const items = res.data || [];
+                if (!items.length) {
+                    listEl.innerHTML = '<div style="padding:20px; color:var(--muted); font-size:13px; text-align:center; border:1px dashed var(--border); border-radius:var(--radius-md);">등록된 수정요청이 없습니다.</div>';
+                    return;
+                }
+                listEl.innerHTML = '';
+                items.forEach(item => {
+                    const card = document.createElement('div');
+                    card.style.cssText = 'background:var(--panel-card); border:1px solid var(--border); border-radius:var(--radius-md); padding:14px; display:grid; gap:10px;';
+                    card.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+                            <div>
+                                <strong style="font-size:14px; color:var(--text);">#${item.id} ${escapeHtml(item.title)}</strong>
+                                <div style="font-size:11px; color:var(--muted); margin-top:4px;">작성자: ${escapeHtml(item.username)} · ${item.created_at}</div>
+                            </div>
+                            <span style="font-size:11px; color:${item.status === '완료' ? 'var(--success)' : item.status === '처리중' ? 'var(--warning)' : '#99ccff'}; border:1px solid var(--border); border-radius:20px; padding:4px 9px; white-space:nowrap;">${escapeHtml(item.status)}</span>
+                        </div>
+                        <div style="white-space:pre-wrap; font-size:13px; line-height:1.7; color:#d5deeb; background:rgba(0,0,0,0.14); padding:12px; border-radius:var(--radius-sm);">${escapeHtml(item.content)}</div>
+                        <div style="display:grid; grid-template-columns:140px 1fr auto; gap:8px; align-items:center;">
+                            <select id="fr-status-${item.id}" style="height:34px; padding:6px 10px; font-size:12px; margin:0;">
+                                <option value="접수" ${item.status === '접수' ? 'selected' : ''}>접수</option>
+                                <option value="처리중" ${item.status === '처리중' ? 'selected' : ''}>처리중</option>
+                                <option value="완료" ${item.status === '완료' ? 'selected' : ''}>완료</option>
+                                <option value="보류" ${item.status === '보류' ? 'selected' : ''}>보류</option>
+                            </select>
+                            <input id="fr-note-${item.id}" type="text" value="${escapeAttr(item.admin_note || '')}" placeholder="관리자 메모" style="height:34px; padding:6px 10px; font-size:12px; margin:0;">
+                            <button type="button" class="btn-header" style="width:auto; height:34px; padding:6px 12px; font-size:12px;" onclick="updateFeatureRequest(${item.id})">상태 저장</button>
+                        </div>
+                    `;
+                    listEl.appendChild(card);
+                });
+            } catch (err) {
+                listEl.innerHTML = `<div style="padding:18px; color:var(--danger); font-size:13px;">${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        async function updateFeatureRequest(id) {
+            const status = document.getElementById(`fr-status-${id}`).value;
+            const admin_note = document.getElementById(`fr-note-${id}`).value.trim();
+            try {
+                const response = await fetchWithAuth(`/api/admin/feature-requests/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status, admin_note })
+                });
+                const res = await response.json();
+                if (!response.ok || !res.ok) throw new Error(res.detail || res.message || '상태 저장 실패');
+                showToast('수정요청 상태 저장 완료');
+                await loadFeatureRequests();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        // Legacy OpenAI 직접 호출용 API 키 확인 흐름. 기본 생성 경로에서는 사용하지 않는다.
+        function handleAutoGenerateLegacyOpenAI() {
+            const apiKey = checkApiKey();
+            if (!apiKey) {
+                alert('AI 자동 생성을 사용하려면 마이페이지에서 API 키를 먼저 등록해 주세요.');
+                return;
+            }
+            
+            // API 키가 있는 경우
+            console.log('자동 생성 기능 준비 중 (API Key 확인 완료)');
+            alert('자동 생성 기능 준비 중');
+        }
+
+
+
+
+
+
+        // 입력 영역 보이기/숨기기 토글 함수 (레이아웃 동적 대응)
+        function toggleInputCard(show = null) {
+            const inputCard = document.getElementById('input-card');
+            const btn = document.getElementById('btn-toggle-input');
+            const workspace = document.querySelector('.workspace');
+            
+            if (show === null) {
+                inputCard.classList.toggle('collapsed');
+            } else if (show === true) {
+                inputCard.classList.remove('collapsed');
+            } else {
+                inputCard.classList.add('collapsed');
+            }
+            
+            const isCollapsed = inputCard.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+                inputCard.style.display = 'none';
+                btn.innerText = '입력 다시 보기';
+                workspace.style.gridTemplateColumns = '1fr';
+            } else {
+                inputCard.style.display = 'block';
+                btn.innerText = '입력 설정 접기';
+                // 화면 폭이 1200px 초과일 때만 2열 레이아웃 적용
+                if (window.innerWidth > 1200) {
+                    workspace.style.gridTemplateColumns = '1fr 1.25fr';
+                } else {
+                    workspace.style.gridTemplateColumns = '1fr';
+                }
+            }
+        }
+
+
+
+        // 타이틀 클릭 시 홈 화면 이동 (자동 저장 연동)
+        async function navigateHome() {
+            window.location.href = 'https://app.mystorymaker.net/storymaker';
+            return;
+            log('홈 화면 이동 중... 변경 내용을 안전하게 자동 저장합니다.');
+            const baseContent = document.getElementById('base_content').value;
+            if (baseContent.trim() || currentProjectId) {
+                await saveProject(false);
+            }
+            location.href = "/";
+        }
+
+
+        // 백엔드 API 헬스 체크 및 연결 상태 변경
+        async function checkApiHealth() {
+            const badge = document.getElementById('api-status-badge');
+            const text = document.getElementById('api-status-text');
+
+            try {
+                const response = await fetchWithAuth('/api/health');
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.status === 'ok') {
+                        if (!isSaving) {
+                            text.innerText = 'CONNECTED';
+                            text.style.color = 'var(--success)';
+                        }
+                    } else {
+                        throw new Error('상태값 비정상');
+                    }
+                } else {
+                    throw new Error('응답 실패');
+                }
+            } catch (err) {
+                text.innerText = 'DISCONNECTED';
+                text.style.color = 'var(--danger)';
+                log(`API 서버 연결 오류: ${err.message}`, 'error');
+            }
+        }
+
+
+
+
+
+
+        // 8. ChatGPT 결과 원문 파싱 분리 요청 (SNS별 분리 연동)
+        // Helper to send health logs to backend
+
+
+
+        function initializeWorkspaceAccordions() {
+            const sections = ['prompt', 'ai', 'sns'];
+            sections.forEach(sectionId => {
+                const card = document.getElementById(`workspace-${sectionId}`);
+                const content = document.getElementById(`${sectionId}-accordion-content`);
+                if (!card || !content) return;
+
+                const savedState = localStorage.getItem(`storymaker.workspace.${sectionId}.open`);
+                // 최초 접속 시 기본 접힘
+                const shouldOpen = savedState === 'true';
+
+                if (shouldOpen) {
+                    card.classList.add('open');
+                    content.style.maxHeight = 'none';
+                } else {
+                    card.classList.remove('open');
+                    content.style.maxHeight = '0px';
+                }
+            });
+        }
+
+        function showHomeScreen() {
+            if (localStorage.getItem('storymaker_token') && window.storymakerHydrating) {
+                log('DB 로딩 완료 전 화면 초기화를 보류합니다.', 'warning');
+                return;
+            }
+            const adminModal = document.getElementById('admin-modal');
+            if (adminModal) adminModal.style.display = 'none';
+
+            if (typeof restoreWorkspaceDraftLocal === 'function' && restoreWorkspaceDraftLocal()) return;
+            window.currentProjectId = null;
+            window.lastParsedBlocks = {};
+
+            const selector = document.getElementById('project-selector');
+            if (selector) selector.value = '';
+            const title = document.getElementById('project-title');
+            if (title) title.value = '새 프로젝트';
+            const promptBox = document.getElementById('generated-prompt-box');
+            if (promptBox) promptBox.innerText = '통합 프롬프트를 생성하면 이곳에 표시됩니다.';
+            const rawInput = document.getElementById('chatgpt-raw-input');
+            if (rawInput) rawInput.value = '';
+            const parsed = document.getElementById('parsed-tabs-container');
+            if (parsed) parsed.style.display = 'none';
+            const snsPlaceholder = document.getElementById('sns-placeholder');
+            if (snsPlaceholder) snsPlaceholder.style.display = 'block';
+            toggleInputCard(true);
+            initializeWorkspaceAccordions();
+        }
+
+        async function routeApplication() {
+            const path = window.location.pathname.replace(/\/+$/, '') || '/';
+            if (path === '/admin/analytics') {
+                const userStr = localStorage.getItem('storymaker_user');
+                const user = userStr ? JSON.parse(userStr) : null;
+                if (user && (user.role === 'admin' || user.is_admin || user.username === 'admin')) {
+                    await window.showAdminDashboard('analytics');
+                    return;
+                }
+            }
+
+            if (path !== '/' && path !== '/storymaker') {
+                window.history.replaceState({}, '', '/');
+            }
+            showHomeScreen();
+        }
+
+        // ----------------------------------------------------------------------
+        // 관리자 대시보드 (Admin Dashboard) 비즈니스 로직
+        // ----------------------------------------------------------------------
+        
+        // 대시보드 모달 열기
+        // 대시보드 모달 열기
+
+        // Plausible Analytics 이벤트 추적용 전역 헬퍼 함수
+        window.trackEvent = function(name, props = {}) {
+            if (window.plausible) {
+                try {
+                    window.plausible(name, { props });
+                    console.log(`[Plausible Event Transmitted] ${name}`, props);
+                } catch (e) {
+                    console.error('[Plausible Error]', e);
+                }
+            } else {
+                console.log(`[Plausible Mock Event] ${name}`, props);
+            }
+        };
+
+        // 글로벌 모달 팝업 및 관리자 대시보드 함수 전역 바인딩 (외부 페이지/내비게이션 바 트리거 지원)
+        if (typeof showMyPageModal === 'function') {
+            window.showMyPageModal = showMyPageModal;
+        }
+        window.storymakerOpenMyPageNow = function() {
+            const modal = document.getElementById('mypage-modal');
+            if (modal) modal.style.display = 'flex';
+            try {
+                if (typeof switchMyPageTab === 'function') switchMyPageTab('persona');
+                if (typeof showMyPageModal === 'function') setTimeout(showMyPageModal, 80);
+            } catch (err) {
+                console.error('storymakerOpenMyPageNow failed', err);
+            }
+            return true;
+        };
+        // action=mypage 처리는 하단 초기화 루틴에서 한 번만 수행합니다.
+        if (typeof showFeatureRequestModal === 'function') {
+            window.showFeatureRequestModal = showFeatureRequestModal;
+        }
+        if (typeof window.showAdminDashboard !== 'function' && typeof showAdminDashboard === 'function') {
+            window.showAdminDashboard = showAdminDashboard;
+        }
+
+        // 페이지 로드 즉시 실행
+        // 페이지 로드 즉시 실행
+        window.onload = async function() {
+            log(`Frontend build: ${APP_VERSION}`, 'success');
+            log(`StoryMaker Web MVP 연동 엔진 시동 (v${APP_VERSION})`);
+            syncContentIdeaAdminAccess();
+            if (canAccessContentIdeaAdmin() && new URLSearchParams(window.location.search).get('admin') === '1') {
+                setViewMode('admin');
+            }
+            // WordPress REST login only.
+            const loggedIn = await checkLoginStatus();
+            if (!loggedIn) {
+                syncContentIdeaAdminAccess();
+                setInterval(checkApiHealth, 30000);
+                await routeApplication();
+                return;
+            }
+            if (loggedIn) {
+                syncContentIdeaAdminAccess();
+                const urlParams = new URLSearchParams(window.location.search);
+                const tabParam = urlParams.get('tab');
+                if (tabParam) {
+                    // ponytail: query tabs are retired; header buttons open the current auth UI explicitly.
+                    window.history.replaceState(null, null, window.location.pathname);
+                }
+                const action = urlParams.get('action');
+                const path = window.location.pathname;
+                const hash = window.location.hash;
+                
+                // 명시적 목적지 URL, hash, query가 존재하는지 감지
+                const isExplicitDestination = 
+                    path.includes('/mypage') || 
+                    path.includes('/request') || 
+                    path.includes('/requests') || 
+                    path.includes('/profile') ||
+                    path.includes('/admin') ||
+                    path.includes('/storymaker') ||
+                    action === 'mypage' || 
+                    action === 'request' ||
+                    action === 'admin' ||
+                    hash.includes('mypage') ||
+                    hash.includes('request') ||
+                    hash.includes('profile') ||
+                    hash.includes('admin');
+
+                // 새로고침 후 로그인 세션이 남아 있는 경우에도 기본 진입 화면은 Home이어야 함
+                // 단, 사용자가 명시적으로 상단 메뉴나 카드를 클릭해서 이동한 경우 또는 명시적 목적지가 있는 경우는 예외
+                if (window.location.pathname !== '/' && sessionStorage.getItem('explicit_nav') !== 'true' && !isExplicitDestination) {
+                    log('기본 진입 또는 새로고침 감지: Home 화면으로 이동합니다.');
+                    window.location.replace('/');
+                    return;
+                }
+
+                setInterval(checkApiHealth, 30000);
+                await routeApplication();
+
+                // DOM 렌더링 및 함수 선언이 확실히 준비된 후 실행되도록 150ms 딜레이 보장 (요구사항 8번)
+                setTimeout(async () => {
+                    // URL 파라미터에 따른 모달 자동 오픈 처리 (로그인 상태 확인 후 실행, 요구사항 7번)
+                    if (action === 'mypage') {
+                        if (typeof window.showMyPageModal === 'function') {
+                            await window.showMyPageModal();
+                            window.history.replaceState({}, '', '/storymaker');
+                        } else {
+                            console.error('showMyPageModal is not defined');
+                        }
+                    } else if (action === 'request') {
+                        if (typeof window.showFeatureRequestModal === 'function') {
+                            window.showFeatureRequestModal();
+                        } else {
+                            console.error('showFeatureRequestModal is not defined');
+                        }
+                    } else if (action === 'admin') {
+                        // 관리자 권한 확인 추가 (요구사항 7번)
+                        const userStr = localStorage.getItem('storymaker_user');
+                        let isAdmin = false;
+                        try {
+                            const user = userStr ? JSON.parse(userStr) : null;
+                            if (user && (user.role === 'admin' || user.is_admin || user.username === 'admin')) {
+                                isAdmin = true;
+                            }
+                        } catch (e) {
+                            console.error('User parsing failed', e);
+                        }
+                        
+                        if (isAdmin) {
+                            if (typeof window.showAdminDashboard === 'function') {
+                                window.showAdminDashboard();
+                            } else {
+                                console.error('showAdminDashboard is not defined');
+                            }
+                        } else {
+                            console.warn('관리자 권한이 없어 대시보드를 표시할 수 없습니다.');
+                            showToast('오류: 관리자 권한이 없습니다.');
+                            window.location.replace('/');
+                        }
+                    }
+
+                    // 마이페이지/수정요청/admin 실행이 완료된 뒤 정리 (요구사항 11번)
+                    sessionStorage.removeItem('explicit_nav');
+                }, 150);
+            }
+        };
+
+        window.addEventListener('popstate', async function() {
+            if (localStorage.getItem('storymaker_token')) {
+                await routeApplication();
+            }
+        });
+    </script>
+</body>
+</html>
