@@ -119,7 +119,7 @@
   function openThumbnailStudio(detail = {}) {
     const data = typeof detail === 'string' ? { jobId: detail } : (detail || {});
     const safeJobId = String(data.jobId || '').trim();
-    const query = safeJobId ? `?embed=1&job_id=${encodeURIComponent(safeJobId)}&v=20260726-confirm-save-1` : '?embed=1&v=20260726-confirm-save-1';
+    const query = safeJobId ? `?embed=1&job_id=${encodeURIComponent(safeJobId)}&v=20260726-confirm-save-2` : '?embed=1&v=20260726-confirm-save-2';
     pendingThumbnailData = { ...data, jobId: safeJobId };
     if (openedJobId !== safeJobId || frame.src === 'about:blank') frame.src = `/static/v1/four-thumbnail/index.html${query}`;
     openedJobId = safeJobId;
