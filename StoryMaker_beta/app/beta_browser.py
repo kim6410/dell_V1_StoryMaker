@@ -8,16 +8,15 @@ import hashlib
 import shutil
 import subprocess
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 
-from app.beta_auth import require_beta_login
 from app.beta_image_download import build_download_package
 
 BETA_ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
 BETA_JOBS = BETA_ROOT / "data" / "jobs"
 
-beta_browser_router = APIRouter(prefix="/beta-api/browser", tags=["beta-browser"], dependencies=[Depends(require_beta_login)])
+beta_browser_router = APIRouter(prefix="/beta-api/browser", tags=["beta-browser"])
 
 
 def beta_browser_job_dir(beta_job_id: str) -> Path:

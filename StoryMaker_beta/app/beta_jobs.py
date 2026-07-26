@@ -15,10 +15,8 @@ import urllib.error
 import urllib.parse
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Request
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse, JSONResponse
-
-from app.beta_auth import require_beta_login
 
 KST = ZoneInfo("Asia/Seoul")
 
@@ -152,7 +150,7 @@ BETA_INDUSTRY_LABELS = {
     "camping": "캠핑", "logistics": "물류·3PL",
 }
 
-beta_jobs_router = APIRouter(prefix="/beta-api", tags=["beta-jobs"], dependencies=[Depends(require_beta_login)])
+beta_jobs_router = APIRouter(prefix="/beta-api", tags=["beta-jobs"])
 
 
 def beta_now() -> str:

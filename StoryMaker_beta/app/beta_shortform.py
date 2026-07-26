@@ -14,16 +14,14 @@ import sqlite3
 import wave
 import uuid
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
-
-from app.beta_auth import require_beta_login
 
 ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
 DB_PATH = ROOT / "data" / "storymaker_beta.db"
 JOBS_DIR = ROOT / "data" / "jobs"
 
-beta_shortform_router = APIRouter(prefix="/beta-api/shortform", tags=["beta-shortform"], dependencies=[Depends(require_beta_login)])
+beta_shortform_router = APIRouter(prefix="/beta-api/shortform", tags=["beta-shortform"])
 
 DEFAULT_SETTINGS: dict[str, Any] = {
     "female_voice": "random",
