@@ -211,7 +211,7 @@
       state.thumbnailUrl = url;
       if (fields.thumbnailImage) fields.thumbnailImage.src = url;
       if (fields.thumbnailLink) fields.thumbnailLink.href = url;
-      if (fields.thumbnailStatus) fields.thumbnailStatus.textContent = 'Gemini 저장 완료 · 보관함과 동일한 썸네일';
+      if (fields.thumbnailStatus) fields.thumbnailStatus.textContent = '';
       if (fields.thumbnailPanel) fields.thumbnailPanel.hidden = false;
       appendLog('Gemini 썸네일 저장 확인 · 미리보기 표시 완료');
       stopThumbnailWatch();

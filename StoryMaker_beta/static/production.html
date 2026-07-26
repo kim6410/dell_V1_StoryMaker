@@ -116,10 +116,21 @@
     if (!pendingThumbnailData || !frame.contentWindow) return;
     frame.contentWindow.postMessage({ type: 'storymaker:thumbnail-current-data', data: pendingThumbnailData }, location.origin);
   }
+  function focusSavedThumbnailPreview() {
+    const preview = document.getElementById('sf-thumbnail-preview');
+    if (!preview) return;
+    preview.hidden = false;
+    preview.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    preview.animate([
+      { boxShadow: '0 0 0 0 rgba(53,233,255,0)' },
+      { boxShadow: '0 0 0 5px rgba(53,233,255,.42),0 0 34px rgba(53,233,255,.28)' },
+      { boxShadow: '0 0 0 0 rgba(53,233,255,0)' }
+    ], { duration: 1800, easing: 'ease-out' });
+  }
   function openThumbnailStudio(detail = {}) {
     const data = typeof detail === 'string' ? { jobId: detail } : (detail || {});
     const safeJobId = String(data.jobId || '').trim();
-    const query = safeJobId ? `?embed=1&job_id=${encodeURIComponent(safeJobId)}&v=20260726-step-6-guide-1` : '?embed=1&v=20260726-step-6-guide-1';
+    const query = safeJobId ? `?embed=1&job_id=${encodeURIComponent(safeJobId)}&v=20260727-thumbnail-ui-5` : '?embed=1&v=20260727-thumbnail-ui-5';
     pendingThumbnailData = { ...data, jobId: safeJobId };
     if (openedJobId !== safeJobId || frame.src === 'about:blank') frame.src = `/static/v1/four-thumbnail/index.html${query}`;
     openedJobId = safeJobId;
@@ -182,6 +193,10 @@
       alignThumbnailStudioTop();
       return;
     }
+    if (event.data?.type === 'storymaker:thumbnail-save-complete') {
+      focusSavedThumbnailPreview();
+      return;
+    }
     if (event.data?.type !== 'storymaker:thumbnail-frame-height') return;
     const height = Number(event.data.height || 0);
     if (height >= 1200 && height <= 6000) frame.style.height = `${Math.ceil(height)}px`;
@@ -210,6 +225,6 @@
 </main>
 <script src="/beta-static/vendor/WasmMediaEncoder.min.js"></script>
 <script type="module" src="/beta-static/beta-browser-render.js?v=20260727-tts-prewarm-webgpu6-1"></script>
-<script src="/beta-static/beta-shortform-inline.js?v=20260726-mp4-server-fallback-1"></script>
+<script src="/beta-static/beta-shortform-inline.js?v=20260727-thumbnail-status-clean-1"></script>
 <script src="/beta-static/beta-production.js?v=20260727-tts-prewarm-hook-1"></script>
 </body></html>
