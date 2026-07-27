@@ -13,6 +13,28 @@
   const statMp3 = document.getElementById('archive-stat-mp3');
   const statMp4 = document.getElementById('archive-stat-mp4');
   let jobs = [];
+  let isAdmin = false;
+
+  function detectAdmin(user) {
+    if (!user || typeof user !== 'object') return false;
+    const role = String(user.role || user.user_role || user.type || '').trim().toLowerCase();
+    return user.is_admin === true || user.admin === true || role === 'admin' || role === 'administrator' || role === '관리자';
+  }
+
+  async function resolveAdminAccess() {
+    try {
+      const response = await fetch(`/v1-api/auth/me?_=${Date.now()}`, {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' }
+      });
+      const payload = await response.json().catch(() => ({}));
+      const user = payload?.data?.user || payload?.user || payload?.data || payload;
+      isAdmin = response.ok && detectAdmin(user);
+    } catch (_) {
+      isAdmin = false;
+    }
+  }
 
   const esc = (value) => String(value ?? '')
     .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -421,24 +443,34 @@
       const firstImage = job.assets?.images?.length ? `/beta-api/browser/jobs/${encodeURIComponent(job.beta_job_id)}/image/1` : '';
       const thumb = job.assets?.thumbnail ? `/beta-api/jobs/${encodeURIComponent(job.beta_job_id)}/file/thumbnail` : firstImage;
       const assetButton = (label, ready) => `<span class="asset-button ${ready ? 'ready' : 'waiting'}">${esc(label)}</span>`;
-      return `<article class="archive-card">
+      return `<article class="archive-card" data-card-job="${esc(job.beta_job_id)}" tabindex="0" role="button" aria-label="${esc(job.title || 'Beta 제작')} 상세보기">
         ${thumb ? `<button type="button" class="archive-thumb-button" data-open-job="${esc(job.beta_job_id)}"><img class="archive-thumb" loading="lazy" src="${thumb}" alt="미리보기"></button>` : `<button type="button" class="archive-thumb-placeholder" data-open-job="${esc(job.beta_job_id)}">미리보기 없음</button>`}
         <div class="archive-main">
-          <div class="card-head"><button type="button" class="archive-title-button" data-open-job="${esc(job.beta_job_id)}">${esc(job.title || 'Beta 제작')}</button><span class="status-pill">${esc(job.status || 'created')}</span></div>
-          <p class="card-summary">${esc(job.business?.name || '업체 미등록')} · ${esc(job.business?.region || '지역 미등록')} · 이미지 ${job.assets?.images?.length || 0}장</p>
+          <div class="card-head"><button type="button" class="archive-title-button" data-open-job="${esc(job.beta_job_id)}">${esc(job.title || 'Beta 제작')}</button></div>
           <div class="archive-date">${esc(formatDate(job.created_at))}</div>
-          <div class="job-id">${esc(job.beta_job_id)}</div>
         </div>
         <div class="archive-assets">
-          ${assetButton('SNS', f.sns)}${assetButton('이미지', f.images)}${assetButton('MP3', f.mp3)}${assetButton('SRT', f.srt)}${assetButton('썸네일', f.thumb)}${assetButton('MP4', f.mp4)}
-          <div class="delete-wrap">
-            <button type="button" class="delete-button" data-delete-job="${esc(job.beta_job_id)}">삭제</button>
-            <div class="delete-confirm" data-confirm-for="${esc(job.beta_job_id)}" hidden><span>완전히 삭제할까요?</span><button type="button" data-delete-yes="${esc(job.beta_job_id)}">예</button><button type="button" data-delete-no="${esc(job.beta_job_id)}">아니오</button></div>
-          </div>
+          ${assetButton('SNS', f.sns)}${assetButton('이미지', f.images)}${assetButton('MP3', f.mp3)}${assetButton('썸네일', f.thumb)}${assetButton('MP4', f.mp4)}
+          ${isAdmin ? `<div class="delete-wrap"><button type="button" class="delete-button" data-delete-job="${esc(job.beta_job_id)}">삭제</button><div class="delete-confirm" data-confirm-for="${esc(job.beta_job_id)}" hidden><span>완전히 삭제할까요?</span><button type="button" data-delete-yes="${esc(job.beta_job_id)}">예</button><button type="button" data-delete-no="${esc(job.beta_job_id)}">아니오</button></div></div>` : ''}
         </div>
       </article>`;
     }).join('');
-    list.querySelectorAll('[data-open-job]').forEach((button) => button.addEventListener('click', () => openDetail(button.dataset.openJob)));
+    list.querySelectorAll('[data-open-job]').forEach((button) => button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      openDetail(button.dataset.openJob);
+    }));
+    list.querySelectorAll('[data-card-job]').forEach((card) => {
+      const openCard = (event) => {
+        if (event.target.closest('button,a,input,select,textarea,[data-delete-job],[data-delete-yes],[data-delete-no]')) return;
+        openDetail(card.dataset.cardJob);
+      };
+      card.addEventListener('click', openCard);
+      card.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        openDetail(card.dataset.cardJob);
+      });
+    });
     list.querySelectorAll('[data-delete-job]').forEach((button) => button.addEventListener('click', () => {
       list.querySelectorAll('.delete-confirm').forEach((box) => { if (box.dataset.confirmFor !== button.dataset.deleteJob) box.hidden = true; });
       const box = list.querySelector(`[data-confirm-for="${CSS.escape(button.dataset.deleteJob)}"]`);
@@ -593,7 +625,8 @@
       document.getElementById('archive-detail-close')?.addEventListener('click', closeDetail);
       detail.querySelectorAll('[data-download-package]').forEach((button) => button.addEventListener('click', () => downloadPackage(button.dataset.downloadPackage)));
       detail.querySelectorAll('[data-channel]').forEach((button) => button.addEventListener('click', () => selectAndCopyChannel(button, channels, false)));
-      document.getElementById('archive-channel-copy')?.addEventListener('click', () => {
+      document.getElementById('archive-smart-copy-bar')?.addEventListener('click', (event) => {
+        event.preventDefault();
         const active = detail.querySelector('[data-channel].active');
         if (active) selectAndCopyChannel(active, channels, true);
       });
@@ -637,6 +670,7 @@
   async function load() {
     list.className = 'empty'; list.textContent = '불러오는 중...';
     try {
+      await resolveAdminAccess();
       const summaries = (await req('/beta-api/jobs')).items || [];
       jobs = await Promise.all(summaries.map(async (item) => {
         try { return { ...item, ...(await req(`/beta-api/jobs/${encodeURIComponent(item.beta_job_id)}`)).job }; }
