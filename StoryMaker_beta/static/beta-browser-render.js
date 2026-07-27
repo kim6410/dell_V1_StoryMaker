@@ -2,7 +2,7 @@ let betaRenderBrowserShortform = null;
 
 async function loadBetaRenderBrowserShortform() {
   if (betaRenderBrowserShortform) return betaRenderBrowserShortform;
-  const module = await import('./assets/beta-mediabunny-webcodecs-renderer-20260724.js?v=20260726-mp4-timeout-90s-1');
+  const module = await import('./assets/beta-mediabunny-webcodecs-renderer-20260724.js?v=20260727-transition-options-phone-white-1');
   if (typeof module.c !== 'function') throw new Error('Beta Mediabunny/WebCodecs 렌더 함수를 찾지 못했습니다.');
   betaRenderBrowserShortform = module.c;
   return betaRenderBrowserShortform;
@@ -360,15 +360,21 @@ async function loadBetaRenderBrowserShortform() {
       throw new Error('이 브라우저는 WebCodecs H.264/AAC 인코딩을 지원하지 않습니다.');
     }
 
+    const imageUrls = [...(manifest.images || [])];
+    for (let i = imageUrls.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [imageUrls[i], imageUrls[j]] = [imageUrls[j], imageUrls[i]];
+    }
+    const selectedImageUrls = imageUrls.slice(0, 8);
     const sourceImages = [];
-    for (let index = 0; index < manifest.images.length; index += 1) {
-      sourceImages.push(await fetchAsFile(manifest.images[index], `image_${String(index + 1).padStart(3, '0')}.jpg`, 'image/jpeg'));
-      setProgress('slideshow', 5 + ((index + 1) / Math.max(1, manifest.images.length)) * 10);
+    for (let index = 0; index < selectedImageUrls.length; index += 1) {
+      sourceImages.push(await fetchAsFile(selectedImageUrls[index], `image_${String(index + 1).padStart(3, '0')}.jpg`, 'image/jpeg'));
+      setProgress('slideshow', 5 + ((index + 1) / Math.max(1, selectedImageUrls.length)) * 10);
     }
 
     const videoUrls = manifest.videos || [];
     const estimatedDuration = Math.max(12, Number(manifest.duration_seconds || 45));
-    const totalSlots = Math.max(sourceImages.length + (videoUrls.length ? 3 : 0), Math.ceil(estimatedDuration / 1.15));
+    const totalSlots = Math.max(sourceImages.length + (videoUrls.length ? 2 : 0), Math.ceil(estimatedDuration / 4.2));
     const targetVideoSlots = videoUrls.length ? Math.max(videoUrls.length * 2, Math.round(totalSlots * 0.30)) : 0;
     const targetImageSlots = Math.max(sourceImages.length, totalSlots - targetVideoSlots);
     const imageFiles = [];
@@ -422,6 +428,7 @@ async function loadBetaRenderBrowserShortform() {
       subtitlePosition: settings.subtitle_position || 'bottom',
 
       transitionType: settings.transition_type || 'random',
+      transitionDuration: Number(settings.transition_duration || 2.20),
       width: 720,
       height: 1280,
       fps: Number(settings.fps || 24),
