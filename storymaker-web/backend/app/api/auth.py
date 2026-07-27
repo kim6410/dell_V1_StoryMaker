@@ -10,6 +10,10 @@ import json
 import secrets
 import os
 import time
+import hashlib
+import ipaddress
+import threading
+from collections import defaultdict, deque
 from typing import Optional
 from pydantic import BaseModel
 import httpx
@@ -39,6 +43,79 @@ AUTH_COOKIE_NAME = "storymaker_token"
 AUTH_COOKIE_DOMAIN = ".mystorymaker.net"
 LOCAL_CONNECT_TTL_SECONDS = 300
 _LOCAL_CONNECT_CODES: dict[str, dict] = {}
+
+LOGIN_FAILURE_LIMIT = 5
+LOGIN_FAILURE_WINDOW_SECONDS = 5 * 60
+PASSWORD_RESET_LIMIT = 3
+PASSWORD_RESET_WINDOW_SECONDS = 15 * 60
+_RATE_LIMIT_EVENTS: dict[tuple[str, str], deque[float]] = defaultdict(deque)
+_RATE_LIMIT_LOCK = threading.Lock()
+_TRUSTED_PROXY_PEERS = {"127.0.0.1", "::1", "172.27.0.1", "192.168.0.32"}
+
+
+def _client_ip(request: Request) -> str:
+    """직접 접속 IP를 기본으로 사용하고, 지정된 프록시를 거친 경우에만 X-Forwarded-For를 신뢰합니다."""
+    peer_ip = request.client.host if request.client else "127.0.0.1"
+    if peer_ip not in _TRUSTED_PROXY_PEERS:
+        return peer_ip
+
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    for candidate in forwarded_for.split(","):
+        candidate = candidate.strip()
+        if not candidate:
+            continue
+        try:
+            return str(ipaddress.ip_address(candidate))
+        except ValueError:
+            continue
+    return peer_ip
+
+
+def _rate_subject(value: str) -> str:
+    normalized = (value or "").strip().casefold()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _prune_rate_events(events: deque[float], now: float, window_seconds: int) -> None:
+    cutoff = now - window_seconds
+    while events and events[0] <= cutoff:
+        events.popleft()
+
+
+def _check_rate_limit(scope: str, keys: list[str], limit: int, window_seconds: int) -> None:
+    now = time.time()
+    retry_after = 1
+    with _RATE_LIMIT_LOCK:
+        for key in keys:
+            events = _RATE_LIMIT_EVENTS[(scope, key)]
+            _prune_rate_events(events, now, window_seconds)
+            if len(events) >= limit:
+                retry_after = max(1, int(window_seconds - (now - events[0])))
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
+                    headers={"Retry-After": str(retry_after)},
+                )
+
+
+def _record_rate_event(scope: str, keys: list[str], window_seconds: int) -> None:
+    now = time.time()
+    with _RATE_LIMIT_LOCK:
+        for key in keys:
+            events = _RATE_LIMIT_EVENTS[(scope, key)]
+            _prune_rate_events(events, now, window_seconds)
+            events.append(now)
+
+
+def _clear_rate_events(scope: str, keys: list[str]) -> None:
+    with _RATE_LIMIT_LOCK:
+        for key in keys:
+            _RATE_LIMIT_EVENTS.pop((scope, key), None)
+
+
+def _consume_rate_limit(scope: str, keys: list[str], limit: int, window_seconds: int) -> None:
+    _check_rate_limit(scope, keys, limit, window_seconds)
+    _record_rate_event(scope, keys, window_seconds)
 
 
 class LocalConnectStartRequest(BaseModel):
@@ -197,23 +274,29 @@ def get_current_user(
         
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # JWT에 탑재된 session_id 클레임을 활용해 세션 갱신 및 사용시간(duration) 실시간 갱신
+    # session_id는 모든 인증 토큰의 필수 클레임이다.
+    # 세션 레코드가 없거나 로그아웃된 토큰은 즉시 거부한다.
     session_id = payload.get("session_id")
-    if session_id:
-        session_rec = db.query(UserSession).filter(UserSession.id == session_id).first()
-        if not session_rec or session_rec.logout_at:
-            _clear_auth_cookie(response, request)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Logged out or expired session."
-            )
-        session_rec.last_seen_at = now_str
-        try:
-            login_dt = datetime.strptime(session_rec.login_at, "%Y-%m-%d %H:%M:%S")
-            diff = datetime.now() - login_dt
-            session_rec.duration_seconds = max(0, int(diff.total_seconds()))
-        except Exception:
-            pass
+    if not session_id:
+        _clear_auth_cookie(response, request)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session-bound authentication token is required."
+        )
+    session_rec = db.query(UserSession).filter(UserSession.id == session_id).first()
+    if not session_rec or session_rec.logout_at:
+        _clear_auth_cookie(response, request)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Logged out or expired session."
+        )
+    session_rec.last_seen_at = now_str
+    try:
+        login_dt = datetime.strptime(session_rec.login_at, "%Y-%m-%d %H:%M:%S")
+        diff = datetime.now() - login_dt
+        session_rec.duration_seconds = max(0, int(diff.total_seconds()))
+    except Exception:
+        pass
         
     # 인증 API 호출 시 실시간 활동 시간 기록
     user.last_activity_at = now_str
@@ -247,16 +330,18 @@ def get_optional_current_user(
 
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     session_id = payload.get("session_id")
-    if session_id:
-        session_rec = db.query(UserSession).filter(UserSession.id == session_id).first()
-        if session_rec and not session_rec.logout_at:
-            session_rec.last_seen_at = now_str
-            try:
-                login_dt = datetime.strptime(session_rec.login_at, "%Y-%m-%d %H:%M:%S")
-                diff = datetime.now() - login_dt
-                session_rec.duration_seconds = max(0, int(diff.total_seconds()))
-            except Exception:
-                pass
+    if not session_id:
+        return None
+    session_rec = db.query(UserSession).filter(UserSession.id == session_id).first()
+    if not session_rec or session_rec.logout_at:
+        return None
+    session_rec.last_seen_at = now_str
+    try:
+        login_dt = datetime.strptime(session_rec.login_at, "%Y-%m-%d %H:%M:%S")
+        diff = datetime.now() - login_dt
+        session_rec.duration_seconds = max(0, int(diff.total_seconds()))
+    except Exception:
+        pass
 
     user.last_activity_at = now_str
     db.commit()
@@ -392,6 +477,14 @@ def login(req: UserLoginRequest, request: Request, response: Response, db: Sessi
     일반 회원은 WordPress REST API를 통해 인증하고, guest 계정은 로컬에서 즉시 인증을 유지합니다.
     """
     username = req.username.strip()
+    client_ip = _client_ip(request)
+    login_rate_keys = [f"ip:{client_ip}", f"account:{_rate_subject(username)}"]
+    _check_rate_limit(
+        "login_failure",
+        login_rate_keys,
+        LOGIN_FAILURE_LIMIT,
+        LOGIN_FAILURE_WINDOW_SECONDS,
+    )
     
     # 1. Guest 로그인 처리
     if username == "guest" and req.password == username:
@@ -401,6 +494,7 @@ def login(req: UserLoginRequest, request: Request, response: Response, db: Sessi
             user.wp_enabled = False
             db.commit()
             db.refresh(user)
+        _clear_rate_events("login_failure", login_rate_keys)
         return _issue_login_response(user, request, db, response)
 
     # 2. WordPress 로그인 처리
@@ -415,6 +509,11 @@ def login(req: UserLoginRequest, request: Request, response: Response, db: Sessi
                 "password": req.password
             })
             if wp_resp.status_code != 200:
+                _record_rate_event(
+                    "login_failure",
+                    login_rate_keys,
+                    LOGIN_FAILURE_WINDOW_SECONDS,
+                )
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="아이디 또는 비밀번호가 일치하지 않습니다."
@@ -474,6 +573,7 @@ def login(req: UserLoginRequest, request: Request, response: Response, db: Sessi
         db.commit()
         db.refresh(user)
 
+    _clear_rate_events("login_failure", login_rate_keys)
     return _issue_login_response(user, request, db, response)
 
 
@@ -567,6 +667,69 @@ def join(req: UserJoinRequest, request: Request, db: Session = Depends(get_db)):
     )
 
 
+class PasswordResetRequest(BaseModel):
+    login: str
+
+
+@router.post("/auth/password-reset-request", response_model=CommonResponse)
+def request_password_reset(req: PasswordResetRequest, request: Request):
+    """WordPress 코어를 통해 비밀번호 재설정 메일 발송을 요청합니다."""
+    login = (req.login or "").strip()
+    if not login:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="이메일 또는 사용자명을 입력해 주세요.",
+        )
+
+    client_ip = _client_ip(request)
+    reset_rate_keys = [f"ip:{client_ip}", f"account:{_rate_subject(login)}"]
+    _consume_rate_limit(
+        "password_reset_request",
+        reset_rate_keys,
+        PASSWORD_RESET_LIMIT,
+        PASSWORD_RESET_WINDOW_SECONDS,
+    )
+
+    wp_api_url = os.getenv("WORDPRESS_API_URL", "https://mystorymaker.net/wp-json/wp/v2").rstrip("/")
+    wp_base = wp_api_url.split("/wp-json/")[0] if "/wp-json/" in wp_api_url else "https://mystorymaker.net"
+    lost_url = f"{wp_base}/wp-login.php?action=lostpassword"
+
+    try:
+        with httpx.Client(timeout=20.0, follow_redirects=False) as client:
+            client.get(lost_url)
+            wp_response = client.post(
+                lost_url,
+                data={
+                    "user_login": login,
+                    "redirect_to": "",
+                    "wp-submit": "새 비밀번호 얻기",
+                },
+            )
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="비밀번호 재설정 메일 서버에 연결할 수 없습니다.",
+        ) from exc
+
+    body_text = wp_response.text or ""
+    mail_failure_markers = (
+        "이메일을 보낼 수 없습니다",
+        "The email could not be sent",
+        "wp_mail_failed",
+    )
+    if wp_response.status_code >= 500 or any(marker in body_text for marker in mail_failure_markers):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="비밀번호 재설정 메일을 발송하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        )
+
+    return CommonResponse(
+        ok=True,
+        data=None,
+        message="입력한 정보와 일치하는 계정이 있으면 비밀번호 재설정 메일을 발송했습니다. 메일함과 스팸함을 확인해 주세요.",
+    )
+
+
 @router.put("/auth/change-password", response_model=CommonResponse)
 def change_password(
     req: UserChangePasswordRequest, 
@@ -619,11 +782,11 @@ def logout(
     """
     사용자 세션을 명시적으로 만료시키고 로그아웃 처리를 수행하며 사용시간을 최종 계산하여 활동 로그에 저장합니다.
     """
-    if not credentials:
+    token = credentials.credentials if credentials else request.cookies.get(AUTH_COOKIE_NAME)
+    if not token:
         _clear_auth_cookie(response, request)
         return CommonResponse(ok=True, data=None, message="이미 로그아웃된 상태입니다.")
-        
-    token = credentials.credentials
+
     payload = verify_access_token(token)
     
     ip_addr = request.client.host if request.client else "127.0.0.1"

@@ -22,11 +22,11 @@ class Settings(BaseSettings):
     STORYMAKER_BACKUP_DIR: str = "/home/bourne/StoryMaker_1/backups"
     
     # 관리자 정보 (SaaS 마이그레이션 대비용)
-    STORYMAKER_ADMIN_USER: str = "admin"
-    STORYMAKER_ADMIN_PASSWORD: str = "admin"
+    STORYMAKER_ADMIN_USER: str = ""
+    STORYMAKER_ADMIN_PASSWORD: str = ""
     
     # JWT 설정
-    STORYMAKER_JWT_SECRET: str = "storymaker-super-secret-key-2026-kbbq"
+    STORYMAKER_JWT_SECRET: str = ""
     STORYMAKER_JWT_ALGORITHM: str = "HS256"
     STORYMAKER_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24시간
     

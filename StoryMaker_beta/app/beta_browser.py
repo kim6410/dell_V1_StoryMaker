@@ -95,26 +95,36 @@ def beta_browser_manifest(beta_job_id: str) -> JSONResponse:
     images = result.get("assets", {}).get("images", [])
     videos = result.get("assets", {}).get("videos", [])
     output = job_dir / "output"
+    content = result.get("content", {}) or {}
+    shortform = result.get("shortform", {}) or {}
+    selected_version = "80" if str(shortform.get("selected_podcast") or "50") == "80" else "50"
+    selected_script = str(
+        shortform.get("edited_script")
+        or content.get(f"podcast_{selected_version}")
+        or content.get("podcast_script")
+        or content.get("script")
+        or ""
+    )
     manifest = {
         "beta_job_id": beta_job_id,
         "title": result.get("title", "Beta 제작"),
         "business": result.get("business", {}),
         "watermark": (result.get("business", {}) or {}).get("name") or "StoryMaker Beta",
-        "thumbnail_prompt": result.get("content", {}).get("thumbnail_prompt", ""),
+        "thumbnail_prompt": content.get("thumbnail_prompt", ""),
         "duration_seconds": result.get("duration_seconds"),
-        "channels": result.get("content", {}).get("channels", {}),
-        "channel_order": result.get("content", {}).get("channel_order", []),
-        "script_key": "PODCAST_50",
-        "script": result.get("content", {}).get("podcast_50") or result.get("content", {}).get("podcast_script") or result.get("content", {}).get("script", ""),
-        "script_hash": hashlib.sha256((result.get("content", {}).get("podcast_50") or result.get("content", {}).get("podcast_script") or result.get("content", {}).get("script", "")).encode("utf-8")).hexdigest(),
+        "channels": content.get("channels", {}),
+        "channel_order": content.get("channel_order", []),
+        "script_key": f"PODCAST_{selected_version}",
+        "script": selected_script,
+        "script_hash": hashlib.sha256(selected_script.encode("utf-8")).hexdigest(),
         "voice_script_hash": result.get("assets", {}).get("voice_script_hash"),
         "images": [f"/beta-api/browser/jobs/{beta_job_id}/image/{index}" for index in range(1, len(images) + 1)],
         "videos": [f"/beta-api/browser/jobs/{beta_job_id}/video/{index}" for index in range(1, len(videos) + 1)],
         "voice_wav": (f"/beta-api/shortform/jobs/{beta_job_id}/mixed-audio" if canonical_audio_path(job_dir).exists() else None),
         "music": f"/beta-api/browser/jobs/{beta_job_id}/music" if result.get("assets", {}).get("music") else None,
         "subtitle": f"/beta-api/browser/jobs/{beta_job_id}/subtitle" if (output / "subtitle.srt").exists() else None,
-        "music_volume": float((result.get("shortform") or {}).get("bgm_volume", 0.15) or 0.15),
-        "music_name": (result.get("shortform") or {}).get("music_name"),
+        "music_volume": float(shortform.get("bgm_volume", 0.15) or 0.15),
+        "music_name": shortform.get("music_name"),
     }
     return JSONResponse({"ok": True, "manifest": manifest})
 

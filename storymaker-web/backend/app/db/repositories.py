@@ -193,22 +193,31 @@ def create_user(db: Session, username: str, password_plain: str, role: str = "us
 
 
 def seed_admin_user(db: Session) -> User | None:
+    """명시적으로 설정된 안전한 자격증명으로만 최초 관리자 계정을 생성합니다.
+
+    기존 관리자 계정은 절대 수정하지 않습니다. 관리자 환경변수가 없거나 비밀번호가
+    취약하면 신규 DB에서도 자동 시딩을 건너뛰어 기본 계정 노출을 방지합니다.
     """
-    설정에 지정된 기본 관리자 계정이 없을 경우 자동으로 데이터베이스에 인서트(시딩)합니다.
-    이미 계정이 존재한다면, 사용자가 마이페이지 등에서 수정했을 비밀번호의 영속성 유지를 위해
-    절대로 비밀번호를 덮어쓰지(동기화하지) 않습니다.
-    """
-    admin_username = settings.STORYMAKER_ADMIN_USER
-    admin_password = settings.STORYMAKER_ADMIN_PASSWORD
-    
+    import logging
+
+    logger = logging.getLogger("uvicorn")
+    admin_username = str(settings.STORYMAKER_ADMIN_USER or "").strip()
+    admin_password = str(settings.STORYMAKER_ADMIN_PASSWORD or "")
+
+    if not admin_username or not admin_password:
+        logger.warning("관리자 자동 시딩 건너뜀: STORYMAKER_ADMIN_USER/PASSWORD가 명시되지 않았습니다.")
+        return None
+
+    if len(admin_password) < 16 or admin_password.casefold() == admin_username.casefold():
+        logger.error("관리자 자동 시딩 거부: 비밀번호는 16자 이상이며 사용자명과 달라야 합니다.")
+        return None
+
     admin = get_user_by_username(db, admin_username)
-    if not admin:
-        import logging
-        logging.getLogger("uvicorn").info(f"기본 관리자 계정({admin_username}) 생성 중...")
-        admin = create_user(db, admin_username, admin_password, role="admin")
-        logging.getLogger("uvicorn").info(f"기본 관리자 계정 생성 완료")
-    else:
-        # 이미 계정이 존재하면 덮어쓰지 않고 스킵 (마이페이지 비밀번호 영속성 유지)
-        pass
+    if admin:
+        return admin
+
+    logger.info("명시적으로 설정된 관리자 계정 생성 중...")
+    admin = create_user(db, admin_username, admin_password, role="admin")
+    logger.info("관리자 계정 생성 완료")
     return admin
 

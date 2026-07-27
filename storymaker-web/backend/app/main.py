@@ -30,7 +30,7 @@ from app.db.performance_repository import migrate_performance_tables
 from app.db.intelligence_repository import migrate_intelligence_tables
 from app.db.mobile_one_shot_repository import migrate_mobile_one_shot_jobs_table
 from app.db.content_asset_repository import migrate_content_archive_assets_table
-from app.api.auth import get_optional_current_user
+from app.api.auth import get_current_user, get_optional_current_user
 from app.db.models import User
 from app.db.repositories import seed_admin_user
 from app.services.common_archive_service import register_common_archive
@@ -1831,6 +1831,22 @@ def get_todays_finance():
 
 # 일반 UI 정적 파일은 캐시를 차단하되, 대용량 브라우저 TTS 모델은 하루 동안 재사용한다.
 class NoCacheStaticFiles(StaticFiles):
+    _BLOCKED_BACKUP_MARKERS = (
+        ".backup_",
+        ".before_",
+        ".bak_",
+        ".old_",
+        "~",
+    )
+
+    async def get_response(self, path: str, scope):
+        # 운영 정적 디렉터리에 남아 있는 과거 백업·임시 파일은 외부에 제공하지 않는다.
+        normalized_path = str(path or "").replace("\\", "/").lower()
+        filename = normalized_path.rsplit("/", 1)[-1]
+        if any(marker in filename for marker in self._BLOCKED_BACKUP_MARKERS):
+            raise HTTPException(status_code=404, detail="Not Found")
+        return await super().get_response(path, scope)
+
     def is_not_modified(self, response_headers, request_headers) -> bool:
         # 기존 UI 자산은 즉시 갱신되도록 304 응답을 사용하지 않는다.
         return False
@@ -1866,11 +1882,73 @@ def redirect_static_v1_root():
 # /static 경로 마운트 시 커스텀 클래스 적용
 app.mount("/static", NoCacheStaticFiles(directory=static_dir), name="static")
 
-app.mount(
-    "/data/output_results",
-    StaticFiles(directory=os.getenv("STORYMAKER_OUTPUT_DIR", "/home/bourne/StoryMaker_1/output_results")),
-    name="output_results"
-)
+OUTPUT_RESULTS_ROOT = Path(
+    os.getenv("STORYMAKER_OUTPUT_DIR", "/home/bourne/StoryMaker_1/output_results")
+).resolve()
+
+
+def _output_result_owner_id(relative_path: str) -> Optional[int]:
+    """Return the DB owner for result paths whose ownership can be proven."""
+    parts = Path(relative_path).parts
+    if not parts:
+        return None
+
+    job_id = None
+    query = None
+    params: dict[str, Any] = {}
+
+    if parts[0] == "mobile_one_shot" and len(parts) >= 3:
+        job_id = parts[2]
+        query = "SELECT user_id FROM mobile_one_shot_jobs WHERE job_id = :job_id LIMIT 1"
+        params["job_id"] = job_id
+    elif parts[0] == "storymaker_main_uploads" and len(parts) >= 2:
+        job_id = parts[1]
+        query = "SELECT user_id FROM content_archive_assets WHERE source_job_id = :job_id LIMIT 1"
+        params["job_id"] = job_id
+    elif parts[0] == "test_result_packages" and len(parts) >= 2:
+        job_id = parts[1]
+        query = "SELECT user_id FROM content_archive_assets WHERE source_job_id = :job_id LIMIT 1"
+        params["job_id"] = job_id
+
+    if not query:
+        return None
+
+    db = SessionLocal()
+    try:
+        row = db.execute(text(query), params).first()
+        return int(row[0]) if row and row[0] is not None else None
+    finally:
+        db.close()
+
+
+@app.get("/data/output_results/{relative_path:path}", include_in_schema=False)
+def read_protected_output_result(
+    relative_path: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Serve legacy output URLs while requiring authentication and known-owner checks."""
+    requested = (OUTPUT_RESULTS_ROOT / relative_path).resolve()
+    try:
+        requested.relative_to(OUTPUT_RESULTS_ROOT)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    if not requested.is_file():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    owner_id = _output_result_owner_id(relative_path)
+    is_admin = str(getattr(current_user, "role", "") or "").lower() == "admin"
+    if owner_id is not None and int(current_user.id) != owner_id and not is_admin:
+        raise HTTPException(status_code=403, detail="이 결과 파일에 접근할 권한이 없습니다.")
+
+    return FileResponse(
+        requested,
+        filename=None,
+        headers={
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @app.get("/api/test/webgpu-tts-check", include_in_schema=False)

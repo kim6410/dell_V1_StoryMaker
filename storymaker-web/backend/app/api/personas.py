@@ -126,9 +126,12 @@ def create_my_persona(req: UserPersonaUpsert, db: Session = Depends(get_db), cur
         UserPersona.user_id == current_user.id,
         func.lower(UserPersona.company_name) == company_name.lower()
     ).first()
-    stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if duplicate:
-        company_name = f"{company_name} {stamp}"
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="같은 업체명의 페르소나가 이미 있습니다.",
+        )
+    stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     db.query(UserPersona).filter(UserPersona.user_id == current_user.id).update({UserPersona.is_default: False})
     persona = UserPersona(user_id=current_user.id, company_name=company_name, phone_number=phone_number, website_url=website_url, region=region, industry_key=industry_key, default_style=default_style, blog_content_length=blog_content_length, default_tones_json=json.dumps(default_tones, ensure_ascii=False), is_default=True, keywords_json=json.dumps(keywords, ensure_ascii=False), content=content, created_at=stamp, updated_at=stamp)
     db.add(persona)

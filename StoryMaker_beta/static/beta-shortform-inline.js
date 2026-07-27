@@ -358,11 +358,18 @@
     };
   }
 
+  function scrollToProductionLog(extraOffset = 0, behavior = 'smooth') {
+    const target = fields.wave || fields.status || fields.log;
+    if (!target) return;
+    const top = Math.max(0, window.scrollY + target.getBoundingClientRect().top - 90 + Number(extraOffset || 0));
+    window.scrollTo({ top, behavior });
+  }
+
   async function makeVideo() {
     if (!state.jobId) return;
     fields.make.disabled = true;
     fields.make.classList.remove('beta-action-breathe');
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    scrollToProductionLog(0);
     state.readyToSave = false;
     state.savedToArchive = false;
     const preview = fields.finalVideo;
@@ -388,6 +395,7 @@
       currentValues.one_time_music_file = fields.bgmMode.value === 'one_time' ? fields.bgmUpload.files?.[0] || null : null;
       stopHeartbeat = startWorkingHeartbeat('TTS·SRT·MP3 준비', 12, 36);
       let lastProgressLog = '';
+      let mp3FocusFixed = false;
       const result = await renderer.createVideoOnly(state.jobId, currentValues, (percent, message, detail) => {
         const cleanMessage = String(message || '제작 진행 중');
         setProgress(percent, cleanMessage);
@@ -398,6 +406,10 @@
         if (Number(percent || 0) >= 36 && stopHeartbeat) {
           stopHeartbeat();
           stopHeartbeat = null;
+        }
+        if (Number(percent || 0) >= 36 && !mp3FocusFixed) {
+          mp3FocusFixed = true;
+          scrollToProductionLog(0);
         }
         if (detail?.type === 'frame') showRenderedFrame(detail.canvas);
         else if (detail) detailLog(detail);
@@ -420,6 +432,7 @@
       if (!state.savedToArchive) await saveCurrentToArchive();
       if (!state.savedToArchive) throw new Error('MP4 보관함 자동 저장에 실패했습니다.');
       setProgress(100, 'MP4 제작 및 보관함 자동 저장 완료');
+      scrollToProductionLog(190);
       if (fields.sceneBadge) fields.sceneBadge.textContent = '제작 완료 · Play로 확인하세요';
       // MP4 완료 시 현재 작업 데이터와 사용자가 선택한 이미지 목록을 16종 썸네일 영역에 전달합니다.
       window.dispatchEvent(new CustomEvent('storymaker:shortform-complete', {
@@ -463,6 +476,7 @@
         state.savedToArchive = true;
         stopScenePreview();
         setProgress(100, '서버 MP4 폴백 완료 · 보관함 자동 저장 완료');
+        scrollToProductionLog(190);
         appendLog('Dell 서버 MP4 폴백 완료 · 저사양 PC에서도 최종 영상 생성 성공');
         if (fields.sceneBadge) fields.sceneBadge.textContent = '서버 폴백 완료 · Play로 확인하세요';
         window.dispatchEvent(new CustomEvent('storymaker:shortform-complete', {
