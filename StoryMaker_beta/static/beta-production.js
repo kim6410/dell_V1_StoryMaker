@@ -695,7 +695,7 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
         if (input && !input.value.trim() && String(value || '').trim()) input.value = String(value).trim();
       }
       if (pairs.some(([input]) => input?.value?.trim())) {
-        betaUi.status.textContent = 'V1 로그인 업체정보를 불러왔습니다. 필요하면 수정한 뒤 제작하세요.';
+        betaUi.status.textContent = '업체정보를 불러왔습니다. 수정 후 반영 가능!';
       }
     } catch (_) {
       // V1 로그인이 없거나 연결되지 않으면 기존 수동 입력을 유지합니다.

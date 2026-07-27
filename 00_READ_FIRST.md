@@ -103,6 +103,96 @@ Push 전에는 반드시 미커밋 변경, 미추적 파일, 현재 브랜치, P
 
 Push 후에는 로컬 `HEAD`, `origin/main`, `git ls-remote --heads origin main`의 커밋이 일치하는지 확인하고 성공 여부를 사용자에게 보고합니다.
 
+### AI의 커밋·Push 자동 처리 기준
+
+사용자가 `업무일지 쓰고 깃 푸시`, `변경 내용 커밋하고 푸시`, `깃허브에 올려줘`처럼 커밋 또는 Push 의사를 명확히 표시하면 AI는 불필요한 재질문 없이 아래 절차를 직접 수행합니다.
+
+사용자가 단순히 코드 수정·검사만 요청한 경우에는 임의로 커밋하거나 Push하지 않습니다.
+
+사용자가 `Push`만 요청했고 현재 작업과 관련된 변경이 아직 커밋되지 않았다면, AI는 먼저 현재 대화에서 직접 수정한 파일과 새 업무일지만 식별합니다. 대상이 명확하고 검증이 끝난 경우에만 해당 파일을 지정해 커밋한 뒤 Push합니다.
+
+작업트리에 다른 작업자의 변경, 이전 작업의 미커밋 파일, 대량의 미추적 파일이 섞여 있어도 이번 작업과 관련된 파일만 정확한 경로로 지정합니다.
+
+다음 명령은 원칙적으로 사용하지 않습니다.
+
+```bash
+git add .
+git add -A
+git commit -am "..."
+git clean
+git reset --hard
+```
+
+대신 다음처럼 대상 파일을 명시합니다.
+
+```bash
+git add -- "정확한 파일 경로 1" "정확한 파일 경로 2" "WORK_LOGS/정확한 업무일지.md"
+git diff --cached --stat
+git diff --cached --name-status
+```
+
+스테이징된 파일 목록에 예상하지 못한 파일이 하나라도 포함되면 커밋을 중단하고 원인을 확인합니다.
+
+### AI가 Push 전에 반드시 수행할 검사
+
+1. `git status --short`로 전체 작업트리 상태를 확인합니다.
+2. 이번 작업 대상 파일만 별도로 `git diff --stat -- <경로>`와 `git diff -- <경로>`로 확인합니다.
+3. Python·JavaScript·HTML 등 변경 파일의 문법 검사를 수행합니다.
+4. 관련 서비스 상태와 HTTP 응답을 확인할 수 있으면 함께 검사합니다.
+5. 업무일지를 요청받았다면 `WORK_LOGS`에 새 Markdown 문서를 생성하고 파일 크기·줄 수·SHA-256을 기록합니다.
+6. 정확한 파일만 스테이징한 뒤 `git diff --cached`를 다시 확인합니다.
+7. 커밋 메시지는 실제 기능 변경을 한 문장으로 구체적으로 작성합니다.
+8. 커밋 후 `git show --stat --oneline HEAD`로 포함 파일을 다시 검증합니다.
+
+검사 실패, 기능 미완료, 대상 파일 불명확, 비밀정보 포함 가능성이 있으면 AI는 자동 커밋·Push를 중단하고 사용자에게 상태를 보고합니다.
+
+### SSH 실행 사용자 기준
+
+GitHub SSH 키는 Dell의 `bourne` 사용자 환경에 등록되어 있습니다.
+
+root 또는 MCP 관리 계정에서 다음 오류가 발생할 수 있습니다.
+
+```text
+git@github.com: Permission denied (publickey).
+```
+
+이 오류는 저장소 권한 문제로 단정하지 않습니다. 먼저 아래처럼 `bourne` 사용자 인증을 확인합니다.
+
+```bash
+sudo -u bourne -H ssh -T git@github.com
+```
+
+인증 성공이 확인되면 Push도 `bourne` 사용자로 실행합니다.
+
+```bash
+sudo -u bourne -H git -C /home/bourne/StoryMaker_1 push origin main
+```
+
+비밀키 파일의 내용은 읽거나 출력하지 않습니다. SSH 키가 존재한다는 이유로 새 키를 생성하거나 기존 키를 덮어쓰지 않습니다.
+
+### Push 완료 판정
+
+다음 세 값이 모두 같아야 Push 성공으로 판정합니다.
+
+```bash
+LOCAL=$(git -C /home/bourne/StoryMaker_1 rev-parse HEAD)
+REMOTE_TRACKING=$(git -C /home/bourne/StoryMaker_1 rev-parse origin/main)
+REMOTE_ACTUAL=$(git -C /home/bourne/StoryMaker_1 ls-remote --heads origin main | awk '{print $1}')
+```
+
+`LOCAL`, `REMOTE_TRACKING`, `REMOTE_ACTUAL`이 일치하지 않으면 성공으로 보고하지 않습니다.
+
+사용자 보고에는 최소한 다음 내용을 포함합니다.
+
+- 커밋 짧은 해시와 전체 해시
+- 커밋 메시지
+- 커밋에 포함된 파일 목록
+- 주요 검사 결과
+- 로컬과 원격 커밋 일치 여부
+- 이번 커밋에 포함하지 않고 남겨둔 다른 변경이 있는지 여부
+
+업무일지와 코드 변경을 함께 Push한 경우에도 기존의 다른 미커밋·미추적 파일은 그대로 보존합니다.
+
 이 문서의 규칙은 다른 임시 메모, 채팅 내용, 실험 스크립트보다 우선합니다.
 
 

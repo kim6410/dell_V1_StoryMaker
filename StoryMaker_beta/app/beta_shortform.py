@@ -179,7 +179,9 @@ def shortform_context(job_id: str, request: Request) -> JSONResponse:
     channels = content.get("channels", {}) or {}
     blog = channels.get("BLOG", {}) if isinstance(channels, dict) else {}
     carousel = channels.get("CAROUSEL_7", {}) if isinstance(channels, dict) else {}
+    instagram = channels.get("INSTAGRAM", {}) if isinstance(channels, dict) else {}
     carousel_text = str(carousel.get("content") or "") if isinstance(carousel, dict) else str(carousel or "")
+    instagram_text = str(instagram.get("content") or content.get("instagram_summary") or "") if isinstance(instagram, dict) else str(instagram or "")
     carousel_titles = content_headings(carousel_text, limit=2)
     carousel_title_1 = carousel_titles[0] if carousel_titles else ""
     carousel_title_2 = carousel_titles[1] if len(carousel_titles) > 1 else ""
