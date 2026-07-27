@@ -174,7 +174,9 @@ def shortform_context(job_id: str, request: Request) -> JSONResponse:
     business = result.get("business", {}) or {}
     images = result.get("assets", {}).get("images", []) or []
     videos = result.get("assets", {}).get("videos", []) or []
-    script = strip_speaker_labels(content.get("podcast_50") or channels.get("PODCAST_50", {}).get("content") or "")
+    podcast_50 = strip_speaker_labels(content.get("podcast_50") or channels.get("PODCAST_50", {}).get("content") or "")
+    podcast_80 = strip_speaker_labels(content.get("podcast_80") or channels.get("PODCAST_80", {}).get("content") or "")
+    script = podcast_50
     with connect() as connection:
         row = connection.execute(
             "SELECT settings_json FROM beta_shortform_user_settings WHERE user_key=?",
@@ -193,6 +195,8 @@ def shortform_context(job_id: str, request: Request) -> JSONResponse:
         "business_name": business.get("name") or "",
         "business_phone": business.get("phone") or "",
         "script": script,
+        "podcast_50": podcast_50,
+        "podcast_80": podcast_80,
         "image_count": len(images),
         "video_count": len(videos),
         "images": [f"/beta-api/browser/jobs/{job_id}/image/{i}" for i in range(1, len(images) + 1)],

@@ -620,10 +620,12 @@ async function loadBetaRenderBrowserShortform() {
     });
   }
 
-  async function uploadBrowserPodcast(currentJobId, result) {
+  async function uploadBrowserPodcast(currentJobId, result, settings = {}) {
     const form = new FormData();
     form.append('browser_mp3', result.mp3Blob, 'browser_podcast.mp3');
     form.append('browser_srt', result.srtBlob, 'browser_podcast.srt');
+    form.append('script', String(settings?.script || ''));
+    form.append('podcast_version', String(settings?.podcast_version || '50'));
     form.append('diagnostics', JSON.stringify(podcastDiagnostics({
       source: 'beta-browser-podcast-worker',
       provider: result.provider || 'browser',
@@ -642,8 +644,9 @@ async function loadBetaRenderBrowserShortform() {
     ui.audio.hidden = true; ui.video.hidden = true; ui.upload.disabled = true; ui.mp4.disabled = true;
 
     const context = await request(`/beta-api/shortform/jobs/${encodeURIComponent(currentJobId)}/context`);
-    const script = String(context?.context?.script || '').trim();
-    if (!script) throw new Error('PODCAST_50 대본이 없습니다.');
+    const submittedScript = String(settings?.script || '').trim();
+    const script = submittedScript || String(context?.context?.script || '').trim();
+    if (!script) throw new Error('선택한 팟캐스트 대본이 없습니다.');
 
     const startedAt = performance.now();
     try {
@@ -657,7 +660,7 @@ async function loadBetaRenderBrowserShortform() {
       lastPodcastProvider = String(generated.provider || 'browser').toLowerCase();
       lastPodcastPerf = generated.perf || null;
       ui.status.textContent = `브라우저 음성 완료 · ${lastPodcastProvider.toUpperCase()} · Beta 작업에 저장하는 중...`;
-      await uploadBrowserPodcast(currentJobId, generated);
+      await uploadBrowserPodcast(currentJobId, generated, settings);
     } catch (browserError) {
       lastPodcastSeconds = (performance.now() - startedAt) / 1000;
       lastPodcastProvider = 'server-supertonic';

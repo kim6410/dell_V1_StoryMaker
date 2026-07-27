@@ -180,6 +180,8 @@ async def beta_browser_upload(
     browser_srt: UploadFile | None = File(None),
     browser_mp4: UploadFile | None = File(None),
     diagnostics: str = Form("{}"),
+    script: str = Form(""),
+    podcast_version: str = Form("50"),
 ) -> JSONResponse:
     job_dir = beta_browser_job_dir(beta_job_id)
     output_dir = job_dir / "output" / "browser"
@@ -225,6 +227,20 @@ async def beta_browser_upload(
     except json.JSONDecodeError:
         diagnostic_data = {"raw": diagnostics[:2000]}
     result = beta_browser_result(job_dir)
+    clean_script = str(script or "").strip()
+    selected_version = "80" if str(podcast_version) == "80" else "50"
+    if clean_script:
+        content = result.setdefault("content", {})
+        content[f"podcast_{selected_version}"] = clean_script
+        content["podcast_script"] = clean_script
+        content["script"] = clean_script
+        channels = content.get("channels")
+        channel_key = f"PODCAST_{selected_version}"
+        if isinstance(channels, dict) and isinstance(channels.get(channel_key), dict):
+            channels[channel_key]["content"] = clean_script
+        result.setdefault("shortform", {})["edited_script"] = clean_script
+        result["shortform"]["selected_podcast"] = selected_version
+        result.setdefault("assets", {})["voice_script_hash"] = hashlib.sha256(clean_script.encode("utf-8")).hexdigest()
     result.setdefault("assets", {}).update(saved)
     result["browser_render"] = {"saved": bool(saved), "diagnostics": diagnostic_data}
     beta_browser_write_result(job_dir, result)

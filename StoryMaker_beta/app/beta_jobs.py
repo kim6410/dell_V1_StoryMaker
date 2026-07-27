@@ -531,7 +531,12 @@ async def beta_create_job(
 
 
 @beta_jobs_router.post("/jobs/{beta_job_id}/render")
-def beta_render_job(beta_job_id: str, music_volume: float = Form(0.16)) -> JSONResponse:
+def beta_render_job(
+    beta_job_id: str,
+    music_volume: float = Form(0.16),
+    script: str = Form(""),
+    podcast_version: str = Form("50"),
+) -> JSONResponse:
     job_dir = beta_job_dir(beta_job_id)
     output_dir = job_dir / "output"
     result = beta_read_json(job_dir / "result.json")
@@ -541,8 +546,31 @@ def beta_render_job(beta_job_id: str, music_volume: float = Form(0.16)) -> JSONR
     music_volume = max(0.0, min(float(music_volume), 0.5))
     try:
         beta_update_job(beta_job_id, status="creating_voice", progress=20)
-        script = result.get("content", {}).get("podcast_80") or result.get("content", {}).get("podcast_script") or result.get("content", {}).get("script", "")
+        selected_version = "80" if str(podcast_version).strip() == "80" else "50"
+        selected_script = str(script or "").strip()
+        if not selected_script:
+            content = result.get("content", {}) or {}
+            selected_script = (
+                content.get(f"podcast_{selected_version}")
+                or content.get("podcast_script")
+                or content.get("script", "")
+            )
+        if not selected_script:
+            raise HTTPException(status_code=400, detail="TTS로 읽을 팟캐스트 대본이 없습니다.")
+        result.setdefault("shortform", {})["selected_podcast"] = selected_version
+        result["shortform"]["edited_script"] = selected_script
+        beta_write_json(job_dir / "result.json", result)
+        (job_dir / "script.txt").write_text(selected_script, encoding="utf-8")
+        (job_dir / "podcast_script.txt").write_text(selected_script, encoding="utf-8")
+        content = result.setdefault("content", {})
+        content[f"podcast_{selected_version}"] = selected_script
+        content["podcast_script"] = selected_script
+        content["script"] = selected_script
+        beta_write_json(job_dir / "result.json", result)
+        script = selected_script
         voice_wav = canonical_audio_path(job_dir)
+        voice_wav.unlink(missing_ok=True)
+        (output_dir / "subtitle.srt").unlink(missing_ok=True)
         beta_make_tts(script, voice_wav, job_dir)
         duration = beta_probe_duration(voice_wav, job_dir)
         voice_mp3 = output_dir / "voice.mp3"

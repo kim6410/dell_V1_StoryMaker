@@ -5,11 +5,11 @@
   if (!root) return;
 
   const q = (id) => document.getElementById(id);
-  const state = { jobId: '', context: null, settings: null, timer: null, sceneTimer: null, thumbnailTimer: null, thumbnailChecking: false, thumbnailUrl: '', mediaUrls: [], mediaNames: [], sceneIndex: 0, startedAt: 0, lastProgress: 0, readyToSave: false, saving: false, savedToArchive: false };
+  const state = { jobId: '', context: null, settings: null, timer: null, sceneTimer: null, thumbnailTimer: null, thumbnailChecking: false, thumbnailUrl: '', mediaUrls: [], mediaNames: [], sceneIndex: 0, startedAt: 0, lastProgress: 0, readyToSave: false, saving: false, savedToArchive: false, selectedPodcast: '50', scriptDrafts: { '50': '', '80': '' } };
 
   const fields = {
     title1: q('sf-title-1'), title2: q('sf-title-2'), business: q('sf-business'), phone: q('sf-phone'),
-    script: q('sf-script'), media: q('sf-media-summary'), imageInput: q('sf-images'), videoInput: q('sf-videos'),
+    script: q('sf-script'), scriptLabel: q('sf-script-label'), podcast50: q('sf-podcast-50'), podcast80: q('sf-podcast-80'), media: q('sf-media-summary'), imageInput: q('sf-images'), videoInput: q('sf-videos'),
     femaleVoice: q('sf-female-voice'), maleVoice: q('sf-male-voice'), voiceSpeed: q('sf-voice-speed'), voiceVolume: q('sf-voice-volume'),
     brandSize: q('sf-brand-size'), phoneSize: q('sf-phone-size'), bottomMargin: q('sf-bottom-margin'),
     fps: q('sf-fps'), transition: q('sf-transition'), bgmMode: q('sf-bgm-mode'), bgmFile: q('sf-bgm-file'), bgmUpload: q('sf-bgm-upload'), bgmVolume: q('sf-bgm-volume'),
@@ -107,7 +107,25 @@
       .join('\n');
   }
 
+  function selectPodcast(version, { preserveCurrent = true } = {}) {
+    const next = version === '80' ? '80' : '50';
+    if (preserveCurrent && fields.script) state.scriptDrafts[state.selectedPodcast] = fields.script.value;
+    state.selectedPodcast = next;
+    if (fields.script) fields.script.value = state.scriptDrafts[next] || '';
+    if (fields.scriptLabel) fields.scriptLabel.textContent = `팟캐스트 ${next}`;
+    if (fields.podcast50) {
+      fields.podcast50.classList.toggle('active', next === '50');
+      fields.podcast50.setAttribute('aria-pressed', String(next === '50'));
+    }
+    if (fields.podcast80) {
+      fields.podcast80.classList.toggle('active', next === '80');
+      fields.podcast80.setAttribute('aria-pressed', String(next === '80'));
+    }
+    refreshPreview();
+  }
+
   function values() {
+    if (fields.script) state.scriptDrafts[state.selectedPodcast] = fields.script.value;
     return {
       female_voice: fields.femaleVoice.value, male_voice: fields.maleVoice.value,
       voice_speed: Number(fields.voiceSpeed.value), voice_volume: Number(fields.voiceVolume.value),
@@ -118,6 +136,7 @@
       subtitle_position: fields.subtitlePosition.value,
       title_line_1: fields.title1.value.trim(), title_line_2: fields.title2.value.trim(),
       business_name: fields.business.value.trim(), business_phone: fields.phone.value.trim(),
+      podcast_version: state.selectedPodcast,
       script: stripSpeakerLabels(fields.script.value)
     };
   }
@@ -237,7 +256,9 @@
     fields.title2.value = data.context.title_line_2 || '';
     fields.business.value = data.context.business_name || '';
     fields.phone.value = data.context.business_phone || '';
-    fields.script.value = stripSpeakerLabels(data.context.script || '');
+    state.scriptDrafts['50'] = stripSpeakerLabels(data.context.podcast_50 || data.context.script || '');
+    state.scriptDrafts['80'] = stripSpeakerLabels(data.context.podcast_80 || data.context.script || '');
+    selectPodcast(state.selectedPodcast || '50', { preserveCurrent: false });
     if (fields.media) fields.media.textContent = `이미지 ${data.context.image_count}장 · 동영상 ${data.context.video_count}개`;
     if (fields.imageConnected) fields.imageConnected.innerHTML = `<span style="color:#75edce;font-weight:bold;">✔ 이전 이미지 ${data.context.image_count}장 연동 적용됨</span>`;
     if (fields.videoConnected) fields.videoConnected.innerHTML = `<span style="color:${data.context.video_count > 0 ? '#75edce' : '#9cb0cc'};font-weight:bold;">${data.context.video_count > 0 ? `✔ 이전 동영상 ${data.context.video_count}개 연동 적용됨` : '동영상 없음 (이미지 슬라이드 구성)'}</span>`;
@@ -425,6 +446,8 @@
       try {
         const fallbackBody = new FormData();
         fallbackBody.append('music_volume', String(Number(fields.bgmVolume?.value || 0.1)));
+        fallbackBody.append('script', stripSpeakerLabels(fields.script?.value || ''));
+        fallbackBody.append('podcast_version', state.selectedPodcast);
         const fallback = await request(`/beta-api/jobs/${encodeURIComponent(state.jobId)}/render`, {
           method: 'POST',
           body: fallbackBody
@@ -494,6 +517,12 @@
       state.saving = false;
     }
   }
+
+  fields.podcast50?.addEventListener('click', () => selectPodcast('50'));
+  fields.podcast80?.addEventListener('click', () => selectPodcast('80'));
+  fields.script?.addEventListener('input', () => {
+    state.scriptDrafts[state.selectedPodcast] = fields.script.value;
+  });
 
   root.querySelectorAll('input,textarea,select').forEach((element) => {
     element.addEventListener('input', () => { refreshPreview(); scheduleSave(); });

@@ -15,6 +15,7 @@ from app.beta_browser import beta_browser_router
 from app.beta_steps import beta_steps_router
 from app.beta_gemini_worker import beta_gemini_worker_router
 from app.beta_shortform import beta_shortform_router
+from app.beta_content_reference import router as beta_content_reference_router
 from app.beta_auth import current_user_id, current_user_role, enforce_beta_user_isolation
 
 ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
@@ -38,6 +39,7 @@ app.include_router(beta_browser_router)
 app.include_router(beta_steps_router)
 app.include_router(beta_gemini_worker_router)
 app.include_router(beta_shortform_router)
+app.include_router(beta_content_reference_router)
 
 
 def connect_db() -> sqlite3.Connection:
