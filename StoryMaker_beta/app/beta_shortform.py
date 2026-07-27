@@ -212,6 +212,7 @@ def shortform_context(job_id: str, request: Request) -> JSONResponse:
         "title_line_1": compact_title(carousel_title_1 or business.get("name") or "StoryMaker Beta", limit=30),
         "title_line_2": compact_title(carousel_title_2 or carousel_title_1 or blog_title or result.get("title") or "StoryMaker Beta", limit=30),
         "carousel_content": carousel_text,
+        "instagram_content": instagram_text,
         "business_name": business.get("name") or "",
         "business_phone": business.get("phone") or "",
         "script": script,

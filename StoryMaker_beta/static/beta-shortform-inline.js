@@ -668,6 +668,7 @@
       phone: fields.phone?.value || '',
       script: fields.script?.value || '',
       carouselContent: state.context?.carousel_content || '',
+      instagramContent: state.context?.instagram_content || '',
       images: state.mediaUrls.length ? state.mediaUrls.slice() : (Array.isArray(state.context?.images) ? state.context.images.slice() : [])
     };
   }
