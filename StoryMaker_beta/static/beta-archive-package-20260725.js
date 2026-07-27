@@ -320,7 +320,6 @@
   async function selectAndCopyChannel(button, channels, copyNow = true) {
     const key = String(button.dataset.channel || '');
     const item = channels[key] || {};
-    const content = String(item.content || '');
     const label = String(item.label || key || '콘텐츠');
     detail.querySelectorAll('[data-channel]').forEach((tab) => tab.classList.toggle('active', tab === button));
     const payload = archiveCopyPayload(item, key);
@@ -329,21 +328,36 @@
       contentBox.classList.toggle('archive-channel-dark', key !== 'BLOG');
       contentBox.innerHTML = key === 'BLOG' ? payload.rich : mobileCopyHtml(item.content || '');
     }
+    const smartBar = document.getElementById('archive-smart-copy-bar');
+    const smartLabel = document.getElementById('archive-smart-copy-label');
+    const smartMeta = document.getElementById('archive-smart-copy-meta');
+    const smartButton = document.getElementById('archive-channel-copy');
+    if (smartLabel) smartLabel.textContent = label;
+    if (smartMeta) smartMeta.textContent = `${payload.plain.length.toLocaleString('ko-KR')}자 · ${key === 'BLOG' ? '서식 유지 복사' : '텍스트 복사'}`;
+    if (smartButton) smartButton.textContent = key === 'BLOG' ? '블로그 서식 복사' : `${label} 복사`;
+    if (smartBar) {
+      smartBar.classList.remove('channel-switching');
+      void smartBar.offsetWidth;
+      smartBar.classList.add('channel-switching');
+    }
     if (!copyNow) return;
-    const original = button.dataset.originalLabel || button.textContent.trim();
-    button.dataset.originalLabel = original;
     try {
+      smartButton?.classList.add('copying');
       await copyRichContent(payload.plain, payload.rich);
-      button.classList.add('copied');
-      button.textContent = `${original} 복사됨`;
+      smartButton?.classList.remove('copying');
+      smartButton?.classList.add('copied');
+      if (smartButton) smartButton.textContent = '복사 완료';
       showCopyToast(`${label} 콘텐츠를 복사했습니다. 바로 붙여넣어 사용하세요.`);
     } catch (error) {
+      smartButton?.classList.remove('copying');
+      smartButton?.classList.add('failed');
+      if (smartButton) smartButton.textContent = '다시 시도';
       showCopyToast(`복사 실패: ${error.message}`, true);
     } finally {
       setTimeout(() => {
-        button.classList.remove('copied');
-        button.textContent = original;
-      }, 1400);
+        smartButton?.classList.remove('copied', 'failed');
+        if (smartButton) smartButton.textContent = key === 'BLOG' ? '블로그 서식 복사' : `${label} 복사`;
+      }, 1500);
     }
   }
 
@@ -566,7 +580,7 @@
       const images = assets.images || [];
       const thumbnailUrl = assets.thumbnail ? `/beta-api/jobs/${encodeURIComponent(jobId)}/file/thumbnail` : (images.length ? `/beta-api/browser/jobs/${encodeURIComponent(jobId)}/image/1` : '');
       detail.innerHTML = `<div class="detail-head"><div><div class="badge">BETA ARCHIVE DETAIL</div><h2>${esc(job.title || 'Beta 제작')}</h2><p>${esc(job.business?.name || '')} · ${esc(job.business?.region || '')} · ${esc(job.business?.service || '')}</p></div><button id="archive-detail-close" type="button">닫기</button></div>
-        <section class="detail-block"><div class="channel-title-row"><h3>SNS 8채널</h3><div class="channel-copy-actions"><button id="archive-channel-copy" type="button">복사</button><span>채널을 선택한 뒤 복사하세요.</span></div></div><div class="channel-tabs">${order.map((key, index) => `<button type="button" class="channel-tab${index === 0 ? ' active' : ''}" data-channel="${esc(key)}">${esc(channels[key]?.label || key)}</button>`).join('')}</div><div id="archive-channel-content" class="channel-content rich-channel-content${first === 'BLOG' ? '' : ' archive-channel-dark'}">${first === 'BLOG' ? archiveCopyPayload(channels[first], first).rich : mobileCopyHtml(channels[first]?.content || '')}</div></section>
+        <section class="detail-block"><div class="channel-title-row"><h3>SNS 8채널</h3><span>채널을 선택하면 아래 복사 바가 자동으로 따라옵니다.</span></div><div class="channel-tabs">${order.map((key, index) => `<button type="button" class="channel-tab${index === 0 ? ' active' : ''}" data-channel="${esc(key)}">${esc(channels[key]?.label || key)}</button>`).join('')}</div><div id="archive-channel-content" class="channel-content rich-channel-content${first === 'BLOG' ? '' : ' archive-channel-dark'}">${first === 'BLOG' ? archiveCopyPayload(channels[first], first).rich : mobileCopyHtml(channels[first]?.content || '')}</div><div id="archive-smart-copy-bar" class="archive-smart-copy-bar"><div class="archive-smart-copy-info"><span class="archive-smart-copy-kicker">현재 채널</span><strong id="archive-smart-copy-label">${esc(channels[first]?.label || first || '콘텐츠')}</strong><small id="archive-smart-copy-meta">${archiveCopyPayload(channels[first], first).plain.length.toLocaleString('ko-KR')}자 · ${first === 'BLOG' ? '서식 유지 복사' : '텍스트 복사'}</small></div><button id="archive-channel-copy" type="button">${first === 'BLOG' ? '블로그 서식 복사' : `${esc(channels[first]?.label || first || '콘텐츠')} 복사`}</button></div></section>
         <div class="archive-sections archive-sections-all">
           <div id="archive-media-all" class="archive-media-all">
             <section class="archive-section-static media-preview-card"><h3>업로드 이미지 ${images.length}장</h3><div class="image-grid">${images.map((_, index) => { const imageUrl = `/beta-api/browser/jobs/${encodeURIComponent(jobId)}/image/${index + 1}`; return `<button type="button" class="archive-media-thumb" data-media-preview="gallery" data-media-url="${imageUrl}" data-media-title="업로드 이미지 ${images.length}장" data-media-download="${esc(jobId)}_images.zip"><img loading="lazy" src="${imageUrl}" alt="이미지 ${index + 1}"></button>`; }).join('') || '<div class="empty-mini">이미지가 없습니다.</div>'}</div>${images.length ? `<div class="media-download-row"><a class="download-link" href="/beta-api/browser/jobs/${encodeURIComponent(jobId)}/images-download" download>다운로드</a></div>` : ''}</section>
