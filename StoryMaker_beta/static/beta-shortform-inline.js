@@ -5,24 +5,24 @@
   if (!root) return;
 
   const q = (id) => document.getElementById(id);
-  const state = { jobId: '', context: null, settings: null, timer: null, sceneTimer: null, thumbnailTimer: null, thumbnailChecking: false, thumbnailUrl: '', mediaUrls: [], mediaNames: [], sceneIndex: 0, startedAt: 0, lastProgress: 0, readyToSave: false, saving: false, savedToArchive: false, selectedPodcast: '50', scriptDrafts: { '50': '', '80': '' } };
+  const state = { jobId: '', context: null, settings: null, timer: null, sceneTimer: null, thumbnailTimer: null, thumbnailChecking: false, thumbnailUrl: '', mediaUrls: [], mediaNames: [], sceneIndex: 0, startedAt: 0, lastProgress: 0, readyToSave: false, saving: false, savedToArchive: false, selectedPodcast: '50', previewPlaying: false, previewFocusTimer: null, scriptDrafts: { '50': '', '80': '' } };
 
   const fields = {
     title1: q('sf-title-1'), title2: q('sf-title-2'), business: q('sf-business'), phone: q('sf-phone'),
     script: q('sf-script'), scriptLabel: q('sf-script-label'), podcast50: q('sf-podcast-50'), podcast80: q('sf-podcast-80'), media: q('sf-media-summary'), imageInput: q('sf-images'), videoInput: q('sf-videos'),
     femaleVoice: q('sf-female-voice'), maleVoice: q('sf-male-voice'), voiceSpeed: q('sf-voice-speed'), voiceVolume: q('sf-voice-volume'),
     brandSize: q('sf-brand-size'), phoneSize: q('sf-phone-size'), bottomMargin: q('sf-bottom-margin'),
-    fps: q('sf-fps'), transition: q('sf-transition'), bgmMode: q('sf-bgm-mode'), bgmFile: q('sf-bgm-file'), bgmUpload: q('sf-bgm-upload'), bgmVolume: q('sf-bgm-volume'),
+    fps: q('sf-fps'), transition: q('sf-transition'), transitionDuration: q('sf-transition-duration'), bgmMode: q('sf-bgm-mode'), bgmFile: q('sf-bgm-file'), bgmUpload: q('sf-bgm-upload'), bgmVolume: q('sf-bgm-volume'),
     subtitleSize: q('sf-subtitle-size'), subtitlePosition: q('sf-subtitle-position'),
     previewBrand: q('sf-preview-brand'), previewTitle: q('sf-preview-title'), previewSubtitle: q('sf-preview-subtitle'),
     previewBusiness: q('sf-preview-business'), previewPhone: q('sf-preview-phone'), status: q('sf-status'), progress: q('sf-progress'),
-    imageConnected:q('sf-image-connected'), videoConnected:q('sf-video-connected'), log: q('sf-log'), make: q('sf-make'), liveImage: q('sf-live-image'), liveCanvas: q('sf-live-canvas'), sceneBadge: q('sf-scene-badge'), play: q('sf-play'), stop: q('sf-stop'), archive: q('sf-archive'), finalVideo: q('sf-final-video'), wave: q('sf-wave'), thumbnailPanel: q('sf-thumbnail-preview'), thumbnailImage: q('sf-thumbnail-image'), thumbnailLink: q('sf-thumbnail-link'), thumbnailStatus: q('sf-thumbnail-status'), thumbnailArchive: q('sf-thumbnail-archive')
+    imageConnected:q('sf-image-connected'), videoConnected:q('sf-video-connected'), log: q('sf-log'), make: q('sf-make'), liveImage: q('sf-live-image'), liveCanvas: q('sf-live-canvas'), sceneBadge: q('sf-scene-badge'), play: q('sf-play'), stop: q('sf-stop'), archive: q('sf-archive'), finalVideo: q('sf-final-video'), wave: q('sf-wave'), thumbnailPanel: q('sf-thumbnail-preview'), thumbnailImage: q('sf-thumbnail-image'), thumbnailLink: q('sf-thumbnail-link'), thumbnailStatus: q('sf-thumbnail-status'), thumbnailArchive: q('sf-thumbnail-archive'), thumbnailOpen: q('sf-thumbnail-open')
   };
 
   const defaults = {
     female_voice: 'random', male_voice: 'random', voice_speed: 1.25, voice_volume: 0.8,
     brand_size: 46, phone_size: 43, bottom_margin: 80, fps: 24,
-    transition_type: 'random', bgm_mode: 'shuffle', bgm_file: '', bgm_volume: 0.10,
+    transition_type: 'random', transition_duration: 2.20, bgm_mode: 'shuffle', bgm_file: '', bgm_volume: 0.10,
     subtitle_size: 30, subtitle_position: 'bottom'
   };
 
@@ -68,6 +68,8 @@
   }
 
   function startScenePreview() {
+    state.previewPlaying = true;
+    if (fields.play) fields.play.textContent = 'Stop';
     clearInterval(state.sceneTimer);
     state.sceneTimer = null;
     if (state.readyToSave || state.savedToArchive) return;
@@ -76,7 +78,7 @@
     state.sceneTimer = setInterval(() => showScene((state.sceneIndex + 1) % state.mediaUrls.length), 2600);
   }
 
-  function stopScenePreview() { clearInterval(state.sceneTimer); state.sceneTimer = null; }
+  function stopScenePreview() { clearInterval(state.sceneTimer); state.sceneTimer = null; state.previewPlaying = false; if (fields.play) fields.play.textContent = 'Play'; }
 
   function detailLog(detail = {}) {
     if (detail.type === 'media') {
@@ -131,7 +133,7 @@
       voice_speed: Number(fields.voiceSpeed.value), voice_volume: Number(fields.voiceVolume.value),
       brand_size: Number(fields.brandSize.value), phone_size: Number(fields.phoneSize.value),
       bottom_margin: Number(fields.bottomMargin.value), fps: Number(fields.fps.value),
-      transition_type: fields.transition.value, bgm_mode: fields.bgmMode.value, bgm_file: fields.bgmFile.value,
+      transition_type: fields.transition.value, transition_duration: Math.max(0.50, Math.min(4.00, Number(fields.transitionDuration?.value || 2.20))), bgm_mode: fields.bgmMode.value, bgm_file: fields.bgmFile.value,
       bgm_volume: Number(fields.bgmVolume.value), subtitle_size: Number(fields.subtitleSize.value),
       subtitle_position: fields.subtitlePosition.value,
       title_line_1: fields.title1.value.trim(), title_line_2: fields.title2.value.trim(),
@@ -152,6 +154,13 @@
     fields.bottomMargin.value = s.bottom_margin;
     fields.fps.value = s.fps;
     fields.transition.value = s.transition_type;
+    if (fields.transitionDuration) {
+      const savedTransitionDuration = Number(s.transition_duration);
+      const restoredTransitionDuration = Number.isFinite(savedTransitionDuration)
+        ? savedTransitionDuration
+        : defaults.transition_duration;
+      fields.transitionDuration.value = Math.max(0.50, Math.min(4.00, restoredTransitionDuration));
+    }
     fields.bgmMode.value = s.bgm_mode || 'shuffle';
     fields.bgmFile.value = s.bgm_file || '';
     fields.bgmVolume.value = s.bgm_volume;
@@ -358,18 +367,44 @@
     };
   }
 
-  function scrollToProductionLog(extraOffset = 0, behavior = 'smooth') {
-    const target = fields.wave || fields.status || fields.log;
+  function scrollToPreview(behavior = 'smooth') {
+    const target = fields.finalVideo?.closest('.sf-preview-shell') || root.querySelector('.sf-preview-shell');
     if (!target) return;
-    const top = Math.max(0, window.scrollY + target.getBoundingClientRect().top - 90 + Number(extraOffset || 0));
-    window.scrollTo({ top, behavior });
+    try {
+      let targetWindow = window;
+      let top = target.getBoundingClientRect().top;
+      while (targetWindow !== targetWindow.parent) {
+        const ownerFrame = targetWindow.frameElement;
+        if (!ownerFrame) break;
+        top += ownerFrame.getBoundingClientRect().top;
+        targetWindow = targetWindow.parent;
+      }
+      targetWindow.scrollTo({ top: Math.max(0, targetWindow.scrollY + top - 16), behavior });
+    } catch (_) {
+      target.scrollIntoView({ behavior, block: 'start' });
+    }
+  }
+  function startPreviewFocusLock() {
+    if (state.previewFocusTimer) clearInterval(state.previewFocusTimer);
+    scrollToPreview('smooth');
+    state.previewFocusTimer = setInterval(() => {
+      const target = fields.finalVideo?.closest('.sf-preview-shell') || root.querySelector('.sf-preview-shell');
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      if (rect.top < -20 || rect.top > 42) scrollToPreview('auto');
+    }, 800);
+  }
+  function stopPreviewFocusLock({ keepPosition = true } = {}) {
+    if (state.previewFocusTimer) clearInterval(state.previewFocusTimer);
+    state.previewFocusTimer = null;
+    if (keepPosition) scrollToPreview('smooth');
   }
 
   async function makeVideo() {
     if (!state.jobId) return;
     fields.make.disabled = true;
     fields.make.classList.remove('beta-action-breathe');
-    scrollToProductionLog(0);
+    startPreviewFocusLock();
     state.readyToSave = false;
     state.savedToArchive = false;
     const preview = fields.finalVideo;
@@ -409,7 +444,7 @@
         }
         if (Number(percent || 0) >= 36 && !mp3FocusFixed) {
           mp3FocusFixed = true;
-          scrollToProductionLog(0);
+          scrollToPreview('auto');
         }
         if (detail?.type === 'frame') showRenderedFrame(detail.canvas);
         else if (detail) detailLog(detail);
@@ -432,7 +467,7 @@
       if (!state.savedToArchive) await saveCurrentToArchive();
       if (!state.savedToArchive) throw new Error('MP4 보관함 자동 저장에 실패했습니다.');
       setProgress(100, 'MP4 제작 및 보관함 자동 저장 완료');
-      scrollToProductionLog(190);
+      scrollToPreview('smooth');
       if (fields.sceneBadge) fields.sceneBadge.textContent = '제작 완료 · Play로 확인하세요';
       // MP4 완료 시 현재 작업 데이터와 사용자가 선택한 이미지 목록을 16종 썸네일 영역에 전달합니다.
       window.dispatchEvent(new CustomEvent('storymaker:shortform-complete', {
@@ -443,6 +478,7 @@
           business: fields.business?.value || '',
           phone: fields.phone?.value || '',
           script: fields.script?.value || '',
+          carouselContent: state.context?.carousel_content || '',
           images: state.mediaUrls.length ? state.mediaUrls.slice() : (Array.isArray(state.context?.images) ? state.context.images.slice() : [])
         }
       }));
@@ -476,7 +512,7 @@
         state.savedToArchive = true;
         stopScenePreview();
         setProgress(100, '서버 MP4 폴백 완료 · 보관함 자동 저장 완료');
-        scrollToProductionLog(190);
+        scrollToPreview('smooth');
         appendLog('Dell 서버 MP4 폴백 완료 · 저사양 PC에서도 최종 영상 생성 성공');
         if (fields.sceneBadge) fields.sceneBadge.textContent = '서버 폴백 완료 · Play로 확인하세요';
         window.dispatchEvent(new CustomEvent('storymaker:shortform-complete', {
@@ -487,6 +523,7 @@
             business: fields.business?.value || '',
             phone: fields.phone?.value || '',
             script: fields.script?.value || '',
+            carouselContent: state.context?.carousel_content || '',
             images: state.mediaUrls.length ? state.mediaUrls.slice() : (Array.isArray(state.context?.images) ? state.context.images.slice() : [])
           }
         }));
@@ -501,6 +538,7 @@
         stopHeartbeat();
         stopHeartbeat = null;
       }
+      stopPreviewFocusLock({ keepPosition: true });
       fields.make.disabled = false;
       fields.make.classList.toggle('beta-action-breathe', !state.readyToSave);
     }
@@ -542,6 +580,62 @@
     element.addEventListener('input', () => { refreshPreview(); scheduleSave(); });
     element.addEventListener('change', () => { refreshPreview(); scheduleSave(); });
   });
+
+  function setupSettingsModal() {
+    const openButton = document.getElementById('sf-settings-open');
+    const modal = document.getElementById('sf-settings-modal');
+    const dialog = modal?.querySelector('.sf-settings-dialog');
+    const modalBody = document.getElementById('sf-settings-modal-body');
+    const closeButton = document.getElementById('sf-settings-close');
+    const doneButton = document.getElementById('sf-settings-done');
+    const settingsGrid = root.querySelector('.sf-accordion-grid');
+    if (!openButton || !modal || !dialog || !modalBody || !settingsGrid) return;
+
+    if (settingsGrid.parentElement !== modalBody) modalBody.appendChild(settingsGrid);
+    settingsGrid.querySelectorAll('[data-accordion]').forEach((button) => {
+      button.removeAttribute('data-accordion');
+      button.setAttribute('tabindex', '-1');
+      button.setAttribute('aria-hidden', 'true');
+    });
+    settingsGrid.querySelectorAll('.sf-accordion-panel').forEach((panel) => {
+      panel.hidden = false;
+      panel.removeAttribute('aria-hidden');
+    });
+
+    let returnFocus = openButton;
+    const closeModal = () => {
+      if (modal.hidden) return;
+      modal.hidden = true;
+      document.documentElement.classList.remove('sf-settings-modal-open');
+      document.body.classList.remove('sf-settings-modal-open');
+      openButton.setAttribute('aria-expanded', 'false');
+      returnFocus?.focus?.({preventScroll:true});
+    };
+    const openModal = () => {
+      returnFocus = document.activeElement || openButton;
+      modal.hidden = false;
+      document.documentElement.classList.add('sf-settings-modal-open');
+      document.body.classList.add('sf-settings-modal-open');
+      openButton.setAttribute('aria-expanded', 'true');
+      requestAnimationFrame(() => dialog.focus({preventScroll:true}));
+    };
+
+    openButton.addEventListener('click', openModal);
+    closeButton?.addEventListener('click', closeModal);
+    doneButton?.addEventListener('click', closeModal);
+    modal.addEventListener('pointerdown', (event) => {
+      if (event.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !modal.hidden) {
+        event.preventDefault();
+        closeModal();
+      }
+    });
+  }
+
+  setupSettingsModal();
+
   function closeAllAccordions() {
     root.querySelectorAll('[data-accordion]').forEach((button) => {
       const panel = document.getElementById(button.dataset.accordion);
@@ -565,14 +659,39 @@
     if (event.key === 'Escape') closeAllAccordions();
   });
 
+  function currentThumbnailDetail() {
+    return {
+      jobId: state.jobId,
+      title1: fields.title1?.value || '',
+      title2: fields.title2?.value || '',
+      business: fields.business?.value || '',
+      phone: fields.phone?.value || '',
+      script: fields.script?.value || '',
+      carouselContent: state.context?.carousel_content || '',
+      images: state.mediaUrls.length ? state.mediaUrls.slice() : (Array.isArray(state.context?.images) ? state.context.images.slice() : [])
+    };
+  }
   fields.make.addEventListener('click', makeVideo);
   fields.play?.addEventListener('click', () => {
-    if (fields.finalVideo?.src) fields.finalVideo.play().catch(() => {});
+    if (fields.finalVideo?.src) {
+      if (fields.finalVideo.paused) {
+        fields.finalVideo.play().catch(() => {});
+        fields.play.textContent = 'Stop';
+      } else {
+        fields.finalVideo.pause();
+        fields.play.textContent = 'Play';
+      }
+      return;
+    }
+    if (state.previewPlaying) stopScenePreview();
     else startScenePreview();
   });
-  fields.stop?.addEventListener('click', () => {
-    fields.finalVideo?.pause();
-    stopScenePreview();
+  fields.finalVideo?.addEventListener('play', () => { if (fields.play) fields.play.textContent = 'Stop'; });
+  fields.finalVideo?.addEventListener('pause', () => { if (fields.play) fields.play.textContent = 'Play'; });
+  fields.finalVideo?.addEventListener('ended', () => { if (fields.play) fields.play.textContent = 'Play'; });
+  fields.thumbnailOpen?.addEventListener('click', () => {
+    stopPreviewFocusLock({ keepPosition: false });
+    window.storymakerOpenThumbnail16?.(currentThumbnailDetail());
   });
   const openArchive = async (event) => {
     event?.preventDefault();
@@ -580,6 +699,8 @@
       fields.status.textContent = '보관함 이동 전 MP3·MP4를 저장하는 중...';
       await saveCurrentToArchive();
     }
+    const canLeave = await (window.storymakerEnsureThumbnailBeforeArchive?.(currentThumbnailDetail()) ?? Promise.resolve(true));
+    if (!canLeave) return;
     location.href = '/beta/archive';
   };
   fields.archive?.addEventListener('click', openArchive);

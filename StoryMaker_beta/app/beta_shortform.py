@@ -36,7 +36,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "bgm_volume": 0.10,
     "fps": 24,
     "transition_type": "random",
-    "transition_duration": 0.45,
+    "transition_duration": 2.20,
     "subtitle_size": 30,
     "subtitle_font_size": 30,
     "subtitle_position": "bottom",
@@ -154,6 +154,20 @@ def compact_title(value: str, limit: int = 22) -> str:
     return " ".join(selected) or text[:limit]
 
 
+def content_headings(value: str, limit: int = 2) -> list[str]:
+    headings: list[str] = []
+    for line in str(value or "").splitlines():
+        if not re.match(r"^\s*#{1,6}\s+", line):
+            continue
+        cleaned = re.sub(r"^\s*#{1,6}\s*", "", line).strip()
+        cleaned = re.sub(r"^\s*(?:\d+\s*[.)．、:-]\s*|[①-⑳]\s*)", "", cleaned).strip()
+        if cleaned:
+            headings.append(cleaned)
+        if len(headings) >= limit:
+            break
+    return headings
+
+
 init_tables()
 
 
@@ -164,6 +178,11 @@ def shortform_context(job_id: str, request: Request) -> JSONResponse:
     content = result.get("content", {}) or {}
     channels = content.get("channels", {}) or {}
     blog = channels.get("BLOG", {}) if isinstance(channels, dict) else {}
+    carousel = channels.get("CAROUSEL_7", {}) if isinstance(channels, dict) else {}
+    carousel_text = str(carousel.get("content") or "") if isinstance(carousel, dict) else str(carousel or "")
+    carousel_titles = content_headings(carousel_text, limit=2)
+    carousel_title_1 = carousel_titles[0] if carousel_titles else ""
+    carousel_title_2 = carousel_titles[1] if len(carousel_titles) > 1 else ""
     blog_text = str(blog.get("content") or content.get("title") or result.get("title") or "")
     blog_title = ""
     for line in blog_text.splitlines():
@@ -190,8 +209,9 @@ def shortform_context(job_id: str, request: Request) -> JSONResponse:
             pass
     payload = {
         "job_id": job_id,
-        "title_line_1": business.get("name") or "StoryMaker Beta",
-        "title_line_2": compact_title(blog_title or result.get("title") or "StoryMaker Beta"),
+        "title_line_1": compact_title(carousel_title_1 or business.get("name") or "StoryMaker Beta", limit=30),
+        "title_line_2": compact_title(carousel_title_2 or carousel_title_1 or blog_title or result.get("title") or "StoryMaker Beta", limit=30),
+        "carousel_content": carousel_text,
         "business_name": business.get("name") or "",
         "business_phone": business.get("phone") or "",
         "script": script,
