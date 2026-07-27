@@ -34,7 +34,18 @@
     openBrowser: document.getElementById('beta-open-browser'),
     browserLink: document.getElementById('beta-browser-link'),
     shortformIntegrated: document.getElementById('beta-shortform-integrated'),
-    shortformStatus: document.getElementById('beta-shortform-integrated-status')
+    shortformStatus: document.getElementById('beta-shortform-integrated-status'),
+    promptEditOpen: document.getElementById('beta-prompt-edit-open'),
+    promptSendOpen: document.getElementById('beta-prompt-send-open'),
+    promptModal: document.getElementById('beta-prompt-modal'),
+    promptModalTitle: document.getElementById('beta-prompt-modal-title'),
+    promptEditor: document.getElementById('beta-prompt-editor'),
+    promptMeta: document.getElementById('beta-prompt-meta'),
+    promptMessage: document.getElementById('beta-prompt-message'),
+    promptSave: document.getElementById('beta-prompt-save'),
+    promptCopy: document.getElementById('beta-prompt-copy'),
+    promptModalX: document.getElementById('beta-prompt-modal-x'),
+    promptModalClose: document.getElementById('beta-prompt-modal-close')
   };
 
   let betaCurrentJobId = sessionStorage.getItem('storymaker_beta_current_job') || '';
@@ -629,6 +640,91 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
     }
   }
 
+  let betaPromptMode = 'edit';
+
+  function betaClosePromptModal() {
+    if (betaUi.promptModal) betaUi.promptModal.hidden = true;
+  }
+
+  async function betaOpenPromptModal(mode) {
+    betaPromptMode = mode === 'send' ? 'send' : 'edit';
+    if (!betaUi.promptModal || !betaUi.promptEditor) return;
+    betaUi.promptModal.hidden = false;
+    betaUi.promptMessage.textContent = '불러오는 중...';
+    betaUi.promptEditor.value = '';
+    betaUi.promptEditor.readOnly = betaPromptMode === 'send';
+    betaUi.promptSave.hidden = betaPromptMode === 'send';
+    betaUi.promptCopy.hidden = betaPromptMode !== 'send';
+    betaUi.promptModalTitle.textContent = betaPromptMode === 'send' ? '전송 프롬프트' : '프롬프트 편집';
+    try {
+      if (betaPromptMode === 'send') {
+        if (!betaCurrentJobId) throw new Error('먼저 ③ 프롬프트 생성을 실행해 주세요.');
+        const data = await betaRequest(`/beta-api/gemini-worker/prompt/${encodeURIComponent(betaCurrentJobId)}`);
+        betaUi.promptEditor.value = String(data.prompt || '');
+        betaUi.promptMeta.textContent = `현재 작업 ${betaCurrentJobId} · ${betaUi.promptEditor.value.length.toLocaleString()}자 · 읽기 전용`;
+      } else {
+        const data = await betaRequest('/beta-api/gemini/admin/prompt');
+        betaUi.promptEditor.value = String(data.prompt || '');
+        betaUi.promptMeta.textContent = `${data.saved ? '관리자 저장본' : '기본 프롬프트'} · ${betaUi.promptEditor.value.length.toLocaleString()}자 · 필수 변수 ${Array.isArray(data.required_variables) ? data.required_variables.join(', ') : ''}`;
+      }
+      betaUi.promptMessage.textContent = '';
+      betaUi.promptEditor.focus();
+    } catch (error) {
+      betaUi.promptMessage.textContent = error.message;
+    }
+  }
+
+  async function betaSavePromptTemplate() {
+    const prompt = String(betaUi.promptEditor?.value || '').trim();
+    betaUi.promptSave.disabled = true;
+    betaUi.promptMessage.textContent = '저장 중...';
+    try {
+      const data = await betaRequest('/beta-api/gemini/admin/prompt', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      });
+      betaUi.promptMessage.textContent = `저장 완료 · ${Number(data.size || prompt.length).toLocaleString()}자 · 다음 프롬프트 생성부터 적용`;
+      betaUi.promptMeta.textContent = `관리자 저장본 · ${prompt.length.toLocaleString()}자`;
+    } catch (error) {
+      betaUi.promptMessage.textContent = `저장 실패: ${error.message}`;
+    } finally {
+      betaUi.promptSave.disabled = false;
+    }
+  }
+
+  async function betaCopySendPrompt() {
+    const value = String(betaUi.promptEditor?.value || '');
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      betaUi.promptMessage.textContent = '전송 프롬프트를 복사했습니다.';
+    } catch (_) {
+      betaUi.promptEditor.select();
+      document.execCommand('copy');
+      betaUi.promptMessage.textContent = '전송 프롬프트를 복사했습니다.';
+    }
+  }
+
+  function betaEnablePromptAdminTools(role) {
+    const isAdmin = String(role || '').toLowerCase() === 'admin';
+    if (betaUi.promptEditOpen) betaUi.promptEditOpen.hidden = !isAdmin;
+    if (betaUi.promptSendOpen) betaUi.promptSendOpen.hidden = !isAdmin;
+  }
+
+  betaUi.promptEditOpen?.addEventListener('click', () => betaOpenPromptModal('edit'));
+  betaUi.promptSendOpen?.addEventListener('click', () => betaOpenPromptModal('send'));
+  betaUi.promptSave?.addEventListener('click', betaSavePromptTemplate);
+  betaUi.promptCopy?.addEventListener('click', betaCopySendPrompt);
+  betaUi.promptModalX?.addEventListener('click', betaClosePromptModal);
+  betaUi.promptModalClose?.addEventListener('click', betaClosePromptModal);
+  betaUi.promptModal?.addEventListener('pointerdown', (event) => {
+    if (event.target === betaUi.promptModal) betaClosePromptModal();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && betaUi.promptModal && !betaUi.promptModal.hidden) betaClosePromptModal();
+  });
+
   betaInitAiProvider();
   betaUi.form.addEventListener('submit', betaCreateJob);
   if (betaUi.geminiRetry) betaUi.geminiRetry.addEventListener('click', () => {
@@ -683,6 +779,7 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
     try {
       const response = await fetch('/v1-api/beta/profile', { cache: 'no-store', credentials: 'include' });
       const data = await response.json();
+      betaEnablePromptAdminTools(data?.role);
       const profile = data?.profile;
       if (!response.ok || !profile) return;
       const pairs = [

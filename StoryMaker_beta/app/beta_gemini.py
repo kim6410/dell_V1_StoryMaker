@@ -11,8 +11,10 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
+
+from app.beta_auth import current_user_role
 
 beta_gemini_router = APIRouter(prefix="/beta-api/gemini", tags=["beta-gemini"])
 
@@ -52,6 +54,14 @@ class BetaGeminiRequest(BaseModel):
     weather_snapshot: dict[str, Any] | None = None
 
 
+class BetaPromptTemplateUpdate(BaseModel):
+    prompt: str
+
+
+PROMPT_TEMPLATE_PATH = Path(os.getenv("STORYMAKER_BETA_PROMPT_TEMPLATE", str(Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta")) / "data" / "admin_prompt_template.md")))
+PROMPT_REQUIRED_VARIABLES = ("{{company}}", "{{region}}", "{{service}}", "{{phone}}", "{{source_text}}", "{{weather_block}}")
+
+
 def beta_gemini_model() -> str:
     return (os.getenv("BETA_GEMINI_MODEL") or os.getenv("GEMINI_MODEL") or "gemini-3.5-flash-lite").strip()
 
@@ -83,7 +93,7 @@ def beta_fallback_enabled() -> bool:
 LOGGER = logging.getLogger("storymaker-beta.ai-provider")
 
 
-def beta_build_prompt(payload: BetaGeminiRequest) -> str:
+def beta_build_default_prompt(payload: BetaGeminiRequest) -> str:
     business = payload.business or {}
     company = str(business.get("name", "")).strip() or "업체명 미등록"
     region = str(business.get("region", "")).strip() or "지역 미등록"
@@ -242,14 +252,15 @@ CAROUSEL_7
 - 입력 자료에 언급된 동 이름, 아파트 단지명, 건물/상권 명칭(예: 삼산동, 야음동, 성남동, 00아파트 등)을 본문 도입부와 본문에 명확히 명시하여 지역 SEO를 극대화합니다.
 
 ### 모바일 가독성 및 볼드체(Bold) 강조 규칙
-- 독자가 훑어보아도(Scanning) 핵심을 파악할 수 있도록 각 업종 성격에 맞게 아래 항목에 `**굵은 표시**`를 8회 이상 자연스럽게 적용합니다:
+- 독자가 훑어보아도(Scanning) 핵심을 파악할 수 있도록 각 업종 성격에 맞게 아래 항목에 `**굵은 표시**`를 10회 이상 자연스럽게 적용합니다:
   1) 고객의 핵심 문제/고민/원인/특징 (예: **손상모 컬 처짐**, **에어컨 곰팡이 냄새**, **가스쇼바 압력 마모** 등 업종별 핵심)
   2) 전문가의 핵심 솔루션/제공 서비스/결과 (예: **고압 스팀 분해 세척**, **프랑스산 버터 100% 사용**, **수평 정교 조정 및 부드러운 고정**)
 
 ## 전화번호 및 하단 문의(CTA) 규칙
 - BLOG_POST, CARROT_POST, INSTAGRAM_POST, CAROUSEL_7, PODCAST_50, PODCAST_80에는 전화번호를 말미에 반드시 1회 넣습니다.
 - BLOG_POST 최하단 문의 영역에는 단순히 전화번호만 적지 않고, "지역(동/건물명)과 원하시는 서비스/현장 사진을 문자로 먼저 보내주시면 더욱 빠른 상담 및 안내가 가능합니다." 문구와 함께 전화번호를 배치합니다.
-- NAVER_PLACE_NEWS, GOOGLE_BUSINESS_POST는 자연스러운 문의/방문 유도를 우선하고 필요할 때만 말미에 1회 넣습니다.
+- NAVER_PLACE_NEWS, GOOGLE_BUSINESS_POST에는 전화번호를 넣지 않습니다.
+- 자연스러운 문의 또는 방문 유도 문장으로 마무리합니다.
 - 한 채널 안에서 전화번호는 최대 1회만 사용합니다.
 - 전화번호가 없거나 '미등록'이면 임의로 전화번호를 생성하지 않습니다.
 - 전화번호: {phone}
@@ -317,12 +328,13 @@ CAROUSEL_7
 - 현장의 소리
 - 현장의 온도감
 
-핵심 키워드는 `**굵은 표시**`를 8회 이상 자연스럽게 사용합니다.
+핵심 키워드는 `**굵은 표시**`를 10회 이상 자연스럽게 사용합니다.
 무작위 단어를 강조하지 말고 지역 + 서비스, 핵심 작업, 문제 증상, 원인, 해결 방법을 우선합니다.
 
 ## 전화번호 규칙
 - BLOG_POST, CARROT_POST, INSTAGRAM_POST, CAROUSEL_7, PODCAST_50, PODCAST_80에는 전화번호를 말미에 반드시 1회 넣습니다.
-- NAVER_PLACE_NEWS, GOOGLE_BUSINESS_POST는 자연스러운 문의 유도를 우선하고 필요할 때만 말미에 1회 넣습니다.
+- NAVER_PLACE_NEWS, GOOGLE_BUSINESS_POST에는 전화번호를 넣지 않습니다.
+- 자연스러운 문의 또는 방문 유도 문장으로 마무리합니다.
 - 한 채널 안에서 전화번호는 최대 1회만 사용합니다.
 - 전화번호가 없거나 '미등록'이면 임의로 전화번호를 생성하지 않습니다.
 - 전화번호: {phone}
@@ -391,6 +403,100 @@ CAROUSEL_7
 - {service}
 - {company}
 """
+
+
+def _prompt_section(text: str, start: str, end: str) -> str:
+    start_index = text.find(start)
+    end_index = text.find(end, start_index + len(start)) if start_index >= 0 else -1
+    if start_index < 0 or end_index < 0:
+        return ""
+    return text[start_index:end_index].rstrip()
+
+
+def beta_default_prompt_template() -> str:
+    sentinels = {
+        "name": "__SM_COMPANY__",
+        "region": "__SM_REGION__",
+        "service": "__SM_SERVICE__",
+        "phone": "__SM_PHONE__",
+    }
+    sample = beta_build_default_prompt(BetaGeminiRequest(
+        business=sentinels,
+        topic="__SM_SOURCE_TEXT__",
+        image_count=8,
+        weather_snapshot=None,
+    ))
+    weather = _prompt_section(sample, "## 현재 날짜·기상 기준 정보", "## Gemini")
+    if weather:
+        sample = sample.replace(weather, "{{weather_block}}", 1)
+    replacements = {
+        "__SM_COMPANY__": "{{company}}",
+        "__SM_REGION__": "{{region}}",
+        "__SM_SERVICE__": "{{service}}",
+        "__SM_PHONE__": "{{phone}}",
+        "__SM_SOURCE_TEXT__": "{{source_text}}",
+    }
+    for old, new in replacements.items():
+        sample = sample.replace(old, new)
+    return sample
+
+
+def beta_render_prompt_template(template: str, payload: BetaGeminiRequest) -> str:
+    business = payload.business or {}
+    default_prompt = beta_build_default_prompt(payload)
+    weather = _prompt_section(default_prompt, "## 현재 날짜·기상 기준 정보", "## Gemini")
+    values = {
+        "{{company}}": str(business.get("name") or "업체명 미등록").strip(),
+        "{{region}}": str(business.get("region") or "지역 미등록").strip(),
+        "{{service}}": str(business.get("service") or "서비스 미등록").strip(),
+        "{{phone}}": str(business.get("phone") or "미등록").strip(),
+        "{{source_text}}": str(payload.topic or "").strip(),
+        "{{weather_block}}": weather,
+    }
+    rendered = str(template or "")
+    for key, value in values.items():
+        rendered = rendered.replace(key, value)
+    return rendered.strip()
+
+
+def beta_build_prompt(payload: BetaGeminiRequest) -> str:
+    if PROMPT_TEMPLATE_PATH.exists():
+        try:
+            template = PROMPT_TEMPLATE_PATH.read_text(encoding="utf-8").strip()
+            if template:
+                return beta_render_prompt_template(template, payload)
+        except OSError:
+            LOGGER.exception("admin prompt template read failed")
+    return beta_build_default_prompt(payload)
+
+
+def _require_prompt_admin(request: Request) -> None:
+    if current_user_role(request) != "admin":
+        raise HTTPException(status_code=403, detail="관리자만 프롬프트를 관리할 수 있습니다.")
+
+
+@beta_gemini_router.get("/admin/prompt")
+def beta_admin_prompt_get(request: Request) -> dict[str, Any]:
+    _require_prompt_admin(request)
+    saved = PROMPT_TEMPLATE_PATH.exists()
+    prompt = PROMPT_TEMPLATE_PATH.read_text(encoding="utf-8") if saved else beta_default_prompt_template()
+    return {"ok": True, "prompt": prompt, "saved": saved, "required_variables": list(PROMPT_REQUIRED_VARIABLES)}
+
+
+@beta_gemini_router.put("/admin/prompt")
+def beta_admin_prompt_update(payload: BetaPromptTemplateUpdate, request: Request) -> dict[str, Any]:
+    _require_prompt_admin(request)
+    prompt = str(payload.prompt or "").strip()
+    if len(prompt) < 500:
+        raise HTTPException(status_code=422, detail="프롬프트 내용이 너무 짧습니다.")
+    missing = [name for name in PROMPT_REQUIRED_VARIABLES if name not in prompt]
+    if missing:
+        raise HTTPException(status_code=422, detail="필수 변수가 누락되었습니다: " + ", ".join(missing))
+    PROMPT_TEMPLATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = PROMPT_TEMPLATE_PATH.with_suffix(".md.tmp")
+    temp_path.write_text(prompt + "\n", encoding="utf-8")
+    temp_path.replace(PROMPT_TEMPLATE_PATH)
+    return {"ok": True, "saved": True, "size": len(prompt), "required_variables": list(PROMPT_REQUIRED_VARIABLES)}
 
 
 def beta_extract_text(response: dict[str, Any]) -> str:

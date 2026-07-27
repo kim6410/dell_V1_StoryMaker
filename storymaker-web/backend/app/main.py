@@ -459,6 +459,7 @@ def read_beta_v1_profile(current_user: Optional[User] = Depends(get_optional_cur
         return {
             "ok": True,
             "authenticated": True,
+            "role": str(current_user.role or "user").strip().lower(),
             "profile": {
                 "name": str(row.get("company_name") or "").strip(),
                 "region": str(row.get("region") or "").strip(),
