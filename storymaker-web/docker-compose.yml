@@ -22,6 +22,7 @@ services:
       - /home/bourne/StoryMaker_1/output_results:/data/output_results
       - /home/bourne/StoryMaker_1/exports:/data/exports
       - /home/bourne/StoryMaker_1/backups:/data/backups
+      - /home/bourne/StoryMaker_1/StoryMaker_beta/data:/beta_data:ro
       - /home/bourne/StoryMaker_1/supertonic/music:/data/music:ro
     environment:
       - STORYMAKER_ENV=production

@@ -4,7 +4,9 @@
 기존 제작 API, Queue, Worker와 분리된 관리자 전용 회원·페르소나 관리 기능입니다.
 """
 from datetime import datetime
+import calendar
 import os
+import sqlite3
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -85,6 +87,13 @@ def _first_mapping(db: Session, sql: str, params: dict) -> dict | None:
 
 def _now_text() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _one_month_later_text(value: datetime) -> str:
+    year = value.year + (1 if value.month == 12 else 0)
+    month = 1 if value.month == 12 else value.month + 1
+    day = min(value.day, calendar.monthrange(year, month)[1])
+    return value.replace(year=year, month=month, day=day).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _require_billable_user(db: Session, user_id: int) -> User:
@@ -168,6 +177,7 @@ def _billing_summary(db: Session, user: User) -> dict:
         "subscription_status": (profile or {}).get("subscription_status") or "inactive",
         "current_period_started_at": (profile or {}).get("current_period_started_at"),
         "current_period_ends_at": (profile or {}).get("current_period_ends_at"),
+        "next_billing_at": (profile or {}).get("next_billing_at"),
         "free_signup_credit_given": bool((profile or {}).get("free_signup_credit_given") or False),
         "base_video_credits": base_credits,
         "total_granted": credits["total_granted"],
@@ -180,6 +190,21 @@ def _billing_summary(db: Session, user: User) -> dict:
         "plans": plan_items,
         "readonly": False,
     }
+
+
+def _beta_project_counts() -> dict[int, int]:
+    db_path = os.getenv("STORYMAKER_BETA_DB_PATH", "/beta_data/storymaker_beta.db")
+    if not os.path.exists(db_path):
+        return {}
+    try:
+        connection = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=3)
+        rows = connection.execute(
+            "select owner_user_id, count(*) from beta_jobs where owner_user_id is not null group by owner_user_id"
+        ).fetchall()
+        connection.close()
+        return {int(user_id): int(count) for user_id, count in rows}
+    except Exception:
+        return {}
 
 
 @router.get("/admin/members", response_model=CommonResponse)
@@ -197,6 +222,8 @@ def get_admin_members(
         .group_by(Project.user_id)
         .all()
     )
+    for user_id, count in _beta_project_counts().items():
+        project_counts[user_id] = int(project_counts.get(user_id, 0)) + int(count)
 
     users = db.query(User).order_by(User.id.desc()).all()
     primary_personas = {}
@@ -355,6 +382,8 @@ def get_member_personas(
                 "wordpress_user_id": user.wordpress_user_id,
                 "created_at": user.created_at,
                 "last_login_at": user.last_login_at,
+                "project_count": int(db.query(func.count(Project.id)).filter(Project.user_id == user.id).scalar() or 0) + int(_beta_project_counts().get(user.id, 0)),
+                "persona_count": len(personas),
             },
             "personas": [serialize_user_persona(persona) for persona in personas],
         },
@@ -449,6 +478,24 @@ def grant_member_free_signup_credit(
     return CommonResponse(ok=True, data=_billing_summary(db, user), message="Free 최초 20회를 지급했습니다.")
 
 
+@router.post("/admin/members/{user_id}/billing/free-bonus-credit", response_model=CommonResponse)
+def grant_member_free_bonus_credit(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_admin_user),
+):
+    user = _require_billable_user(db, user_id)
+    profile = _ensure_billing_profile(db, user.id, "free")
+    plan_code = str(profile.get("current_plan_code") or "free").strip().lower()
+    if plan_code != "free":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="무료 회원에게만 20회를 추가 지급할 수 있습니다.")
+    now = _now_text()
+    source_ref = f"admin_free_bonus:{now}"
+    _grant_wallet_credit(db, user.id, 20, "admin_free_bonus", source_ref, "관리자 무료 이용권 20회 추가 지급")
+    db.commit()
+    return CommonResponse(ok=True, data=_billing_summary(db, user), message="무료 이용권 20회를 추가 지급했습니다.")
+
+
 @router.put("/admin/members/{user_id}/billing/plan", response_model=CommonResponse)
 def change_member_billing_plan(
     user_id: int,
@@ -461,8 +508,21 @@ def change_member_billing_plan(
     plan = _plan_by_code(db, plan_code)
     profile = _ensure_billing_profile(db, user.id, plan_code)
     current_plan = profile.get("current_plan_code")
-    now = _now_text()
-    db.execute(text("update member_billing_profiles set current_plan_code=:plan_code, subscription_status=:status, current_period_started_at=:now, current_period_ends_at=null, updated_at=:now where user_id=:user_id"), {"user_id": user.id, "plan_code": plan_code, "status": "active" if plan_code != "free" else "inactive", "now": now})
+    now_dt = datetime.now()
+    now = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+    period_end = _one_month_later_text(now_dt) if plan_code != "free" else None
+    db.execute(
+        text("update member_billing_profiles set current_plan_code=:plan_code, subscription_status=:status, current_period_started_at=:period_start, current_period_ends_at=:period_end, next_billing_at=:next_billing, updated_at=:now where user_id=:user_id"),
+        {
+            "user_id": user.id,
+            "plan_code": plan_code,
+            "status": "active" if plan_code != "free" else "inactive",
+            "period_start": now if plan_code != "free" else None,
+            "period_end": period_end,
+            "next_billing": period_end,
+            "now": now,
+        },
+    )
     grant_amount = int(plan.get("base_video_credits") or 0)
     if current_plan != plan_code and grant_amount > 0:
         _grant_wallet_credit(db, user.id, grant_amount, "plan_base", f"plan:{plan_code}", f"{plan.get('name') or plan_code} 기본 제공량 지급")

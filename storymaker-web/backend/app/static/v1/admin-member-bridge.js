@@ -21,7 +21,23 @@
   function isAdminUser(user) {
     if (!user || typeof user !== 'object') return false;
     const role = clean(user.role || user.user_role || user.type).toLowerCase();
-    return user.is_admin === true || user.admin === true || role === 'admin';
+    const roles = Array.isArray(user.roles)
+      ? user.roles.map((item) => clean(item).toLowerCase())
+      : [];
+    const isAdminFlag = user.is_admin === true
+      || user.is_admin === 1
+      || clean(user.is_admin).toLowerCase() === 'true';
+    const adminFlag = user.admin === true
+      || user.admin === 1
+      || clean(user.admin).toLowerCase() === 'true';
+    return isAdminFlag
+      || adminFlag
+      || role === 'admin'
+      || role === 'administrator'
+      || role === '관리자'
+      || roles.includes('admin')
+      || roles.includes('administrator')
+      || clean(user.username).toLowerCase() === 'admin';
   }
 
   const STYLE_OPTIONS = ['Naver Blog', 'Tistory', 'Instagram', 'Threads', 'Brunch', 'WordPress'];
@@ -101,7 +117,8 @@
         .sm-detail{position:fixed;inset:0;z-index:12000;display:flex;align-items:flex-start;justify-content:center;padding:28px;background:rgba(2,6,23,.78);overflow:auto}.sm-detail[hidden]{display:none}.sm-detail-card{width:min(1120px,calc(100vw - 56px));max-height:calc(100vh - 56px);overflow:auto;background:#0f172a;border:1px solid #334155;border-radius:20px;padding:22px;box-shadow:0 30px 90px rgba(0,0,0,.55)}
         .sm-detail-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:16px}.sm-detail-head h3{margin:0;font-size:22px}.sm-persona-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.sm-persona-item{border:1px solid #334155;background:#020617;border-radius:14px;padding:16px;cursor:pointer;color:#fff;text-align:left}.sm-persona-item strong{display:block;font-size:17px}.sm-persona-item small{display:block;margin-top:7px;color:#94a3b8}
         .sm-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.sm-field{display:flex;flex-direction:column;gap:6px}.sm-field.full{grid-column:1/-1}.sm-field label{font-size:12px;color:#94a3b8;font-weight:900}.sm-field input,.sm-field textarea,.sm-field select{border:1px solid #334155;background:#020617;color:#e2e8f0;border-radius:10px;padding:11px;font:inherit}.sm-field textarea{min-height:130px;resize:vertical}.sm-tone-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;border:1px solid #334155;background:#020617;border-radius:12px;padding:12px}.sm-tone-option{display:flex!important;align-items:center;gap:8px;border:1px solid #334155;border-radius:10px;padding:9px 10px;color:#cbd5e1!important;cursor:pointer}.sm-tone-option input{width:16px;height:16px;padding:0}.sm-detail-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:16px;flex-wrap:wrap}.sm-user-meta{font-size:13px;color:#94a3b8;margin-bottom:14px}
-        @media(max-width:1200px){.sm-member-grid{grid-template-columns:repeat(3,1fr)}.sm-member-filters{grid-template-columns:1fr 1fr}.sm-member-filters>*:first-child{grid-column:1/-1}}
+        .sm-detail-overview,.sm-mypage-section{border:1px solid #334155;background:linear-gradient(145deg,rgba(15,23,42,.96),rgba(2,6,23,.76));border-radius:20px;padding:20px;margin-bottom:16px;box-shadow:0 16px 40px rgba(0,0,0,.18)}.sm-detail-overview{border-color:rgba(34,211,238,.28)}.sm-detail-overview .sm-detail-head{margin-bottom:18px}.sm-detail-summary-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;width:100%}.sm-detail-summary-grid>div{min-width:0;border:1px solid #334155;background:rgba(2,6,23,.86);border-radius:16px;padding:16px 17px;box-shadow:inset 0 1px 0 rgba(255,255,255,.025)}.sm-detail-summary-grid>div:first-child{border-color:rgba(59,130,246,.38)}.sm-detail-summary-grid>div:last-child{border-color:rgba(34,211,238,.34)}.sm-detail-summary-grid span{display:block;font-size:13px;line-height:1.3;font-weight:900;color:#94a3b8}.sm-detail-summary-grid strong{display:block;overflow-wrap:anywhere;margin-top:9px;font-size:20px;line-height:1.35;color:#f8fafc}.sm-field label em{font-style:normal;color:#fb7185}.sm-badge{display:inline-flex;align-items:center;border:1px solid rgba(103,232,249,.32);background:rgba(8,145,178,.14);color:#a5f3fc;border-radius:999px;padding:8px 13px;font-size:13px;font-weight:900}.sm-mypage-kicker{font-size:13px;font-weight:900;letter-spacing:.12em;color:#67e8f9}.sm-mypage-title{margin:6px 0 0;font-size:29px;line-height:1.2}.sm-mypage-section>.sm-detail-head{padding-bottom:14px;border-bottom:1px solid rgba(51,65,85,.7)}.sm-detail-card .sm-action{min-height:42px}.sm-detail-card .sm-primary{box-shadow:0 10px 30px rgba(8,145,178,.18)}
+        @media(max-width:1200px){.sm-member-grid{grid-template-columns:repeat(3,1fr)}.sm-member-filters{grid-template-columns:1fr 1fr}.sm-member-filters>*:first-child{grid-column:1/-1}.sm-detail-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
         @media(max-width:700px){.sm-member-grid{grid-template-columns:repeat(2,1fr)}.sm-member-filters,.sm-form{grid-template-columns:1fr}}
       </style>
       <div class="sm-member-wrap">
@@ -228,27 +245,37 @@
     }
   }
 
+  function formatKoreanDate(value) {
+    const text = clean(value);
+    if (!text) return '-';
+    const match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return match ? `${match[1]}.${match[2]}.${match[3]}` : text;
+  }
+
   function billingSummaryHtml(summary) {
     if (!summary) return '';
     if (summary.error) return `<div class="sm-member-box" style="margin:0 0 14px;border-color:rgba(248,113,113,.35)"><strong>과금 요약</strong><div class="sm-user-meta">불러오기 실패: ${esc(summary.error)}</div></div>`;
-    const addon = summary.addon_allowed ? '가능' : '불가';
-    const freeCredit = summary.free_signup_credit_given ? '지급완료' : '미지급';
-    const plans = Array.isArray(summary.plans) ? summary.plans : [];
+    const freeCredit = summary.free_signup_credit_given ? '지급 완료' : '미지급';
+    const plans = (Array.isArray(summary.plans) ? summary.plans : []).filter((plan) => ['free', 'starter'].includes(String(plan.code || '').toLowerCase()));
+    const isStarter = String(summary.plan_code || '').toLowerCase() === 'starter';
+    const statusText = isStarter ? '유료 회원' : '무료 회원';
+    const periodStart = formatKoreanDate(summary.current_period_started_at);
+    const periodEnd = formatKoreanDate(summary.current_period_ends_at);
     return `<div class="sm-member-box sm-billing-box" data-billing-user-id="${Number(summary.user_id || currentUserId)}" style="margin:0 0 14px">
-      <div class="sm-detail-head" style="margin-bottom:10px"><h3 style="margin:0">과금 요약</h3><span class="sm-badge">관리자</span></div>
-      <div class="sm-member-cards" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px">
-        <div class="sm-member-card"><div>요금제</div><strong>${esc(summary.plan_name || summary.plan_code || '-')}</strong><small>${esc(summary.subscription_status || '-')}</small></div>
-        <div class="sm-member-card"><div>기본 제공</div><strong>${Number(summary.base_video_credits || 0).toLocaleString()}회</strong><small>월 기준</small></div>
-        <div class="sm-member-card"><div>잔여량</div><strong>${Number(summary.remaining_credits || 0).toLocaleString()}회</strong><small>사용 ${Number(summary.total_used || 0).toLocaleString()}회</small></div>
-        <div class="sm-member-card"><div>Free 20회</div><strong>${esc(freeCredit)}</strong><small>추가충전 ${esc(addon)}</small></div>
+      <div class="sm-detail-head" style="margin-bottom:12px"><div><h3 style="margin:0">요금제 관리</h3><div class="sm-user-meta" style="margin:5px 0 0">선택한 회원의 요금제와 무료 이용권을 관리합니다.</div></div><span class="sm-badge">관리자 전용</span></div>
+      <div class="sm-member-cards" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px">
+        <div class="sm-member-card"><div>회원 상태</div><strong>${esc(statusText)}</strong><small>${isStarter ? '구독 활성' : '무료 이용'}</small></div>
+        <div class="sm-member-card"><div>현재 요금제</div><strong>${esc(isStarter ? 'Starter' : 'Free')}</strong><small>${isStarter ? '월 4,500원' : '0원'}</small></div>
+        <div class="sm-member-card"><div>${isStarter ? '첫 달 운영' : '현재 이용 가능'}</div><strong>${isStarter ? '무제한' : `${Number(summary.remaining_credits || 0).toLocaleString()}회`}</strong><small>${isStarter ? '사용량만 집계' : `사용 ${Number(summary.total_used || 0).toLocaleString()}회`}</small></div>
+        <div class="sm-member-card"><div>${isStarter ? '이용 정책' : '무료 이용권'}</div><strong>${isStarter ? '모니터링' : esc(freeCredit)}</strong><small>${isStarter ? '추가 충전 없음' : '20회 단위 지급'}</small></div>
       </div>
-      <div class="sm-user-meta">이월 ${Number(summary.carryover_percent || 0)}% · 저장 ${Number(summary.storage_days || 0)}일 · 변경은 이 회원에게만 적용됩니다.</div>
-      <div class="sm-member-toolbar" style="margin-top:12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:center">
-        <select class="sm-member-input" data-billing-plan>${plans.map((plan) => `<option value="${esc(plan.code)}" ${plan.code === summary.plan_code ? 'selected' : ''}>${esc(plan.name)} · ${Number(plan.base_video_credits || 0).toLocaleString()}회 · ${Number(plan.monthly_price_krw || 0).toLocaleString()}원</option>`).join('')}</select>
-        <button type="button" class="sm-action" data-billing-change-plan>요금제 변경</button>
-        <button type="button" class="sm-action" data-billing-free-credit ${summary.free_signup_credit_given ? 'disabled' : ''}" ${summary.free_signup_credit_given ? 'disabled' : ''}>무료 20회 지급</button>
-        <button type="button" class="sm-action" data-billing-addon ${summary.addon_allowed ? '' : 'disabled'}" ${summary.addon_allowed ? '' : 'disabled'}>추가충전 30회</button>
+      ${isStarter ? `<div class="sm-subscription-period" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 12px"><div class="sm-member-card"><div>구독 시작일</div><strong>${esc(periodStart)}</strong><small>Starter 적용일</small></div><div class="sm-member-card"><div>구독 종료일</div><strong>${esc(periodEnd)}</strong><small>다음 결제 예정일</small></div></div>` : ''}
+      <div class="sm-member-toolbar" style="margin-top:12px;display:grid;grid-template-columns:minmax(260px,1fr) auto;gap:10px;align-items:center">
+        <select class="sm-member-input" data-billing-plan>${plans.map((plan) => `<option value="${esc(plan.code)}" ${plan.code === summary.plan_code ? 'selected' : ''}>${String(plan.code).toLowerCase() === 'starter' ? 'Starter · 월 4,500원' : 'Free · 0원'}</option>`).join('')}</select>
+        <button type="button" class="sm-action sm-primary" data-billing-change-plan>요금제 변경</button>
+        <button type="button" class="sm-action" data-billing-free-credit ${isStarter ? 'disabled' : ''}" ${isStarter ? 'disabled' : ''} style="grid-column:1/-1;${isStarter ? 'display:none' : ''}">무료 20회 추가 지급</button>
       </div>
+      ${isStarter ? '<div data-first-month-note class="sm-user-meta" style="margin-top:12px;color:#bbf7d0;font-weight:900">첫 1개월은 한도 없이 사용하며 실제 사용량만 모니터링합니다.</div>' : ''}
       <div class="sm-user-meta" data-billing-message style="margin-top:10px;color:#67e8f9"></div>
     </div>`;
   }
@@ -278,7 +305,8 @@
     box.dataset.bound = '1';
     const userId = Number(box.dataset.billingUserId || currentUserId);
     box.querySelector('[data-billing-free-credit]')?.addEventListener('click', async () => {
-      try { await postBillingAction(userId, `/v1-api/admin/members/${userId}/billing/free-signup-credit`, {method: 'POST', body: '{}'}); }
+      if (!confirm('이 무료 회원에게 이용권 20회를 추가 지급하시겠습니까?')) return;
+      try { await postBillingAction(userId, `/v1-api/admin/members/${userId}/billing/free-bonus-credit`, {method: 'POST', body: '{}'}); }
       catch (error) { const m = box.querySelector('[data-billing-message]'); if (m) m.textContent = error.message; }
     });
     box.querySelector('[data-billing-change-plan]')?.addEventListener('click', async () => {
@@ -305,7 +333,7 @@
     currentPersonas = [];
     detail.hidden = false;
     detail.removeAttribute('hidden');
-    body.textContent = 'Loading my page data.';
+    body.textContent = '회원 상세정보를 불러오는 중입니다.';
     detail.scrollIntoView({block: 'nearest', behavior: 'smooth'});
     try {
       await ensureRegions();
@@ -315,7 +343,7 @@
       const data = payload.data || {};
       const billingSummary = await loadBillingSummary(userId);
       currentPersonas = Array.isArray(data.personas) ? data.personas : [];
-      panel.querySelector('#sm-detail-title').textContent = `${data.user?.username || 'User'} 마이페이지`;
+      panel.querySelector('#sm-detail-title').textContent = `${data.user?.username || '회원'} 회원 상세정보`;
       if (!currentPersonas.length) {
         body.innerHTML = prependBillingSummary('<div class="sm-user-meta">No registered business persona.</div>', billingSummary);
         attachBillingHandlers();
@@ -342,18 +370,29 @@
     const body = document.getElementById('sm-detail-body');
     const tones = Array.isArray(persona.default_tones) ? persona.default_tones : [];
     const keywords = Array.isArray(persona.keywords) ? persona.keywords.join(', ') : '';
-    body.innerHTML = `<div class="sm-mypage-kicker">MY PAGE</div><h2 class="sm-mypage-title">마이페이지</h2><div class="sm-mypage-summary"><div>사용자명: <strong>${esc(user?.username || '')}</strong></div><div>역할: <strong>${esc((user?.role || 'user') === 'admin' ? '관리자 (Admin)' : '일반 사용자')}</strong></div><div>회원 등급: <strong>${esc(user?.tier || 'free')}</strong></div><div>내 프로젝트 수: <strong>${Number(user?.project_count || 0).toLocaleString()}개</strong></div></div><div class="sm-mypage-tabs"><div class="sm-mypage-tab is-active">업체 페르소나 관리</div><div class="sm-mypage-tab">계정 및 연동 설정</div></div><section class="sm-mypage-section"><div class="sm-detail-head"><div><h3 style="margin:0">상세정보</h3><div class="sm-user-meta">관리자가 선택 회원의 정보를 직접 수정합니다. · Local ID ${esc(user?.id || currentUserId)} · Persona ID ${esc(persona.id)}</div></div></div><form id="sm-persona-form" class="sm-form">
-        <div class="sm-field"><label>Company</label><input name="company_name" value="${esc(persona.company_name || '')}" required></div>
-        <div class="sm-field"><label>Phone</label><input name="phone_number" value="${esc(persona.phone_number || '')}"></div>
-        <div class="sm-field"><label>Website</label><input name="website_url" value="${esc(persona.website_url || '')}"></div>
-        <div class="sm-field"><label>Region</label><select name="region" required><option value="">Select region</option>${adminRegionOptions.map((region) => `<option value="${esc(region)}" ${persona.region === region ? 'selected' : ''}>${esc(region)}</option>`).join('')}${persona.region && !adminRegionOptions.includes(persona.region) ? `<option value="${esc(persona.region)}" selected>${esc(persona.region)}</option>` : ''}</select></div>
-        <div class="sm-field"><label>Industry</label><select name="industry_key" required><option value="">Select industry</option>${INDUSTRY_OPTIONS.map(([value, label]) => `<option value="${esc(value)}" ${persona.industry_key === value ? 'selected' : ''}>${esc(label)}</option>`).join('')}${persona.industry_key && !INDUSTRY_OPTIONS.some(([value]) => value === persona.industry_key) ? `<option value="${esc(persona.industry_key)}" selected>${esc(persona.industry_key)}</option>` : ''}</select></div>
-        <div class="sm-field"><label>Default style</label><select name="default_style"><option value="">Select style</option>${STYLE_OPTIONS.map((style) => `<option value="${esc(style)}" ${persona.default_style === style ? 'selected' : ''}>${esc(style)}</option>`).join('')}</select></div>
-        <div class="sm-field"><label>Blog length</label><select name="blog_content_length"><option value="1200" ${Number(persona.blog_content_length) === 1200 ? 'selected' : ''}>1200</option><option value="1500" ${Number(persona.blog_content_length) !== 1200 && Number(persona.blog_content_length) !== 2000 ? 'selected' : ''}>1500</option><option value="2000" ${Number(persona.blog_content_length) === 2000 ? 'selected' : ''}>2000</option></select></div>
-        <div class="sm-field full"><label>Default tones</label><div class="sm-tone-grid">${TONE_OPTIONS.map((tone) => `<label class="sm-tone-option"><input type="checkbox" name="default_tones" value="${esc(tone)}" ${tones.includes(tone) ? 'checked' : ''}><span>${esc(tone)}</span></label>`).join('')}</div></div>
-        <div class="sm-field full"><label>Keywords, comma separated</label><input name="keywords" value="${esc(keywords)}"></div>
-        <div class="sm-field full"><label>Business detail</label><textarea name="content">${esc(persona.content || '')}</textarea></div>
-        <div class="sm-field full"><label class="sm-tone-option"><input type="checkbox" name="is_default" value="1" ${persona.is_default ? 'checked' : ''}><span>Use as default business</span></label></div>
+    const roleText = (user?.role || 'user') === 'admin' ? '관리자' : '일반 사용자';
+    const tierText = String(user?.tier || 'free').toLowerCase() === 'starter' ? '유료 · Starter' : ((user?.role || 'user') === 'admin' ? '관리자' : '무료');
+    body.innerHTML = `<section class="sm-detail-overview">
+      <div class="sm-detail-head"><div><div class="sm-mypage-kicker">회원 상세정보</div><h2 class="sm-mypage-title">${esc(user?.username || '회원')}</h2></div><span class="sm-badge">회원번호 ${esc(user?.id || currentUserId)}</span></div>
+      <div class="sm-mypage-summary sm-detail-summary-grid">
+        <div><span>회원 상태</span><strong>${esc(tierText)}</strong></div>
+        <div><span>권한</span><strong>${esc(roleText)}</strong></div>
+        <div><span>프로젝트</span><strong>${Number(user?.project_count || 0).toLocaleString()}개</strong></div>
+        <div><span>대표 업체</span><strong>${esc(persona.company_name || '업체 미등록')}</strong></div>
+      </div>
+    </section>
+    <section class="sm-mypage-section"><div class="sm-detail-head"><div><h3 style="margin:0">대표 업체정보</h3><div class="sm-user-meta">회원이 사용하는 업체정보와 콘텐츠 작성 기준을 관리합니다. · 업체번호 ${esc(persona.id)}</div></div></div><form id="sm-persona-form" class="sm-form">
+        <div class="sm-field"><label>업체명 <em>*</em></label><input name="company_name" value="${esc(persona.company_name || '')}" required></div>
+        <div class="sm-field"><label>전화번호 <em>*</em></label><input name="phone_number" value="${esc(persona.phone_number || '')}" required></div>
+        <div class="sm-field"><label>홈페이지/SNS</label><input name="website_url" value="${esc(persona.website_url || '')}" placeholder="홈페이지, 블로그 또는 SNS 주소"></div>
+        <div class="sm-field"><label>지역 <em>*</em></label><select name="region" required><option value="">지역을 선택해 주세요</option>${adminRegionOptions.map((region) => `<option value="${esc(region)}" ${persona.region === region ? 'selected' : ''}>${esc(region)}</option>`).join('')}${persona.region && !adminRegionOptions.includes(persona.region) ? `<option value="${esc(persona.region)}" selected>${esc(persona.region)}</option>` : ''}</select></div>
+        <div class="sm-field"><label>업종 <em>*</em></label><select name="industry_key" required><option value="">업종을 선택해 주세요</option>${INDUSTRY_OPTIONS.map(([value, label]) => `<option value="${esc(value)}" ${persona.industry_key === value ? 'selected' : ''}>${esc(label)}</option>`).join('')}${persona.industry_key && !INDUSTRY_OPTIONS.some(([value]) => value === persona.industry_key) ? `<option value="${esc(persona.industry_key)}" selected>${esc(persona.industry_key)}</option>` : ''}</select></div>
+        <div class="sm-field"><label>기본 작성 채널</label><select name="default_style"><option value="">작성 채널을 선택해 주세요</option>${STYLE_OPTIONS.map((style) => `<option value="${esc(style)}" ${persona.default_style === style ? 'selected' : ''}>${esc(style)}</option>`).join('')}</select></div>
+        <div class="sm-field"><label>블로그 글 길이</label><select name="blog_content_length"><option value="1200" ${Number(persona.blog_content_length) === 1200 ? 'selected' : ''}>1,200자</option><option value="1500" ${Number(persona.blog_content_length) !== 1200 && Number(persona.blog_content_length) !== 2000 ? 'selected' : ''}>1,500자</option><option value="2000" ${Number(persona.blog_content_length) === 2000 ? 'selected' : ''}>2,000자</option></select></div>
+        <div class="sm-field full"><label>기본 감성 톤</label><div class="sm-tone-grid">${TONE_OPTIONS.map((tone) => `<label class="sm-tone-option"><input type="checkbox" name="default_tones" value="${esc(tone)}" ${tones.includes(tone) ? 'checked' : ''}><span>${esc(tone)}</span></label>`).join('')}</div></div>
+        <div class="sm-field full"><label>핵심 키워드 <em>*</em></label><input name="keywords" value="${esc(keywords)}" placeholder="쉼표로 구분해 입력해 주세요" required></div>
+        <div class="sm-field full"><label>페르소나 상세 설명 <em>*</em></label><textarea name="content" placeholder="경력, 전문 분야, 고객층, 차별점, 말투를 상세하게 입력해 주세요" required>${esc(persona.content || '')}</textarea></div>
+        <div class="sm-field full"><label class="sm-tone-option"><input type="checkbox" name="is_default" value="1" ${persona.is_default ? 'checked' : ''}><span>대표 업체로 사용</span></label></div>
       </form>
       <div class="sm-detail-actions">${currentPersonas.length > 1 ? '<button id="sm-persona-back" class="sm-action">업체 선택</button>' : ''}<button id="sm-persona-cancel" class="sm-action">취소</button><button id="sm-persona-save" class="sm-action sm-primary" data-persona-id="${Number(persona.id)}">저장 / 수정</button><button id="sm-persona-close" class="sm-action">닫기</button></div></form></section>`;
   }
@@ -376,6 +415,16 @@
       content: data.get('content'),
       is_default: data.get('is_default') === '1',
     };
+    const requiredChecks = [
+      ['업체명', body.company_name],
+      ['전화번호', body.phone_number],
+      ['지역', body.region],
+      ['업종', body.industry_key],
+      ['핵심 키워드', body.keywords.length ? 'ok' : ''],
+      ['페르소나 상세 설명', String(body.content || '').trim().length >= 10 ? 'ok' : ''],
+    ];
+    const missing = requiredChecks.filter(([, value]) => !String(value || '').trim()).map(([label]) => label);
+    if (missing.length) throw new Error(`필수정보를 확인해 주세요: ${missing.join(', ')}`);
     const response = await fetch(`/v1-api/admin/members/${currentUserId}/personas/${personaId}`, {
       method: 'PUT',
       credentials: 'include',
@@ -392,10 +441,10 @@
     const panel = document.getElementById(PANEL_ID);
     const ids = Array.from(panel.querySelectorAll('.sm-row-check:checked')).map((el) => Number(el.value)).filter(Number.isFinite);
     if (!ids.length) {
-      alert('Select members to delete.');
+      alert('삭제할 회원을 선택해 주세요.');
       return;
     }
-    if (!confirm(`Delete ${ids.length} local StoryMaker account(s)? WordPress is only used as the linked source.`)) return;
+    if (!confirm(`선택한 ${ids.length}명의 StoryMaker 회원을 삭제하시겠습니까?\n\nWordPress 계정은 삭제하지 않고 StoryMaker 로컬 계정만 삭제합니다.`)) return;
     const response = await fetch('/v1-api/admin/users/bulk-delete', {
       method: 'POST',
       credentials: 'include',
@@ -477,6 +526,24 @@
     }
     window.StoryMakerV1InlinePanels?.close?.();
   }
+
+  function closeMemberPanelOnOtherSidebarMenu(event) {
+    const panel = document.getElementById(PANEL_ID);
+    if (!panel || panel.hidden || panel.style.display === 'none') return;
+
+    const target = event.target instanceof Element ? event.target : null;
+    const clicked = target?.closest('button,a,[role="button"]');
+    if (!clicked || clicked.hasAttribute(MENU_MARK) || clicked.closest(`#${PANEL_ID}`)) return;
+
+    const nav = clicked.closest('nav');
+    const rect = clicked.getBoundingClientRect?.();
+    const isLeftSidebar = Boolean(nav) || Boolean(rect && rect.left >= 0 && rect.right <= 420 && rect.height >= 24);
+    if (!isLeftSidebar) return;
+
+    hidePanel();
+  }
+
+  document.addEventListener('click', closeMemberPanelOnOtherSidebarMenu, true);
 
   function removeMenu() {
     document.querySelectorAll(`[${MENU_MARK}]`).forEach((node) => node.remove());
