@@ -320,9 +320,18 @@
   }
 
 
-  function buildActionSet(id, save, logout){
+  function buildActionSet(id, save, logout, nativeClose){
     const actions = document.createElement('div');
     actions.id = id;
+
+    const runNativeClose = () => {
+      closeBypass = true;
+      try {
+        nativeClose.click();
+      } finally {
+        setTimeout(() => { closeBypass = false; }, 120);
+      }
+    };
 
     const saveButton = document.createElement('button');
     saveButton.type = 'button';
@@ -331,6 +340,7 @@
     saveButton.addEventListener('click', () => {
       saveRequested = true;
       save.click();
+      setTimeout(runNativeClose, 0);
     });
 
     const logoutButton = document.createElement('button');
@@ -343,7 +353,7 @@
     closeButton.type = 'button';
     closeButton.className = 'v1-mypage-action-close';
     closeButton.textContent = '닫기';
-    closeButton.addEventListener('click', closeMyPageImmediately);
+    closeButton.addEventListener('click', runNativeClose);
 
     actions.append(saveButton, logoutButton, closeButton);
     return actions;
@@ -362,7 +372,7 @@
     ensureStyle();
 
     if (!dialog.querySelector('#' + TOP_ACTIONS_ID)) {
-      const topActions = buildActionSet(TOP_ACTIONS_ID, save, logout);
+      const topActions = buildActionSet(TOP_ACTIONS_ID, save, logout, nativeClose);
       header.insertBefore(topActions, nativeClose);
       nativeClose.style.display = 'none';
     }
@@ -386,6 +396,7 @@
       saveRequested = true;
     }
     if (text === '닫기') {
+      if (button.classList.contains('v1-mypage-action-close')) return;
       if (closeBypass) return;
       event.preventDefault();
       event.stopPropagation();
