@@ -512,18 +512,7 @@ def login(req: UserLoginRequest, request: Request, response: Response, db: Sessi
         LOGIN_FAILURE_WINDOW_SECONDS,
     )
     
-    # 1. Guest 로그인 처리
-    if username == "guest" and req.password == username:
-        user = get_user_by_username(db, username)
-        if not user:
-            user = create_user(db, username, username, role="user")
-            user.wp_enabled = False
-            db.commit()
-            db.refresh(user)
-        _clear_rate_events("login_failure", login_rate_keys)
-        return _issue_login_response(user, request, db, response)
-
-    # 2. WordPress 로그인 처리
+    # WordPress 로그인 처리
     wp_api_url = os.getenv("WORDPRESS_API_URL", "https://mystorymaker.net/wp-json/wp/v2").rstrip("/")
     wp_base = wp_api_url.split('/wp-json/')[0] if '/wp-json/' in wp_api_url else "https://mystorymaker.net"
     wp_login_url = f"{wp_base}/wp-json/storymaker/v1/login"
