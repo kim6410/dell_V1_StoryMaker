@@ -90,7 +90,7 @@ WEATHER_STATE_KO_MAP = {
 }
 
 DEFAULT_HA_WEATHER_ENTITY_ID = "weather.naver_weather_hanamsi_nalssi_hanamsi"
-DEFAULT_WEATHER_TOOL_URL = "http://host.docker.internal:8030/tool/weather"
+DEFAULT_WEATHER_TOOL_URL = "http://host.docker.internal:8010/weather_json"
 DEFAULT_FOOTER_WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
 FOOTER_WEATHER_REGION_MAP = {"서울": ("서울", 37.5665, 126.9780), "부산": ("부산", 35.1796, 129.0756), "울산": ("울산", 35.5384, 129.3114), "대구": ("대구", 35.8714, 128.6014), "대전": ("대전", 36.3504, 127.3845), "광주": ("광주", 35.1595, 126.8526), "인천": ("인천", 37.4563, 126.7052), "제주": ("제주", 33.4996, 126.5312), "경기": ("수원", 37.2636, 127.0286), "강원": ("춘천", 37.8813, 127.7298)}
 FOOTER_WEATHER_CODE_MAP = {0: "맑음", 1: "대체로 맑음", 2: "부분적으로 흐림", 3: "흐림", 61: "비", 63: "비", 65: "강한 비", 71: "눈", 73: "눈", 75: "강한 눈", 80: "소나기", 81: "소나기", 82: "강한 소나기", 95: "뇌우"}
@@ -537,11 +537,21 @@ def _fetch_weather_and_temp_uncached(region: str) -> tuple[str, str]:
                 payload = json.loads(response.read().decode("utf-8"))
             answer = _extract_weather_tool_answer(payload)
             if answer:
-                state_match = re.search(r"(맑음|구름많음|구름 많음|흐림|비|소나기|눈|비 또는 눈|안개|황사|폭염|한파)", answer)
-                temp_match = re.search(r"(?:현재|현재기온|기온)\s*[:：]?\s*(-?\d+(?:\.\d+)?)\s*도?", answer)
+                # Weather 8010 출력은 `지금 34.6도`, `13시 33도 흐림` 형식입니다.
+                temp_match = re.search(r"(?:현재|현재기온|기온|지금)\s*[:：]?\s*(-?\d+(?:\.\d+)?)\s*도?", answer)
                 if not temp_match:
                     temp_match = re.search(r"(?:최저|아침\s*최저|최저기온|최고|낮\s*최고|최고기온)\s*[:：]?\s*(-?\d+(?:\.\d+)?)\s*도?", answer)
-                state_val = state_match.group(1) if state_match else "맑음"
+
+                # `비 없음`이나 뒤쪽 안내 문구를 현재 날씨로 오인하지 않고 첫 시간대 상태를 우선합니다.
+                hourly_state_match = re.search(
+                    r"\b\d{1,2}시\s+-?\d+(?:\.\d+)?도\s+(맑음|대체로 맑음|구름많음|구름 많음|흐림|비|소나기|눈|비 또는 눈|안개|황사|폭염|한파)",
+                    answer,
+                )
+                state_match = hourly_state_match
+                if not state_match:
+                    state_text = re.sub(r"비\s*없음", "", answer)
+                    state_match = re.search(r"(맑음|대체로 맑음|구름많음|구름 많음|흐림|소나기|비 또는 눈|눈|비|안개|황사|폭염|한파)", state_text)
+                state_val = state_match.group(1) if state_match else "날씨 확인"
                 temp_val = temp_match.group(1) if temp_match else "20"
                 return state_val, temp_val
         except Exception:
