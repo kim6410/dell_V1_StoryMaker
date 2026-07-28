@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from starlette.background import BackgroundTask
 
 from app.beta_image_download import _clean_name, _watermark_image, build_download_package
+from app.beta_mp4_usage import record_verified_mp4
 from app.beta_storage import canonical_audio_path, remove_tree
 
 BETA_ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
@@ -255,7 +256,8 @@ async def beta_browser_upload(
     result["browser_render"] = {"saved": bool(saved), "diagnostics": diagnostic_data}
     beta_browser_write_result(job_dir, result)
     (output_dir / "diagnostics.json").write_text(json.dumps(diagnostic_data, ensure_ascii=False, indent=2), encoding="utf-8")
-    return JSONResponse({"ok": True, "saved": saved})
+    mp4_usage = record_verified_mp4(beta_job_id, "archive", Path(saved["browser_video"])) if "browser_video" in saved else None
+    return JSONResponse({"ok": True, "saved": saved, "mp4_usage": mp4_usage})
 
 
 @beta_browser_router.get("/jobs/{beta_job_id}/images-download")

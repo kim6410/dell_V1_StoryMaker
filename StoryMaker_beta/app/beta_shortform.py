@@ -17,6 +17,7 @@ import uuid
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 
+from app.beta_mp4_usage import record_verified_mp4
 from app.beta_storage import canonical_audio_path
 
 ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
@@ -308,7 +309,8 @@ async def save_shortform_result(
     }
     write_json(result_path, result)
     (output / "settings.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
-    return JSONResponse({"ok": True, "saved": saved, "shortform": result["shortform"]})
+    mp4_usage = record_verified_mp4(job_id, "shortform", Path(saved["shortform_video"])) if "shortform_video" in saved else None
+    return JSONResponse({"ok": True, "saved": saved, "shortform": result["shortform"], "mp4_usage": mp4_usage})
 
 
 @beta_shortform_router.post("/jobs/{job_id}/reset-generated")

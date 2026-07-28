@@ -22,6 +22,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.beta_auth import current_user_id, current_user_role
+from app.beta_mp4_usage import ensure_mp4_usage_table, record_verified_mp4
 from app.beta_storage import canonical_audio_path, prune_unreferenced_shared_images, store_normalized_image
 
 KST = ZoneInfo("Asia/Seoul")
@@ -214,6 +215,7 @@ def beta_init() -> None:
             connection.execute("ALTER TABLE beta_jobs ADD COLUMN media_deleted_bytes INTEGER NOT NULL DEFAULT 0")
         if "media_delete_reason" not in columns:
             connection.execute("ALTER TABLE beta_jobs ADD COLUMN media_delete_reason TEXT NOT NULL DEFAULT ''")
+        ensure_mp4_usage_table(connection)
 
 
 def beta_job_dir(beta_job_id: str) -> Path:
@@ -656,7 +658,8 @@ def beta_render_job(
             clip.unlink(missing_ok=True)
         beta_write_json(job_dir / "result.json", result)
         beta_update_job(beta_job_id, status="completed", progress=100, completed_at=completed_at)
-        return JSONResponse({"ok": True, "job": result, "video_url": f"/beta-api/jobs/{beta_job_id}/file/video"})
+        mp4_usage = record_verified_mp4(beta_job_id, "archive", video)
+        return JSONResponse({"ok": True, "job": result, "video_url": f"/beta-api/jobs/{beta_job_id}/file/video", "mp4_usage": mp4_usage})
     except Exception as exc:
         beta_update_job(beta_job_id, status="failed", progress=0, error=str(exc))
         raise HTTPException(status_code=500, detail=str(exc))
