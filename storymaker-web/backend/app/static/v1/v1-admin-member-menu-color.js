@@ -4,7 +4,7 @@
   if (window.__STORYMAKER_V1_ADMIN_MEMBER_MENU_COLOR__) return;
   window.__STORYMAKER_V1_ADMIN_MEMBER_MENU_COLOR__ = true;
 
-  const TARGET_COLOR = '#5eead4';
+  const TARGET_COLOR = '#7fffd4';
   let isAdmin = false;
 
   const clean = (value = '') => String(value).replace(/\s+/g, ' ').trim();
@@ -20,8 +20,9 @@
     document.querySelectorAll('button,a,[role="button"],li').forEach((item) => {
       const rect = item.getBoundingClientRect();
       if (rect.left >= 320 || rect.width < 80 || rect.height < 24 || rect.height > 100) return;
-      const exact = Array.from(item.querySelectorAll('*')).find((node) => clean(node.textContent) === '회원 관리')
-        || (clean(item.textContent) === '회원 관리' ? item : null);
+      const isMemberLabel = (value) => ['회원관리', '회원 관리'].includes(clean(value));
+      const exact = Array.from(item.querySelectorAll('*')).find((node) => isMemberLabel(node.textContent))
+        || (isMemberLabel(item.textContent) ? item : null);
       if (!exact) return;
       exact.style.setProperty('color', TARGET_COLOR, 'important');
       exact.style.setProperty('font-weight', '900', 'important');
