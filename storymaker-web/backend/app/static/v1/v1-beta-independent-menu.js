@@ -2,8 +2,8 @@
   'use strict';
 
   const MENU_ITEMS = [
-    { key: 'betaProduction', label: '딸깍 제작', src: '/v1/beta/production' },
-    { key: 'betaArchive', label: '보관함', src: '/v1/beta/archive' },
+    { key: 'betaProduction', label: '딸깍 제작 Beta', src: '/v1/beta/production' },
+    { key: 'betaArchive', label: '보관함 Beta', src: '/v1/beta/archive' },
   ];
 
   function findNav() {
