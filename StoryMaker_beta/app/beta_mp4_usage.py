@@ -15,6 +15,7 @@ BETA_DB = BETA_ROOT / "data" / "storymaker_beta.db"
 V1_DB = Path(os.getenv("STORYMAKER_V1_DB", "/home/bourne/StoryMaker_1/database/storymaker.db"))
 FFPROBE = Path(os.getenv("STORYMAKER_BETA_FFPROBE", "/usr/bin/ffprobe"))
 FREE_MONTHLY_LIMIT = 20
+USAGE_RESERVATION_TTL_SECONDS = 2 * 60 * 60
 
 
 def now_iso() -> str:
@@ -111,24 +112,83 @@ def monthly_usage_summary(user_id: int, role: str = "user", now: datetime | None
 
 
 def enforce_monthly_limit(user_id: int, role: str, beta_job_id: str, output_type: str) -> dict[str, Any]:
+    """무료 사용량을 BEGIN IMMEDIATE 트랜잭션 안에서 검사하고 출력 슬롯을 예약합니다."""
     if output_type not in {"archive", "shortform"}:
         raise ValueError("지원하지 않는 MP4 출력 유형입니다.")
-    with sqlite3.connect(BETA_DB) as connection:
-        ensure_mp4_usage_table(connection)
-        existing = connection.execute(
-            "SELECT 1 FROM beta_mp4_usage WHERE beta_job_id=? AND output_type=? "
-            "AND mp4_status='completed' AND mp4_verified=1 LIMIT 1",
-            (beta_job_id, output_type),
-        ).fetchone()
+
     summary = monthly_usage_summary(user_id, role)
-    if existing or summary.get("unlimited"):
-        return {**summary, "existing_usage": bool(existing)}
-    if int(summary.get("used") or 0) >= FREE_MONTHLY_LIMIT:
-        raise HTTPException(
-            status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail=f"무료 월 {FREE_MONTHLY_LIMIT}회 제작 한도를 모두 사용했습니다.",
-        )
-    return {**summary, "existing_usage": False}
+    if summary.get("unlimited"):
+        return {**summary, "existing_usage": False, "reserved": False}
+
+    period_start = _parse_datetime(summary.get("period_start"))
+    period_end = _parse_datetime(summary.get("period_end"))
+    if not period_start or not period_end:
+        raise RuntimeError("사용량 집계 기간을 확인할 수 없습니다.")
+
+    now_dt = datetime.now(timezone.utc)
+    now_text = now_dt.isoformat()
+    stale_before = (now_dt - timedelta(seconds=USAGE_RESERVATION_TTL_SECONDS)).isoformat()
+    with sqlite3.connect(BETA_DB, timeout=30, isolation_level=None) as connection:
+        ensure_mp4_usage_table(connection)
+        connection.execute("BEGIN IMMEDIATE")
+        try:
+            connection.execute(
+                "DELETE FROM beta_mp4_usage WHERE mp4_status='reserved' AND mp4_verified=0 AND updated_at < ?",
+                (stale_before,),
+            )
+            existing = connection.execute(
+                "SELECT mp4_status, mp4_verified FROM beta_mp4_usage WHERE beta_job_id=? AND output_type=? LIMIT 1",
+                (beta_job_id, output_type),
+            ).fetchone()
+            if existing:
+                connection.commit()
+                return {
+                    **summary,
+                    "existing_usage": bool(existing[0] == "completed" and int(existing[1] or 0) == 1),
+                    "reserved": bool(existing[0] == "reserved"),
+                }
+
+            rows = connection.execute(
+                "SELECT mp4_created_at, mp4_status, mp4_verified FROM beta_mp4_usage "
+                "WHERE owner_user_id=? AND (mp4_status='reserved' OR (mp4_status='completed' AND mp4_verified=1))",
+                (user_id,),
+            ).fetchall()
+            occupied = sum(
+                1 for created_at, row_status, verified in rows
+                if (created := _parse_datetime(created_at))
+                and period_start <= created < period_end
+                and (row_status == "reserved" or int(verified or 0) == 1)
+            )
+            if occupied >= FREE_MONTHLY_LIMIT:
+                connection.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                    detail=f"무료 월 {FREE_MONTHLY_LIMIT}회 제작 한도를 모두 사용했습니다.",
+                )
+
+            connection.execute(
+                """
+                INSERT INTO beta_mp4_usage (
+                    beta_job_id, owner_user_id, output_type,
+                    mp4_status, mp4_verified, mp4_created_at,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, 'reserved', 0, ?, ?, ?)
+                """,
+                (beta_job_id, user_id, output_type, now_text, now_text, now_text),
+            )
+            connection.commit()
+        except Exception:
+            if connection.in_transaction:
+                connection.rollback()
+            raise
+
+    return {
+        **summary,
+        "used": occupied,
+        "remaining": max(0, FREE_MONTHLY_LIMIT - occupied - 1),
+        "existing_usage": False,
+        "reserved": True,
+    }
 
 
 def probe_mp4(path: Path) -> dict[str, Any]:
