@@ -657,6 +657,37 @@
     loadMembers();
   }
 
+  async function openSubscriberDashboard(username) {
+    const identifier = clean(username).toLowerCase();
+    if (!identifier) throw new Error('작성자 아이디가 없습니다.');
+    if (!adminAccess) throw new Error('회원관리 접근 권한이 없습니다.');
+
+    showPanel();
+    const response = await fetch('/v1-api/admin/members', {credentials: 'include', headers: {Accept: 'application/json'}});
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok === false) throw new Error(payload.detail || payload.message || `HTTP ${response.status}`);
+    const data = payload.data || {};
+    memberItems = Array.isArray(data.items) ? data.items : [];
+    renderMembers();
+
+    const matched = memberItems.find((item) => {
+      const local = item.storymaker || {};
+      const wp = item.wordpress || {};
+      return [local.username, wp.username]
+        .map((value) => clean(value).toLowerCase())
+        .filter(Boolean)
+        .includes(identifier);
+    });
+    const userId = Number(matched?.storymaker?.id || 0);
+    if (!userId) throw new Error(`회원관리에서 ${username} 사용자를 찾지 못했습니다.`);
+    await openUser(userId);
+  }
+
+  window.StoryMakerV1AdminMembers = {
+    ...(window.StoryMakerV1AdminMembers || {}),
+    openSubscriberDashboard,
+  };
+
   function hidePanel() {
     const panel = document.getElementById(PANEL_ID);
     if (panel) {

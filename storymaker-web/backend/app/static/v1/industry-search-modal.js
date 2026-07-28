@@ -38,6 +38,11 @@
       #${MODAL_ID} .v1-industry-help{margin:8px 2px 0;color:#64748b;font-size:12px;font-weight:700}
       #${MODAL_ID} .v1-industry-results{min-height:220px;max-height:500px;overflow:auto;padding:8px 20px 20px;background:#f8fafc}
       #${MODAL_ID} .v1-industry-empty{padding:42px 12px;text-align:center;color:#64748b;font-size:14px;font-weight:800}
+      #${MODAL_ID} .v1-industry-request-wrap{display:grid;gap:12px;justify-items:center;padding:34px 16px;text-align:center}
+      #${MODAL_ID} .v1-industry-request-title{color:#0f172a;font-size:16px;font-weight:950}
+      #${MODAL_ID} .v1-industry-request-desc{max-width:460px;color:#64748b;font-size:13px;font-weight:700;line-height:1.6}
+      #${MODAL_ID} .v1-industry-request-button{border:1px solid #0891b2;border-radius:999px;background:#cffafe;padding:11px 18px;color:#0e7490;font-size:13px;font-weight:950;cursor:pointer}
+      #${MODAL_ID} .v1-industry-request-button:hover{background:#a5f3fc}
       #${MODAL_ID} .v1-industry-group{margin:14px 2px 5px;color:#0e7490;font-size:12px;font-weight:950;letter-spacing:.02em}
       #${MODAL_ID} .v1-industry-result{display:flex;width:100%;align-items:center;justify-content:space-between;gap:14px;margin-top:7px;border:1px solid #cbd5e1;border-radius:15px;background:#fff;padding:13px 15px;color:#0f172a;text-align:left;cursor:pointer}
       #${MODAL_ID} .v1-industry-result:hover,#${MODAL_ID} .v1-industry-result.is-active{border-color:#06b6d4;background:#ecfeff;box-shadow:0 8px 22px rgba(8,145,178,.12)}
@@ -118,6 +123,21 @@
     closeModal();
   }
 
+  function requestMissingIndustry(query){
+    const requestedIndustry = clean(query) || '목록에 없는 업종';
+    closeModal();
+    const openRequest = function(){
+      const api = window.StoryMakerV1FeatureRequests;
+      if (!api || typeof api.newRequest !== 'function') return false;
+      api.newRequest({
+        title: '[업종 추가 요청] ' + requestedIndustry,
+        content: '마이페이지 업종 목록에 아래 업종을 추가해 주세요.\n\n요청 업종: ' + requestedIndustry + '\n\n비슷한 기존 업종이 있다면 함께 안내해 주세요.'
+      });
+      return true;
+    };
+    if (!openRequest()) setTimeout(openRequest, 250);
+  }
+
   function renderResults(){
     const modal = ensureModal();
     const query = clean(modal.querySelector('.v1-industry-query').value).toLowerCase();
@@ -127,7 +147,8 @@
     results.innerHTML = '';
     activeIndex = -1;
     if (!filtered.length) {
-      results.innerHTML = '<div class="v1-industry-empty">검색 결과가 없습니다. 다른 업종 키워드로 검색해 주세요.</div>';
+      results.innerHTML = '<div class="v1-industry-request-wrap"><div class="v1-industry-request-title">찾는 업종이 목록에 없습니다.</div><div class="v1-industry-request-desc">관리자에게 업종 추가를 요청하면 요청사항에 자동으로 등록할 수 있습니다.</div><button type="button" class="v1-industry-request-button">관리자에게 업종 요청</button></div>';
+      results.querySelector('.v1-industry-request-button')?.addEventListener('click', () => requestMissingIndustry(query));
       return;
     }
     let lastGroup = '';
@@ -189,7 +210,20 @@
     return getItems(field).length > 0;
   }
 
+  function syncDisplay(field){
+    if (!field || field.dataset[BOUND] !== '1') return;
+    const wrap = field.closest('.v1-industry-picker');
+    const display = wrap?.querySelector('.v1-industry-picker-display');
+    if (!display) return;
+    const selectedLabel = clean(field.selectedOptions?.[0]?.textContent || field.value);
+    if (display.value !== selectedLabel) display.value = selectedLabel;
+  }
+
   function bind(field){
+    if (field?.dataset?.[BOUND] === '1') {
+      syncDisplay(field);
+      return;
+    }
     if (!eligible(field)) return;
     field.dataset[BOUND] = '1';
     ensureStyle();
@@ -238,4 +272,7 @@
     if (node.matches?.('select')) bind(node);
     scan(node);
   }))).observe(document.documentElement, {childList:true, subtree:true});
+  window.setInterval(() => {
+    document.querySelectorAll('[data-v1-industry-search-bound="1"]').forEach(syncDisplay);
+  }, 300);
 })();

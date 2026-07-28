@@ -195,13 +195,52 @@
 
   function eligible(field){
     if (!field || field.dataset[BOUND] === '1') return false;
+    if (field.classList?.contains('v1-region-picker-display')) return false;
+    if (field.closest?.('.v1-region-picker') && !field.matches('select,input[name="region"]')) return false;
     const explicitRegionField = field.matches('input[name="region"],select[name="region"]');
     const labeledRegionField = field.dataset.v1RegionField === '1';
     if (!explicitRegionField && !labeledRegionField) return false;
     return field.type !== 'hidden';
   }
 
+  async function hydrateRegionFromSavedPersona(field, display){
+    if (!field || clean(field.value) || field.dataset.v1RegionHydrating === '1') return;
+    field.dataset.v1RegionHydrating = '1';
+    try {
+      const response = await fetch('/v1-api/auth/personas', {credentials:'include'});
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload?.ok === false) return;
+      const items = Array.isArray(payload?.data) ? payload.data : [];
+      const persona = items.find(item => item?.is_default) || items[0] || null;
+      const savedRegion = clean(persona?.region);
+      if (!savedRegion || clean(field.value)) return;
+      if (field.tagName === 'SELECT' && !Array.from(field.options).some(option => option.value === savedRegion)) {
+        field.add(new Option(savedRegion, savedRegion, true, true));
+      }
+      setNativeValue(field, savedRegion);
+      display.value = formatRegionDisplay(savedRegion);
+      field.dispatchEvent(new Event('input', {bubbles:true}));
+      field.dispatchEvent(new Event('change', {bubbles:true}));
+    } catch (_) {
+    } finally {
+      field.dataset.v1RegionHydrating = '0';
+    }
+  }
+
+  function syncDisplay(field){
+    if (!field || field.dataset[BOUND] !== '1') return;
+    const display = field.__v1RegionDisplay || null;
+    if (!display || !display.isConnected) return;
+    const nextValue = formatRegionDisplay(field.value || '');
+    if (display.value !== nextValue) display.value = nextValue;
+    if (!nextValue) hydrateRegionFromSavedPersona(field, display);
+  }
+
   function bind(field){
+    if (field?.dataset?.[BOUND] === '1') {
+      syncDisplay(field);
+      return;
+    }
     if (!eligible(field)) return;
     field.dataset[BOUND] = '1';
     ensureStyle();
@@ -220,7 +259,7 @@
     button.textContent = '지역 검색';
     field.parentNode.insertBefore(wrap, field);
     wrap.append(display, button);
-    wrap.appendChild(field);
+    field.__v1RegionDisplay = display;
     field.style.position = 'absolute';
     field.style.opacity = '0';
     field.style.pointerEvents = 'none';
@@ -249,7 +288,8 @@
     scope.querySelectorAll?.('label').forEach(label => {
       const labelText = directLabelText(label);
       if (!/^\*?\s*지역\s*(필수)?$/.test(labelText)) return;
-      const field = label.querySelector('select,input:not([type="hidden"])');
+      const field = label.querySelector('select:not(.v1-region-picker-display)')
+        || label.querySelector('input[name="region"]:not([type="hidden"]):not(.v1-region-picker-display)');
       if (!field) return;
       field.dataset.v1RegionField = '1';
       bind(field);
@@ -260,4 +300,7 @@
   new MutationObserver(records => records.forEach(record => record.addedNodes.forEach(node => {
     if (node.nodeType === 1) { if (eligible(node)) bind(node); scan(node); }
   }))).observe(document.documentElement, {childList:true, subtree:true});
+  window.setInterval(() => {
+    document.querySelectorAll('[data-v1-region-modal-bound="1"]').forEach(syncDisplay);
+  }, 300);
 })();

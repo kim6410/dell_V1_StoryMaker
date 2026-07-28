@@ -15,6 +15,11 @@
   let currentUser = null;
   let roleChecked = false;
   let itemsCache = [];
+  let currentAdminFilter = 'all';
+  let currentAdminSearch = '';
+  let currentAdminPage = 1;
+  let currentAdminComposing = false;
+  const ADMIN_PAGE_SIZE = 10;
 
   const clean = (value = '') => String(value ?? '').replace(/\s+/g, ' ').trim();
   const esc = (value = '') => String(value)
@@ -61,21 +66,30 @@
       #${MENU_ID}{margin-top:auto!important}
       .sm-v1-request-menu{display:flex!important;align-items:center!important;gap:10px!important;width:100%!important;padding:11px 14px!important;border:0!important;border-radius:12px!important;background:transparent!important;color:#cbd5e1!important;font-weight:800!important;cursor:pointer!important;text-align:left!important}
       .sm-v1-request-menu:hover,.sm-v1-request-menu.is-active{background:rgba(14,165,233,.16)!important;color:#e0f2fe!important}
+      #storymaker-v1-inline-panel-host[data-panel-key="feature-requests"] .sm-v1-inline-title{font-size:20px!important}
       .sm-v1-request-wrap{width:100%;max-width:1740px;margin:0 auto;padding:10px 8px 24px;color:#e2e8f0;box-sizing:border-box}
       .sm-v1-request-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;flex-wrap:wrap}
       .sm-v1-request-head h2{margin:0;font-size:24px;color:#f8fafc}.sm-v1-request-head p{margin:6px 0 0;color:#94a3b8;font-size:14px}
       .sm-v1-request-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
       .sm-v1-request-btn{border:1px solid rgba(56,189,248,.45);background:linear-gradient(135deg,#0284c7,#0ea5e9);color:#fff;border-radius:11px;padding:10px 15px;font-weight:900;cursor:pointer}
       .sm-v1-request-btn.secondary{background:#0f172a;border-color:rgba(148,163,184,.3);color:#e2e8f0}.sm-v1-request-btn:disabled{opacity:.55;cursor:wait}
-      .sm-v1-request-admin-list{display:grid;gap:12px}
-      .sm-v1-request-admin-card{background:rgba(15,23,42,.92);border:1px solid rgba(148,163,184,.22);border-radius:16px;padding:14px;display:grid;gap:10px;box-shadow:0 14px 35px rgba(0,0,0,.16);cursor:pointer;transition:.15s}
-      .sm-v1-request-admin-card:hover{background:rgba(30,41,59,.82);border-color:rgba(56,189,248,.42);transform:translateY(-1px)}
-      .sm-v1-request-admin-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
-      .sm-v1-request-admin-top strong{font-size:14px;color:#f8fafc}
-      .sm-v1-request-admin-meta{font-size:11px;color:#94a3b8;margin-top:4px}
-      .sm-v1-request-admin-content{white-space:pre-wrap;font-size:13px;line-height:1.7;color:#d5deeb;background:rgba(0,0,0,.14);padding:12px;border-radius:10px}
-      .sm-v1-request-admin-answer{font-size:12px;color:#a7f3d0;background:rgba(6,78,59,.2);border:1px solid rgba(52,211,153,.2);padding:9px 11px;border-radius:10px;white-space:pre-wrap}
-      .sm-v1-request-admin-open{font-size:11px;color:#7dd3fc;text-align:right;font-weight:800}
+      .sm-v1-request-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;margin-bottom:10px;border:1px solid rgba(51,65,85,.72);border-radius:14px;background:rgba(15,23,42,.72);flex-wrap:wrap}
+      .sm-v1-request-toolbar-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.sm-v1-request-total{font-size:13px;font-weight:900;color:#e2e8f0}
+      .sm-v1-request-filter-group{display:flex;gap:6px;align-items:center}.sm-v1-request-filter{border:1px solid rgba(71,85,105,.8);background:#0f172a;color:#94a3b8;border-radius:999px;padding:6px 11px;font-size:12px;font-weight:900;cursor:pointer}
+      .sm-v1-request-filter.is-active{border-color:rgba(34,211,238,.65);background:rgba(8,145,178,.18);color:#cffafe}.sm-v1-request-refresh-small{border:1px solid rgba(71,85,105,.8);background:#111827;color:#cbd5e1;border-radius:10px;padding:7px 10px;font-size:12px;font-weight:900;cursor:pointer}
+      .sm-v1-request-search{display:flex;align-items:center;gap:8px;min-width:min(360px,100%);flex:1;max-width:520px}.sm-v1-request-search input{width:100%;height:38px;border:1px solid rgba(71,85,105,.8);border-radius:11px;background:#020617;color:#e2e8f0;padding:0 13px;font-size:12px;font-weight:750;outline:none}.sm-v1-request-search input:focus{border-color:#22d3ee;box-shadow:0 0 0 3px rgba(34,211,238,.1)}
+      .sm-v1-request-admin-list{display:grid;gap:7px}
+      .sm-v1-request-admin-card{background:linear-gradient(180deg,rgba(15,23,42,.96),rgba(10,18,34,.94));border:1px solid rgba(71,85,105,.72);border-radius:13px;padding:0;display:grid;box-shadow:0 7px 20px rgba(0,0,0,.12);overflow:hidden;transition:.15s}
+      .sm-v1-request-admin-card:hover{border-color:rgba(56,189,248,.42);transform:translateY(-1px)}
+      .sm-v1-request-admin-top{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 14px;cursor:pointer}
+      .sm-v1-request-admin-title{font-size:14px;color:#f8fafc;font-weight:950;line-height:1.45}.sm-v1-request-admin-meta{font-size:14px;color:#94a3b8;margin-top:4px;line-height:1.45}.sm-v1-request-author-link{border:0;background:transparent;color:#7dd3fc;padding:0;font:inherit;font-weight:900;cursor:pointer;text-decoration:underline;text-decoration-color:rgba(125,211,252,.45);text-underline-offset:3px}.sm-v1-request-author-link:hover{color:#cffafe;text-decoration-color:#67e8f9}
+      .sm-v1-request-admin-body{display:none;padding:0 14px 12px;border-top:1px solid rgba(51,65,85,.55)}.sm-v1-request-admin-card.is-open .sm-v1-request-admin-body{display:grid;gap:8px;padding-top:11px}
+      .sm-v1-request-section-label{font-size:10px;font-weight:950;letter-spacing:.08em;color:#64748b;text-transform:uppercase;margin-bottom:4px}
+      .sm-v1-request-admin-content{white-space:pre-wrap;font-size:12px;line-height:1.65;color:#dbe7f3;background:rgba(2,6,23,.5);border:1px solid rgba(51,65,85,.48);padding:10px 11px;border-radius:9px}
+      .sm-v1-request-admin-answer{font-size:12px;line-height:1.6;color:#a7f3d0;background:rgba(6,78,59,.18);border:1px solid rgba(52,211,153,.18);padding:9px 11px;border-radius:9px;white-space:pre-wrap}
+      .sm-v1-request-admin-answer.is-wait{color:#94a3b8;background:rgba(15,23,42,.65);border-style:dashed;border-color:#475569}
+      .sm-v1-request-admin-footer{display:flex;justify-content:flex-end}.sm-v1-request-admin-open{border:1px solid rgba(56,189,248,.32);background:rgba(14,165,233,.1);color:#7dd3fc;border-radius:9px;padding:7px 10px;font-size:11px;font-weight:900;cursor:pointer}
+      .sm-v1-request-pagination{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px}.sm-v1-request-page{min-width:34px;height:34px;border:1px solid rgba(71,85,105,.8);border-radius:9px;background:#0f172a;color:#94a3b8;font-size:12px;font-weight:900;cursor:pointer}.sm-v1-request-page.is-active{border-color:#22d3ee;background:rgba(8,145,178,.18);color:#cffafe}.sm-v1-request-page:disabled{opacity:.4;cursor:default}
       .sm-v1-request-box{border:1px solid rgba(148,163,184,.2);background:rgba(15,23,42,.9);border-radius:18px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.18)}
       .sm-v1-request-scroll{overflow-x:auto}.sm-v1-request-table{width:100%;min-width:760px;border-collapse:collapse}
       .sm-v1-request-table th{padding:13px 12px;background:#0b1222;color:#94a3b8;font-size:12px;text-align:center;border-bottom:1px solid #243045;white-space:nowrap}
@@ -113,7 +127,7 @@
   }
 
   function getInlineHost() {
-    if (window.StoryMakerV1InlinePanels?.open) return window.StoryMakerV1InlinePanels.open('feature-requests', '요청사항');
+    if (window.StoryMakerV1InlinePanels?.open) return window.StoryMakerV1InlinePanels.open('feature-requests', '사용자 요청');
     const main = document.querySelector('main') || document.querySelector('[class*="flex-1"]') || document.getElementById('root') || document.body;
     let host = document.getElementById('storymaker-v1-feature-request-fallback');
     if (!host) { host = document.createElement('section'); host.id = 'storymaker-v1-feature-request-fallback'; main.prepend(host); }
@@ -157,20 +171,31 @@
 
   function tableHtml(items, adminMode) {
     if (adminMode) {
-      const cards = items.map((item) => `
+      const cards = items.map((item) => {
+        const hasAnswer = Boolean(clean(item.admin_note));
+        return `
         <article class="sm-v1-request-admin-card" data-request-id="${Number(item.id)}">
-          <div class="sm-v1-request-admin-top">
+          <div class="sm-v1-request-admin-top" data-request-toggle>
             <div>
-              <strong>#${Number(item.id)} ${esc(item.title || '')}</strong>
-              <div class="sm-v1-request-admin-meta">작성자: ${esc(item.username || '알 수 없음')} · ${esc(dateText(item.created_at))}</div>
+              <div class="sm-v1-request-admin-title">#${Number(item.id)} ${esc(item.title || '')}</div>
+              <div class="sm-v1-request-admin-meta">작성자 <button type="button" class="sm-v1-request-author-link" data-request-subscriber="${esc(item.username || '')}">${esc(item.username || '알 수 없음')}</button> · ${esc(dateText(item.created_at))}</div>
             </div>
             ${statusBadge(displayStatus(item))}
           </div>
-          <div class="sm-v1-request-admin-content">${esc(item.content || '')}</div>
-          <div class="sm-v1-request-admin-answer">${clean(item.admin_note) ? `관리자 답변: ${esc(item.admin_note)}` : '관리자 답변 대기 중'}</div>
-          <div class="sm-v1-request-admin-open">클릭하여 상태와 답변 수정</div>
+          <div class="sm-v1-request-admin-body">
+            <div>
+              <div class="sm-v1-request-section-label">요청 본문</div>
+              <div class="sm-v1-request-admin-content">${esc(item.content || '')}</div>
+            </div>
+            <div>
+              <div class="sm-v1-request-section-label">관리자 답변</div>
+              <div class="sm-v1-request-admin-answer${hasAnswer ? '' : ' is-wait'}">${hasAnswer ? esc(item.admin_note) : '답변 대기'}</div>
+            </div>
+            <div class="sm-v1-request-admin-footer"><button type="button" class="sm-v1-request-admin-open" data-request-edit>상태/답변 수정</button></div>
+          </div>
         </article>
-      `).join('');
+      `;
+      }).join('');
       return `<div class="sm-v1-request-admin-list">${cards}</div>`;
     }
 
@@ -181,15 +206,115 @@
 
   async function renderList(host) {
     const adminMode = isAdmin();
-    host.innerHTML = `<div class="sm-v1-request-wrap"><div class="sm-v1-request-head"><div><h2>${adminMode ? '요청사항 관리' : '요청사항'}</h2><p>${adminMode ? '사용자가 등록한 요청을 확인하고 답변과 처리 상태를 관리합니다.' : '스토리 메이커 사용 중, 문의사항과 개선 요청을 등록합니다.'}</p></div><div class="sm-v1-request-actions">${adminMode ? '' : '<button class="sm-v1-request-btn" data-request-new>작성</button>'}<button class="sm-v1-request-btn secondary" data-request-refresh>새로고침</button></div></div><div data-request-list><div class="sm-v1-request-empty">요청사항을 불러오는 중입니다...</div></div></div>`;
+    host.innerHTML = adminMode
+      ? `<div class="sm-v1-request-wrap"><div data-request-toolbar></div><div data-request-list><div class="sm-v1-request-empty">요청사항을 불러오는 중입니다...</div></div></div>`
+      : `<div class="sm-v1-request-wrap"><div class="sm-v1-request-head"><div><h2>요청사항</h2><p>스토리 메이커 사용 중, 문의사항과 개선 요청을 등록합니다.</p></div><div class="sm-v1-request-actions"><button class="sm-v1-request-btn" data-request-new>작성</button><button class="sm-v1-request-btn secondary" data-request-refresh>새로고침</button></div></div><div data-request-list><div class="sm-v1-request-empty">요청사항을 불러오는 중입니다...</div></div></div>`;
     host.querySelector('[data-request-new]')?.addEventListener('click', () => ensureModal().classList.add('is-open'));
     host.querySelector('[data-request-refresh]')?.addEventListener('click', () => renderList(host));
     const list = host.querySelector('[data-request-list]');
+    const toolbar = host.querySelector('[data-request-toolbar]');
+
+    const paintAdminList = () => {
+      if (!adminMode || !toolbar) return;
+      const total = itemsCache.length;
+      const done = itemsCache.filter((item) => displayStatus(item) === '완료').length;
+      const pending = total - done;
+      toolbar.innerHTML = `<div class="sm-v1-request-toolbar">
+        <div class="sm-v1-request-toolbar-left">
+          <span class="sm-v1-request-total">전체 ${total}건</span>
+          <div class="sm-v1-request-filter-group">
+            <button type="button" class="sm-v1-request-filter ${currentAdminFilter === 'all' ? 'is-active' : ''}" data-request-filter="all">전체</button>
+            <button type="button" class="sm-v1-request-filter ${currentAdminFilter === 'pending' ? 'is-active' : ''}" data-request-filter="pending">대기 ${pending}</button>
+            <button type="button" class="sm-v1-request-filter ${currentAdminFilter === 'done' ? 'is-active' : ''}" data-request-filter="done">완료 ${done}</button>
+          </div>
+        </div>
+        <div class="sm-v1-request-search"><input type="search" value="${esc(currentAdminSearch)}" placeholder="번호, 제목, 작성자, 본문, 답변 검색" data-request-search></div>
+        <button type="button" class="sm-v1-request-refresh-small" data-request-refresh-small aria-label="요청사항 새로고침">↻ 새로고침</button>
+      </div>`;
+      const byStatus = currentAdminFilter === 'done'
+        ? itemsCache.filter((item) => displayStatus(item) === '완료')
+        : currentAdminFilter === 'pending'
+          ? itemsCache.filter((item) => displayStatus(item) !== '완료')
+          : itemsCache;
+      const keyword = clean(currentAdminSearch).toLowerCase();
+      const filtered = keyword ? byStatus.filter((item) => [item.id, item.title, item.username, item.content, item.admin_note].some((value) => String(value || '').toLowerCase().includes(keyword))) : byStatus;
+      const totalPages = Math.max(1, Math.ceil(filtered.length / ADMIN_PAGE_SIZE));
+      currentAdminPage = Math.min(Math.max(1, currentAdminPage), totalPages);
+      const pageItems = filtered.slice((currentAdminPage - 1) * ADMIN_PAGE_SIZE, currentAdminPage * ADMIN_PAGE_SIZE);
+      const pagination = filtered.length > ADMIN_PAGE_SIZE ? `<div class="sm-v1-request-pagination">
+        <button type="button" class="sm-v1-request-page" data-request-page="prev" ${currentAdminPage === 1 ? 'disabled' : ''}>‹</button>
+        ${Array.from({length: totalPages}, (_, index) => index + 1).map((page) => `<button type="button" class="sm-v1-request-page ${page === currentAdminPage ? 'is-active' : ''}" data-request-page="${page}">${page}</button>`).join('')}
+        <button type="button" class="sm-v1-request-page" data-request-page="next" ${currentAdminPage === totalPages ? 'disabled' : ''}>›</button>
+      </div>` : '';
+      list.innerHTML = pageItems.length
+        ? `${tableHtml(pageItems, true)}${pagination}`
+        : '<div class="sm-v1-request-box"><div class="sm-v1-request-empty">검색 조건에 맞는 요청사항이 없습니다.</div></div>';
+      toolbar.querySelectorAll('[data-request-filter]').forEach((button) => button.addEventListener('click', () => {
+        currentAdminFilter = button.dataset.requestFilter || 'all';
+        currentAdminPage = 1;
+        paintAdminList();
+      }));
+      const searchInput = toolbar.querySelector('[data-request-search]');
+      searchInput?.addEventListener('compositionstart', () => {
+        currentAdminComposing = true;
+      });
+      searchInput?.addEventListener('compositionend', (event) => {
+        currentAdminComposing = false;
+        currentAdminSearch = event.target.value || '';
+        currentAdminPage = 1;
+        paintAdminList();
+        const input = toolbar.querySelector('[data-request-search]');
+        input?.focus();
+        input?.setSelectionRange(currentAdminSearch.length, currentAdminSearch.length);
+      });
+      searchInput?.addEventListener('input', (event) => {
+        if (currentAdminComposing || event.isComposing) return;
+        currentAdminSearch = event.target.value || '';
+        currentAdminPage = 1;
+        paintAdminList();
+        const input = toolbar.querySelector('[data-request-search]');
+        input?.focus();
+        input?.setSelectionRange(currentAdminSearch.length, currentAdminSearch.length);
+      });
+      toolbar.querySelector('[data-request-refresh-small]')?.addEventListener('click', () => renderList(host));
+      list.querySelectorAll('[data-request-subscriber]').forEach((button) => button.addEventListener('click', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const username = button.dataset.requestSubscriber || '';
+        try {
+          const bridge = window.StoryMakerV1AdminMembers;
+          if (!bridge?.openSubscriberDashboard) throw new Error('회원관리 연결 기능을 불러오지 못했습니다.');
+          await bridge.openSubscriberDashboard(username);
+        } catch (error) {
+          alert(error instanceof Error ? error.message : String(error));
+        }
+      }));
+      list.querySelectorAll('[data-request-toggle]').forEach((header) => header.addEventListener('click', () => {
+        const card = header.closest('[data-request-id]');
+        if (!card) return;
+        const willOpen = !card.classList.contains('is-open');
+        list.querySelectorAll('[data-request-id].is-open').forEach((openCard) => {
+          if (openCard !== card) openCard.classList.remove('is-open');
+        });
+        card.classList.toggle('is-open', willOpen);
+      }));
+      list.querySelectorAll('[data-request-edit]').forEach((button) => button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        renderDetail(host, Number(button.closest('[data-request-id]')?.dataset.requestId));
+      }));
+      list.querySelectorAll('[data-request-page]').forEach((button) => button.addEventListener('click', () => {
+        const value = button.dataset.requestPage;
+        currentAdminPage = value === 'prev' ? currentAdminPage - 1 : value === 'next' ? currentAdminPage + 1 : Number(value);
+        paintAdminList();
+      }));
+    };
+
     try {
       const payload = await apiFetch(adminMode ? API_ADMIN_LIST : API_MY_LIST);
       itemsCache = Array.isArray(payload?.data) ? payload.data : [];
-      if (!itemsCache.length) { list.innerHTML = `<div class="sm-v1-request-box"><div class="sm-v1-request-empty">${adminMode ? '등록된 요청사항이 없습니다.' : '작성한 요청사항이 없습니다.'}</div></div>`; return; }
-      list.innerHTML = tableHtml(itemsCache, adminMode);
+      if (adminMode) { paintAdminList(); return; }
+      if (!itemsCache.length) { list.innerHTML = '<div class="sm-v1-request-box"><div class="sm-v1-request-empty">작성한 요청사항이 없습니다.</div></div>'; return; }
+      list.innerHTML = tableHtml(itemsCache, false);
       list.querySelectorAll('[data-request-id]').forEach((row) => row.addEventListener('click', () => renderDetail(host, Number(row.dataset.requestId))));
     } catch (error) { list.innerHTML = `<div class="sm-v1-request-box"><div class="sm-v1-request-empty">${esc(error.message)}</div></div>`; }
   }
@@ -226,7 +351,6 @@
       const payload = await apiFetch(`${API_ADMIN_LIST}/${Number(item.id)}`, { method: 'PUT', body: JSON.stringify({ status: note ? '완료' : selectedStatus, admin_note: note || null }) });
       const updated = payload?.data || item;
       itemsCache = itemsCache.map((row) => Number(row.id) === Number(updated.id) ? updated : row);
-      window.dispatchEvent(new CustomEvent('storymaker:feature-request-updated', { detail: updated }));
       message.textContent = '답변과 상태가 저장되었습니다.';
       renderDetail(host, Number(updated.id));
       host.querySelector('[data-request-message]').textContent = '답변과 상태가 저장되었습니다.';
@@ -292,12 +416,12 @@
     let clonedText;
     while ((clonedText = textWalker.nextNode())) {
       if (clean(clonedText.nodeValue) === found.sourceText) {
-        clonedText.nodeValue = '요청사항';
+        clonedText.nodeValue = '사용자 요청';
         replaced = true;
         break;
       }
     }
-    if (!replaced) item.textContent = '요청사항';
+    if (!replaced) item.textContent = '사용자 요청';
     item.classList.add('sm-v1-request-menu');
     item.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); openPanel(); }, true);
     usageItem.insertAdjacentElement('afterend', item);
@@ -314,7 +438,17 @@
 
   window.StoryMakerV1FeatureRequests = {
     open: openPanel,
-    newRequest: () => ensureModal().classList.add('is-open'),
+    newRequest: (prefill = {}) => {
+      const modal = ensureModal();
+      const title = modal.querySelector('#sm-v1-request-title');
+      const content = modal.querySelector('#sm-v1-request-content');
+      const message = modal.querySelector('#sm-v1-request-form-status');
+      if (title) title.value = clean(prefill.title || '');
+      if (content) content.value = String(prefill.content || '').trim();
+      if (message) message.textContent = '';
+      modal.classList.add('is-open');
+      setTimeout(() => title?.focus(), 30);
+    },
     refresh: boot,
   };
   const observer = new MutationObserver(() => { ensureAdminShortcut(); });
