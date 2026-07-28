@@ -734,43 +734,88 @@ def request_password_reset(req: PasswordResetRequest, request: Request):
 
 @router.put("/auth/change-password", response_model=CommonResponse)
 def change_password(
-    req: UserChangePasswordRequest, 
+    req: UserChangePasswordRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    현재 로그인된 유저의 비밀번호를 변경하고 비밀번호 변경 활동 로그를 기록합니다.
-    """
-    if not verify_password(req.current_password, current_user.password_hash):
+    """실제 로그인 원장에 비밀번호를 변경하고 기존 세션을 모두 만료시킵니다."""
+    if len(req.new_password or "") < 8:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="현재 비밀번호가 일치하지 않습니다."
+            detail="새 비밀번호는 8자 이상이어야 합니다."
         )
-        
-    current_user.password_hash = hash_password(req.new_password)
-    db.commit()
-    db.refresh(current_user)
-    
-    # 비밀번호 변경 활동 로그 기록
-    ip_addr = request.client.host if request.client else "127.0.0.1"
-    user_agt = request.headers.get("user-agent", "Unknown")
+    if req.current_password == req.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="새 비밀번호는 현재 비밀번호와 다르게 입력해 주세요."
+        )
+
+    provider = str(current_user.auth_provider or "local").lower()
+    if current_user.wordpress_user_id or "wordpress" in provider:
+        if not current_user.wordpress_user_id:
+            raise HTTPException(status_code=409, detail="WordPress 회원 연결정보가 없습니다. 관리자에게 문의하세요.")
+
+        wp_api_url = os.getenv("WORDPRESS_API_URL", "https://mystorymaker.net/wp-json/wp/v2").rstrip("/")
+        wp_base = wp_api_url.split('/wp-json/')[0] if '/wp-json/' in wp_api_url else "https://mystorymaker.net"
+        wp_username = os.getenv("WORDPRESS_USERNAME", "").strip()
+        wp_app_password = os.getenv("WORDPRESS_APP_PASSWORD", "").strip()
+        if not wp_username or not wp_app_password:
+            raise HTTPException(status_code=503, detail="WordPress 비밀번호 변경 연동 설정이 없습니다.")
+
+        try:
+            with httpx.Client(timeout=15.0) as client:
+                verify_resp = client.post(
+                    f"{wp_base}/wp-json/storymaker/v1/login",
+                    json={"username": current_user.username, "password": req.current_password},
+                )
+                if verify_resp.status_code != 200:
+                    raise HTTPException(status_code=400, detail="현재 비밀번호가 일치하지 않습니다.")
+                verify_data = verify_resp.json()
+                if int(verify_data.get("user_id") or 0) != int(current_user.wordpress_user_id):
+                    raise HTTPException(status_code=409, detail="WordPress 회원 연결정보가 일치하지 않습니다.")
+
+                update_resp = client.post(
+                    f"{wp_api_url}/users/{int(current_user.wordpress_user_id)}",
+                    auth=(wp_username, wp_app_password),
+                    json={"password": req.new_password},
+                )
+                if update_resp.status_code not in (200, 201):
+                    raise HTTPException(status_code=502, detail="WordPress 비밀번호 변경에 실패했습니다.")
+        except HTTPException:
+            raise
+        except httpx.RequestError as exc:
+            raise HTTPException(status_code=502, detail="WordPress 비밀번호 서버에 연결할 수 없습니다.") from exc
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise HTTPException(status_code=502, detail="WordPress 비밀번호 응답을 확인할 수 없습니다.") from exc
+    else:
+        if not verify_password(req.current_password, current_user.password_hash):
+            raise HTTPException(status_code=400, detail="현재 비밀번호가 일치하지 않습니다.")
+
     now_stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    act_log = ActivityLog(
+    current_user.password_hash = hash_password(req.new_password)
+    current_user.updated_at = now_stamp
+    db.query(UserSession).filter(
+        UserSession.user_id == current_user.id,
+        UserSession.logout_at.is_(None),
+    ).update(
+        {UserSession.logout_at: now_stamp, UserSession.last_seen_at: now_stamp},
+        synchronize_session=False,
+    )
+    db.add(ActivityLog(
         user_id=current_user.id,
         action="password_change",
         target_type="user",
         target_id=current_user.id,
-        metadata_json=None,
-        ip_address=ip_addr,
-        user_agent=user_agt,
+        metadata_json=json.dumps({"sessions_invalidated": True}, ensure_ascii=False),
+        ip_address=_client_ip(request),
+        user_agent=request.headers.get("user-agent", "Unknown"),
         created_at=now_stamp
-    )
-    db.add(act_log)
+    ))
     db.commit()
-    
-    return CommonResponse(ok=True, data=None, message="비밀번호가 안전하게 변경되었습니다. 다시 로그인해 주세요.")
+    _clear_auth_cookie(response, request)
+    return CommonResponse(ok=True, data=None, message="비밀번호가 변경되었습니다. 모든 기기에서 다시 로그인해 주세요.")
 
 
 @router.post("/auth/logout", response_model=CommonResponse)
