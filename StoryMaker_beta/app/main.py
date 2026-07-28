@@ -94,12 +94,12 @@ def beta_archive_list(request: Request) -> JSONResponse:
             return JSONResponse({"ok": True, "items": []})
         if role == "admin":
             rows = connection.execute(
-                "SELECT beta_job_id, title, status, created_at FROM beta_jobs WHERE owner_user_id=? OR owner_user_id IS NULL ORDER BY created_at DESC",
+                "SELECT beta_job_id, title, status, created_at, media_deleted_at, media_deleted_bytes, media_delete_reason FROM beta_jobs WHERE owner_user_id=? OR owner_user_id IS NULL ORDER BY created_at DESC",
                 (user_id,),
             ).fetchall()
         else:
             rows = connection.execute(
-                "SELECT beta_job_id, title, status, created_at FROM beta_jobs WHERE owner_user_id=? ORDER BY created_at DESC",
+                "SELECT beta_job_id, title, status, created_at, media_deleted_at, media_deleted_bytes, media_delete_reason FROM beta_jobs WHERE owner_user_id=? ORDER BY created_at DESC",
                 (user_id,),
             ).fetchall()
     return JSONResponse({"ok": True, "items": [dict(row) for row in rows]})

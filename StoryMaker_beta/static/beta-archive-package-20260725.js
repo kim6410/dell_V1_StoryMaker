@@ -451,7 +451,7 @@
         </div>
         <div class="archive-assets">
           ${assetButton('SNS', f.sns)}${assetButton('이미지', f.images)}${assetButton('MP3', f.mp3)}${assetButton('썸네일', f.thumb)}${assetButton('MP4', f.mp4)}
-          ${isAdmin ? `<div class="delete-wrap"><button type="button" class="delete-button" data-delete-job="${esc(job.beta_job_id)}">삭제</button><div class="delete-confirm" data-confirm-for="${esc(job.beta_job_id)}" hidden><span>완전히 삭제할까요?</span><button type="button" data-delete-yes="${esc(job.beta_job_id)}">예</button><button type="button" data-delete-no="${esc(job.beta_job_id)}">아니오</button></div></div>` : ''}
+          <div class="delete-wrap"><button type="button" class="delete-button" data-delete-job="${esc(job.beta_job_id)}" ${job.media_deleted_at ? 'disabled' : ''}>${job.media_deleted_at ? '파일 삭제됨' : '파일 삭제'}</button><div class="delete-confirm" data-confirm-for="${esc(job.beta_job_id)}" hidden><span>목록과 DB는 남기고 저장 파일만 삭제할까요?</span><button type="button" data-delete-yes="${esc(job.beta_job_id)}">예</button><button type="button" data-delete-no="${esc(job.beta_job_id)}">아니오</button></div></div>
         </div>
       </article>`;
     }).join('');
@@ -584,15 +584,15 @@
   async function deleteJob(jobId, button) {
     if (!jobId || button.disabled) return;
     button.disabled = true;
-    button.textContent = '삭제 중';
+    button.textContent = '파일 삭제 중';
     try {
-      await req(`/beta-api/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
-      jobs = jobs.filter((job) => job.beta_job_id !== jobId);
-      renderList();
+      const result = await req(`/beta-api/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
+      await load();
+      alert(`저장 파일만 삭제했습니다. 목록과 DB 기록은 그대로 유지됩니다.${result.deleted_bytes ? `\n삭제 용량: ${Number(result.deleted_bytes).toLocaleString('ko-KR')}바이트` : ''}`);
     } catch (error) {
       button.disabled = false;
       button.textContent = '예';
-      alert(`삭제 실패: ${error.message}`);
+      alert(`파일 삭제 실패: ${error.message}`);
     }
   }
 

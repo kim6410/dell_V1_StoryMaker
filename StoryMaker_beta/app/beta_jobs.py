@@ -208,6 +208,12 @@ def beta_init() -> None:
             connection.execute("ALTER TABLE beta_jobs ADD COLUMN selected_thumbnail_template TEXT")
         if "selected_thumbnail_path" not in columns:
             connection.execute("ALTER TABLE beta_jobs ADD COLUMN selected_thumbnail_path TEXT")
+        if "media_deleted_at" not in columns:
+            connection.execute("ALTER TABLE beta_jobs ADD COLUMN media_deleted_at TEXT NOT NULL DEFAULT ''")
+        if "media_deleted_bytes" not in columns:
+            connection.execute("ALTER TABLE beta_jobs ADD COLUMN media_deleted_bytes INTEGER NOT NULL DEFAULT 0")
+        if "media_delete_reason" not in columns:
+            connection.execute("ALTER TABLE beta_jobs ADD COLUMN media_delete_reason TEXT NOT NULL DEFAULT ''")
 
 
 def beta_job_dir(beta_job_id: str) -> Path:
@@ -707,20 +713,49 @@ def beta_list_jobs(request: Request) -> JSONResponse:
     with beta_connect() as connection:
         if role == "admin":
             rows = connection.execute(
-                "SELECT beta_job_id,title,status,progress,created_at,completed_at FROM beta_jobs WHERE owner_user_id=? OR owner_user_id IS NULL ORDER BY created_at DESC",
+                "SELECT beta_job_id,title,status,progress,created_at,completed_at,media_deleted_at,media_deleted_bytes,media_delete_reason FROM beta_jobs WHERE owner_user_id=? OR owner_user_id IS NULL ORDER BY created_at DESC",
                 (user_id,),
             ).fetchall()
         else:
             rows = connection.execute(
-                "SELECT beta_job_id,title,status,progress,created_at,completed_at FROM beta_jobs WHERE owner_user_id=? ORDER BY created_at DESC",
+                "SELECT beta_job_id,title,status,progress,created_at,completed_at,media_deleted_at,media_deleted_bytes,media_delete_reason FROM beta_jobs WHERE owner_user_id=? ORDER BY created_at DESC",
                 (user_id,),
             ).fetchall()
     return JSONResponse({"ok": True, "items": [dict(row) for row in rows]})
 
 
 @beta_jobs_router.get("/jobs/{beta_job_id}")
-def beta_get_job(beta_job_id: str) -> JSONResponse:
-    return JSONResponse({"ok": True, "job": beta_read_json(beta_job_dir(beta_job_id) / "result.json")})
+def beta_get_job(beta_job_id: str, request: Request) -> JSONResponse:
+    user_id = current_user_id(request)
+    role = current_user_role(request)
+    with beta_connect() as connection:
+        row = connection.execute(
+            "SELECT beta_job_id,title,status,progress,created_at,completed_at,result_json,owner_user_id,media_deleted_at,media_deleted_bytes,media_delete_reason FROM beta_jobs WHERE beta_job_id=?",
+            (beta_job_id,),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Beta 작업 DB 레코드를 찾을 수 없습니다.")
+    owner_user_id = row["owner_user_id"]
+    if role != "admin" and int(owner_user_id or 0) != int(user_id):
+        raise HTTPException(status_code=403, detail="다른 사용자의 Beta 작업은 볼 수 없습니다.")
+    result_path = Path(str(row["result_json"] or ""))
+    if result_path.is_file():
+        job = beta_read_json(result_path)
+    else:
+        job = {
+            "beta_job_id": row["beta_job_id"],
+            "title": row["title"],
+            "status": row["status"],
+            "progress": row["progress"],
+            "created_at": row["created_at"],
+            "completed_at": row["completed_at"],
+            "assets": {},
+            "content": {"channels": {}, "channel_order": []},
+        }
+    job["media_deleted_at"] = row["media_deleted_at"] or ""
+    job["media_deleted_bytes"] = int(row["media_deleted_bytes"] or 0)
+    job["media_delete_reason"] = row["media_delete_reason"] or ""
+    return JSONResponse({"ok": True, "job": job})
 
 
 THUMBNAIL_STUDIO_TEMPLATE_IDS = {f"v{i}" for i in range(1, 9)}
@@ -835,19 +870,35 @@ def beta_get_thumbnail_studio_png(beta_job_id: str, template_id: str) -> FileRes
 
 
 @beta_jobs_router.delete("/jobs/{beta_job_id}")
-def beta_delete_job(beta_job_id: str) -> JSONResponse:
-    job_dir = beta_job_dir(beta_job_id).resolve()
+def beta_delete_job(beta_job_id: str, request: Request) -> JSONResponse:
+    if beta_safe(beta_job_id) != beta_job_id or not beta_job_id.startswith("beta_"):
+        raise HTTPException(status_code=400, detail="삭제할 수 없는 작업 ID입니다.")
     jobs_root = BETA_JOBS.resolve()
-    if job_dir.parent != jobs_root or not job_dir.name.startswith("beta_"):
+    job_dir = (jobs_root / beta_job_id).resolve()
+    if job_dir.parent != jobs_root:
         raise HTTPException(status_code=400, detail="삭제할 수 없는 작업 경로입니다.")
 
+    user_id = current_user_id(request)
+    role = current_user_role(request)
     with beta_connect() as connection:
         row = connection.execute(
-            "SELECT beta_job_id FROM beta_jobs WHERE beta_job_id=?",
+            "SELECT beta_job_id,owner_user_id,media_deleted_at FROM beta_jobs WHERE beta_job_id=?",
             (beta_job_id,),
         ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Beta 작업 DB 레코드를 찾을 수 없습니다.")
+    owner_user_id = row["owner_user_id"]
+    if role != "admin" and int(owner_user_id or 0) != int(user_id):
+        raise HTTPException(status_code=403, detail="다른 사용자의 Beta 작업 파일은 삭제할 수 없습니다.")
+
+    deleted_bytes = 0
+    if job_dir.exists():
+        for path in job_dir.rglob("*"):
+            if path.is_file():
+                try:
+                    deleted_bytes += path.stat().st_size
+                except OSError:
+                    pass
 
     quarantine = jobs_root / f".__deleting__{beta_job_id}"
     files_deleted = False
@@ -857,7 +908,6 @@ def beta_delete_job(beta_job_id: str) -> JSONResponse:
                 shutil.rmtree(quarantine)
             else:
                 quarantine.unlink()
-
         if job_dir.exists():
             job_dir.replace(quarantine)
             if quarantine.is_dir():
@@ -867,21 +917,28 @@ def beta_delete_job(beta_job_id: str) -> JSONResponse:
             files_deleted = True
 
         with beta_connect() as connection:
-            connection.execute("DELETE FROM beta_jobs WHERE beta_job_id=?", (beta_job_id,))
+            connection.execute(
+                "UPDATE beta_jobs SET media_deleted_at=?,media_deleted_bytes=?,media_delete_reason=? WHERE beta_job_id=?",
+                (beta_now(), int(deleted_bytes), "user_delete", beta_job_id),
+            )
             connection.commit()
     except Exception as exc:
         if quarantine.exists() and not job_dir.exists():
             quarantine.replace(job_dir)
-        raise HTTPException(status_code=500, detail=f"Beta 작업 완전 삭제 실패: {exc}")
+        raise HTTPException(status_code=500, detail=f"Beta 저장 파일 삭제 실패: {exc}")
 
-    leftovers = [
-        str(path) for path in jobs_root.iterdir()
-        if beta_job_id in path.name
-    ]
-    if leftovers:
-        raise HTTPException(status_code=500, detail="삭제 후 잔여 파일이 발견되었습니다.")
     pruned_images, pruned_bytes = prune_unreferenced_shared_images(jobs_root)
-    return JSONResponse({"ok": True, "deleted": beta_job_id, "db_deleted": True, "files_deleted": files_deleted, "shared_images_pruned": pruned_images, "shared_bytes_pruned": pruned_bytes})
+    return JSONResponse({
+        "ok": True,
+        "deleted": beta_job_id,
+        "db_deleted": False,
+        "db_preserved": True,
+        "list_preserved": True,
+        "files_deleted": files_deleted,
+        "deleted_bytes": int(deleted_bytes),
+        "shared_images_pruned": pruned_images,
+        "shared_bytes_pruned": pruned_bytes,
+    })
 
 
 @beta_jobs_router.get("/jobs/{beta_job_id}/file/{asset_name}")
