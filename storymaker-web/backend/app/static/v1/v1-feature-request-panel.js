@@ -25,7 +25,7 @@
     const role = clean(currentUser.role || currentUser.user_role || currentUser.type).toLowerCase();
     return currentUser.is_admin === true || currentUser.admin === true || role === 'admin';
   };
-  const answerLabel = (item) => clean(item?.admin_note) ? '답변완료' : '대기중';
+  const displayStatus = (item) => clean(item?.admin_note) ? '완료' : (STATUSES.includes(item?.status) ? item.status : '접수');
   const dateText = (value) => clean(value) || '-';
 
   const apiFetch = async (url, options = {}) => {
@@ -89,11 +89,17 @@
       .sm-v1-status-hold{color:#ddd6fe;background:rgba(124,58,237,.18);border-color:rgba(167,139,250,.35)}
       .sm-v1-answer-done{color:#a7f3d0}.sm-v1-answer-wait{color:#94a3b8}
       .sm-v1-request-empty{padding:48px 18px;text-align:center;color:#94a3b8}
-      .sm-v1-detail{border:1px solid rgba(148,163,184,.2);background:rgba(15,23,42,.92);border-radius:18px;padding:22px}
+      .sm-v1-detail{border:1px solid rgba(148,163,184,.2);background:linear-gradient(180deg,#0f172a,#0b1220);border-radius:18px;padding:22px}
       .sm-v1-detail-title{font-size:22px;font-weight:900;color:#fff;margin:0 0 10px}.sm-v1-detail-meta{display:flex;gap:10px;flex-wrap:wrap;color:#94a3b8;font-size:13px;margin-bottom:18px}
-      .sm-v1-detail-section{margin-top:16px}.sm-v1-detail-label{font-size:13px;font-weight:900;color:#94a3b8;margin-bottom:8px}
-      .sm-v1-detail-content{white-space:pre-wrap;line-height:1.75;color:#e2e8f0;background:#020617;border:1px solid #253047;border-radius:13px;padding:16px;min-height:90px}
-      .sm-v1-answer-box{white-space:pre-wrap;line-height:1.75;color:#d1fae5;background:rgba(6,78,59,.25);border:1px solid rgba(52,211,153,.3);border-radius:13px;padding:16px}
+      .sm-v1-chat{display:flex;flex-direction:column;gap:18px;padding:20px 16px;border:1px solid rgba(51,65,85,.72);background:linear-gradient(180deg,rgba(15,23,42,.7),rgba(2,6,23,.82));border-radius:18px;min-height:260px}
+      .sm-v1-chat-row{display:flex;align-items:flex-end;gap:10px}.sm-v1-chat-row.user{justify-content:flex-end}.sm-v1-chat-row.admin{justify-content:flex-start}
+      .sm-v1-chat-avatar{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;border-radius:50%;background:#115e59;color:#fff;font-size:12px;font-weight:950;box-shadow:0 6px 16px rgba(0,0,0,.25)}
+      .sm-v1-chat-stack{display:flex;flex-direction:column;max-width:min(76%,760px)}.sm-v1-chat-row.user .sm-v1-chat-stack{align-items:flex-end}.sm-v1-chat-row.admin .sm-v1-chat-stack{align-items:flex-start}
+      .sm-v1-chat-name{margin:0 3px 6px;color:#94a3b8;font-size:12px;font-weight:900}.sm-v1-chat-time{margin:6px 4px 0;color:#64748b;font-size:11px;font-weight:800}
+      .sm-v1-chat-bubble{position:relative;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;padding:14px 16px;border-radius:18px;font-size:15px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+      .sm-v1-chat-row.user .sm-v1-chat-bubble{background:#facc15;color:#172033;border-bottom-right-radius:5px}
+      .sm-v1-chat-row.admin .sm-v1-chat-bubble{background:#fff;color:#172033;border-bottom-left-radius:5px}
+      .sm-v1-chat-wait{align-self:flex-start;color:#94a3b8;background:rgba(15,23,42,.9);border:1px dashed #475569;border-radius:15px;padding:13px 15px;font-size:13px}
       .sm-v1-admin-form{display:grid;grid-template-columns:180px 1fr;gap:12px;margin-top:18px}.sm-v1-admin-form label{display:grid;gap:7px;font-size:13px;font-weight:900;color:#94a3b8}
       .sm-v1-admin-form select,.sm-v1-admin-form textarea{width:100%;box-sizing:border-box;border:1px solid #334155;background:#020617;color:#e2e8f0;border-radius:11px;padding:11px;font:inherit}.sm-v1-admin-form textarea{min-height:150px;resize:vertical}
       .sm-v1-admin-form .full{grid-column:1/-1}.sm-v1-request-message{min-height:22px;margin-top:10px;color:#7dd3fc;font-weight:800}
@@ -158,7 +164,7 @@
               <strong>#${Number(item.id)} ${esc(item.title || '')}</strong>
               <div class="sm-v1-request-admin-meta">작성자: ${esc(item.username || '알 수 없음')} · ${esc(dateText(item.created_at))}</div>
             </div>
-            ${statusBadge(item.status)}
+            ${statusBadge(displayStatus(item))}
           </div>
           <div class="sm-v1-request-admin-content">${esc(item.content || '')}</div>
           <div class="sm-v1-request-admin-answer">${clean(item.admin_note) ? `관리자 답변: ${esc(item.admin_note)}` : '관리자 답변 대기 중'}</div>
@@ -168,8 +174,8 @@
       return `<div class="sm-v1-request-admin-list">${cards}</div>`;
     }
 
-    const cols = '<th>번호</th><th>제목</th><th>등록일</th><th>상태</th><th>답변 여부</th>';
-    const rows = items.map((item, index) => `<tr data-request-id="${Number(item.id)}"><td>${items.length - index}</td><td class="title">${esc(item.title || '')}</td><td>${esc(dateText(item.created_at))}</td><td>${statusBadge(item.status)}</td><td class="${clean(item.admin_note) ? 'sm-v1-answer-done' : 'sm-v1-answer-wait'}">${answerLabel(item)}</td></tr>`).join('');
+    const cols = '<th>번호</th><th>제목</th><th>등록일</th><th>상태</th>';
+    const rows = items.map((item, index) => `<tr data-request-id="${Number(item.id)}"><td>${items.length - index}</td><td class="title">${esc(item.title || '')}</td><td>${esc(dateText(item.created_at))}</td><td>${statusBadge(displayStatus(item))}</td></tr>`).join('');
     return `<div class="sm-v1-request-box"><div class="sm-v1-request-scroll"><table class="sm-v1-request-table"><thead><tr>${cols}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
   }
 
@@ -192,17 +198,22 @@
     const item = itemsCache.find((row) => Number(row.id) === Number(requestId));
     if (!item) return renderList(host);
     const adminMode = isAdmin();
-    host.innerHTML = `<div class="sm-v1-request-wrap"><div class="sm-v1-request-head"><div><h2>${adminMode ? '요청사항 상세' : '내 요청 상세'}</h2><p>목록을 벗어나지 않고 상세 내용을 확인합니다.</p></div><button class="sm-v1-request-btn secondary" data-request-back>목록으로</button></div><section class="sm-v1-detail"><h3 class="sm-v1-detail-title">${esc(item.title)}</h3><div class="sm-v1-detail-meta">${adminMode ? `<span>작성자: ${esc(item.username || '알 수 없음')}</span>` : ''}<span>등록일: ${esc(dateText(item.created_at))}</span><span>상태: ${statusBadge(item.status)}</span></div><div class="sm-v1-detail-section"><div class="sm-v1-detail-label">${adminMode ? '요청 본문' : '내 요청 내용'}</div><div class="sm-v1-detail-content">${esc(item.content || '')}</div></div>${adminMode ? adminFormHtml(item) : userAnswerHtml(item)}</section></div>`;
+    host.innerHTML = `<div class="sm-v1-request-wrap"><div class="sm-v1-request-head"><div><h2>${adminMode ? '요청사항 상세' : '내 요청 상세'}</h2><p>사용자와 관리자의 대화를 한눈에 확인합니다.</p></div><button class="sm-v1-request-btn secondary" data-request-back>목록으로</button></div><section class="sm-v1-detail"><h3 class="sm-v1-detail-title">${esc(item.title)}</h3><div class="sm-v1-detail-meta">${adminMode ? `<span>작성자: ${esc(item.username || '알 수 없음')}</span>` : ''}<span>등록일: ${esc(dateText(item.created_at))}</span><span>상태: ${statusBadge(displayStatus(item))}</span></div>${conversationHtml(item, adminMode)}${adminMode ? adminFormHtml(item) : ''}</section></div>`;
     host.querySelector('[data-request-back]').addEventListener('click', () => renderList(host));
     host.querySelector('[data-request-save]')?.addEventListener('click', () => saveAdminRequest(host, item));
   }
 
-  function userAnswerHtml(item) {
-    return `<div class="sm-v1-detail-section"><div class="sm-v1-detail-label">관리자 답변</div>${clean(item.admin_note) ? `<div class="sm-v1-answer-box">${esc(item.admin_note)}</div>` : '<div class="sm-v1-detail-content" style="min-height:auto;color:#94a3b8">아직 관리자 답변이 등록되지 않았습니다.</div>'}</div>`;
+  function conversationHtml(item, adminMode) {
+    const userName = adminMode ? esc(item.username || '사용자') : '나';
+    const requestBubble = `<div class="sm-v1-chat-row user"><div class="sm-v1-chat-stack"><div class="sm-v1-chat-name">${userName}</div><div class="sm-v1-chat-bubble">${esc(item.content || '')}</div><div class="sm-v1-chat-time">${esc(dateText(item.created_at))}</div></div></div>`;
+    const adminBubble = clean(item.admin_note)
+      ? `<div class="sm-v1-chat-row admin"><div class="sm-v1-chat-avatar">관리자</div><div class="sm-v1-chat-stack"><div class="sm-v1-chat-name">스토리메이커 관리자</div><div class="sm-v1-chat-bubble">${esc(item.admin_note)}</div><div class="sm-v1-chat-time">${esc(dateText(item.updated_at))}</div></div></div>`
+      : '<div class="sm-v1-chat-wait">관리자가 요청을 확인하고 있습니다. 답변이 등록되면 이곳에 대화 형태로 표시됩니다.</div>';
+    return `<div class="sm-v1-chat">${requestBubble}${adminBubble}</div>`;
   }
 
   function adminFormHtml(item) {
-    return `<div class="sm-v1-admin-form"><label>현재 상태<select data-request-status>${STATUSES.map((status) => `<option value="${status}" ${item.status === status ? 'selected' : ''}>${status}</option>`).join('')}</select></label><label class="full">관리자 답변<textarea data-request-note placeholder="사용자에게 표시할 답변을 입력하세요.">${esc(item.admin_note || '')}</textarea></label><div class="full sm-v1-request-actions" style="justify-content:flex-end"><button class="sm-v1-request-btn" data-request-save>답변 저장</button></div><div class="full sm-v1-request-message" data-request-message></div></div>`;
+    return `<div class="sm-v1-admin-form"><label>현재 상태<select data-request-status>${STATUSES.map((status) => `<option value="${status}" ${displayStatus(item) === status ? 'selected' : ''}>${status}</option>`).join('')}</select></label><label class="full">관리자 답변<textarea data-request-note placeholder="답변을 입력하고 저장하면 상태가 자동으로 완료로 변경됩니다.">${esc(item.admin_note || '')}</textarea></label><div class="full sm-v1-request-actions" style="justify-content:flex-end"><button class="sm-v1-request-btn" data-request-save>답변 저장</button></div><div class="full sm-v1-request-message" data-request-message></div></div>`;
   }
 
   async function saveAdminRequest(host, item) {
@@ -210,7 +221,9 @@
     const message = host.querySelector('[data-request-message]');
     button.disabled = true; message.textContent = '저장 중입니다...';
     try {
-      const payload = await apiFetch(`${API_ADMIN_LIST}/${Number(item.id)}`, { method: 'PUT', body: JSON.stringify({ status: host.querySelector('[data-request-status]').value, admin_note: host.querySelector('[data-request-note]').value.trim() || null }) });
+      const note = host.querySelector('[data-request-note]').value.trim();
+      const selectedStatus = host.querySelector('[data-request-status]').value;
+      const payload = await apiFetch(`${API_ADMIN_LIST}/${Number(item.id)}`, { method: 'PUT', body: JSON.stringify({ status: note ? '완료' : selectedStatus, admin_note: note || null }) });
       const updated = payload?.data || item;
       itemsCache = itemsCache.map((row) => Number(row.id) === Number(updated.id) ? updated : row);
       message.textContent = '답변과 상태가 저장되었습니다.';

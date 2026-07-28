@@ -123,9 +123,12 @@ def update_feature_request_status(
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="수정요청을 찾을 수 없습니다.")
 
-    item.status = req.status
-    item.admin_note = req.admin_note.strip() if req.admin_note else None
+    normalized_note = req.admin_note.strip() if req.admin_note else None
+    # 관리자 답변이 등록되면 사용자 목록과 상세 화면의 상태를 자동으로 완료 처리합니다.
+    item.status = "완료" if normalized_note else req.status
+    item.admin_note = normalized_note
     item.updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     db.commit()
     db.refresh(item)
-    return CommonResponse(ok=True, data=serialize_feature_request(item), message="수정요청 상태가 변경되었습니다.")
+    message = "관리자 답변이 등록되어 상태가 완료로 변경되었습니다." if normalized_note else "수정요청 상태가 변경되었습니다."
+    return CommonResponse(ok=True, data=serialize_feature_request(item), message=message)
