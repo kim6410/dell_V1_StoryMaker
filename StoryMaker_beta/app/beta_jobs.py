@@ -24,6 +24,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from app.beta_auth import current_user_id, current_user_role
 from app.beta_mp4_usage import ensure_mp4_usage_table, enforce_monthly_limit, monthly_usage_summary, record_verified_mp4
+from app.beta_archive_retention import enforce_beta_archive_limit_for_job
 from app.beta_storage import canonical_audio_path, prune_unreferenced_shared_images, store_normalized_image
 
 KST = ZoneInfo("Asia/Seoul")
@@ -795,9 +796,10 @@ def beta_render_job(
         beta_write_json(job_dir / "result.json", result)
         beta_update_job(beta_job_id, status="completed", progress=100, completed_at=completed_at)
         mp4_usage = record_verified_mp4(beta_job_id, "archive", video)
+        archive_retention = enforce_beta_archive_limit_for_job(beta_job_id) if mp4_usage else None
         if mp4_usage:
             (output_dir / "browser" / "browser_final.mp4").unlink(missing_ok=True)
-        return JSONResponse({"ok": True, "job": result, "video_url": f"/beta-api/jobs/{beta_job_id}/file/video", "mp4_usage": mp4_usage})
+        return JSONResponse({"ok": True, "job": result, "video_url": f"/beta-api/jobs/{beta_job_id}/file/video", "mp4_usage": mp4_usage, "archive_retention": archive_retention})
     except Exception as exc:
         beta_update_job(beta_job_id, status="failed", progress=0, error=str(exc))
         raise HTTPException(status_code=500, detail=str(exc))

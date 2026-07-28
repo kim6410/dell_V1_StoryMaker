@@ -16,6 +16,7 @@ from starlette.background import BackgroundTask
 from app.beta_image_download import _clean_name, _watermark_image, build_download_package
 from app.beta_auth import current_user_id, current_user_role
 from app.beta_mp4_usage import enforce_monthly_limit, record_verified_mp4
+from app.beta_archive_retention import enforce_beta_archive_limit_for_job
 from app.beta_storage import canonical_audio_path, remove_tree
 
 BETA_ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
@@ -263,9 +264,10 @@ async def beta_browser_upload(
     beta_browser_write_result(job_dir, result)
     (output_dir / "diagnostics.json").write_text(json.dumps(diagnostic_data, ensure_ascii=False, indent=2), encoding="utf-8")
     mp4_usage = record_verified_mp4(beta_job_id, "archive", Path(saved["browser_video"])) if "browser_video" in saved else None
+    archive_retention = enforce_beta_archive_limit_for_job(beta_job_id) if mp4_usage else None
     if mp4_usage:
         (job_dir / "output" / "final.mp4").unlink(missing_ok=True)
-    return JSONResponse({"ok": True, "saved": saved, "mp4_usage": mp4_usage})
+    return JSONResponse({"ok": True, "saved": saved, "mp4_usage": mp4_usage, "archive_retention": archive_retention})
 
 
 @beta_browser_router.get("/jobs/{beta_job_id}/images-download")

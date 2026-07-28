@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 
 from app.beta_auth import current_user_id, current_user_role
 from app.beta_mp4_usage import enforce_monthly_limit, record_verified_mp4
+from app.beta_archive_retention import enforce_beta_archive_limit_for_job
 from app.beta_storage import canonical_audio_path
 
 ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
@@ -316,7 +317,8 @@ async def save_shortform_result(
     write_json(result_path, result)
     (output / "settings.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     mp4_usage = record_verified_mp4(job_id, "shortform", Path(saved["shortform_video"])) if "shortform_video" in saved else None
-    return JSONResponse({"ok": True, "saved": saved, "shortform": result["shortform"], "mp4_usage": mp4_usage})
+    archive_retention = enforce_beta_archive_limit_for_job(job_id) if mp4_usage else None
+    return JSONResponse({"ok": True, "saved": saved, "shortform": result["shortform"], "mp4_usage": mp4_usage, "archive_retention": archive_retention})
 
 
 @beta_shortform_router.post("/jobs/{job_id}/reset-generated")
