@@ -7,6 +7,7 @@
   const TOP_ACTIONS_ID = 'v1-mypage-top-actions';
   const BOTTOM_ACTIONS_ID = 'v1-mypage-bottom-actions';
   const CONFIRM_ID = 'v1-mypage-logout-confirm';
+  const PASSWORD_FORM_ID = 'v1-mypage-password-form';
   let saveRequested = false;
   let logoutBypass = false;
   let closeBypass = false;
@@ -37,7 +38,18 @@
       #${CONFIRM_ID} button{min-height:44px;border-radius:14px;font-size:14px;font-weight:950;cursor:pointer}
       #${CONFIRM_ID} .v1-logout-no{border:1px solid #475569;background:#1e293b;color:#e2e8f0}
       #${CONFIRM_ID} .v1-logout-yes{border:1px solid #fb7185;background:#9f1239;color:#fff1f2}
-      @media(max-width:720px){#${TOP_ACTIONS_ID},#${BOTTOM_ACTIONS_ID}{width:100%;justify-content:stretch}#${TOP_ACTIONS_ID}{margin:10px 0 0}#${TOP_ACTIONS_ID} button,#${BOTTOM_ACTIONS_ID} button{flex:1;min-width:105px;padding:0 14px;font-size:14px}}
+      #${PASSWORD_FORM_ID}{margin-top:16px;border:1px solid rgba(103,232,249,.28);border-radius:18px;background:rgba(2,6,23,.64);padding:18px}
+      #${PASSWORD_FORM_ID} h4{margin:0;color:#f8fafc;font-size:16px;font-weight:950}
+      #${PASSWORD_FORM_ID} p{margin:7px 0 0;color:#94a3b8;font-size:12px;font-weight:700;line-height:1.55}
+      #${PASSWORD_FORM_ID} .v1-password-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:15px}
+      #${PASSWORD_FORM_ID} label{display:grid;gap:7px;color:#cbd5e1;font-size:12px;font-weight:900}
+      #${PASSWORD_FORM_ID} input{width:100%;height:46px;border:1px solid rgba(148,163,184,.34);border-radius:13px;background:#020617;color:#f8fafc;padding:0 13px;box-sizing:border-box;font-size:14px;outline:none}
+      #${PASSWORD_FORM_ID} input:focus{border-color:#67e8f9;box-shadow:0 0 0 3px rgba(103,232,249,.12)}
+      #${PASSWORD_FORM_ID} .v1-password-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;flex-wrap:wrap}
+      #${PASSWORD_FORM_ID} .v1-password-message{min-height:20px;color:#fda4af;font-size:12px;font-weight:800}
+      #${PASSWORD_FORM_ID} .v1-password-submit{min-height:44px;border:1px solid #67e8f9;border-radius:999px;background:#67e8f9;color:#082f49;padding:0 20px;font-size:13px;font-weight:950;cursor:pointer}
+      #${PASSWORD_FORM_ID} .v1-password-submit:disabled{cursor:wait;opacity:.55}
+      @media(max-width:720px){#${TOP_ACTIONS_ID},#${BOTTOM_ACTIONS_ID}{width:100%;justify-content:stretch}#${TOP_ACTIONS_ID}{margin:10px 0 0}#${TOP_ACTIONS_ID} button,#${BOTTOM_ACTIONS_ID} button{flex:1;min-width:105px;padding:0 14px;font-size:14px}#${PASSWORD_FORM_ID} .v1-password-grid{grid-template-columns:1fr}}
     `;
     document.head.appendChild(style);
   }
@@ -207,6 +219,78 @@
     return response;
   };
 
+
+  function authHeaders(){
+    const headers = new Headers({'Content-Type':'application/json','Accept':'application/json'});
+    const token = String(localStorage.getItem('storymaker_token') || '').trim();
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    return headers;
+  }
+
+  async function submitPasswordForm(form){
+    const currentInput = form.querySelector('[name="current_password"]');
+    const newInput = form.querySelector('[name="new_password"]');
+    const confirmInput = form.querySelector('[name="confirm_password"]');
+    const message = form.querySelector('.v1-password-message');
+    const submit = form.querySelector('.v1-password-submit');
+    const currentPassword = currentInput?.value || '';
+    const newPassword = newInput?.value || '';
+    const confirmPassword = confirmInput?.value || '';
+    if (!currentPassword) { message.textContent = '현재 비밀번호를 입력해 주세요.'; currentInput?.focus(); return; }
+    if (newPassword.length < 8) { message.textContent = '새 비밀번호는 8자 이상이어야 합니다.'; newInput?.focus(); return; }
+    if (newPassword !== confirmPassword) { message.textContent = '새 비밀번호 확인이 일치하지 않습니다.'; confirmInput?.focus(); return; }
+    if (currentPassword === newPassword) { message.textContent = '새 비밀번호는 현재 비밀번호와 다르게 입력해 주세요.'; newInput?.focus(); return; }
+    submit.disabled = true;
+    submit.textContent = '변경 중...';
+    message.style.color = '#cbd5e1';
+    message.textContent = 'WordPress 로그인 비밀번호를 변경하고 있습니다.';
+    try {
+      const response = await nativeFetch('/v1-api/auth/change-password', {
+        method: 'PUT', credentials: 'include', headers: authHeaders(),
+        body: JSON.stringify({current_password: currentPassword, new_password: newPassword})
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.ok === false) throw new Error(data.detail || data.message || '비밀번호 변경에 실패했습니다.');
+      message.style.color = '#86efac';
+      message.textContent = data.message || '비밀번호가 변경되었습니다. 다시 로그인해 주세요.';
+      currentInput.value = ''; newInput.value = ''; confirmInput.value = '';
+      setTimeout(() => {
+        if (typeof window.handleLogout === 'function') window.handleLogout();
+        else window.location.replace('/v1/?action=login');
+      }, 900);
+    } catch (error) {
+      message.style.color = '#fda4af';
+      message.textContent = error?.message || '비밀번호 변경에 실패했습니다.';
+    } finally {
+      submit.disabled = false;
+      submit.textContent = '비밀번호 변경';
+    }
+  }
+
+  function ensurePasswordForm(dialog){
+    const settingsButton = [...dialog.querySelectorAll('button')].find((button) => clean(button.textContent) === '계정 및 연동 설정');
+    if (!settingsButton || settingsButton.getAttribute('aria-pressed') === 'false') return;
+    const settingsHeading = [...dialog.querySelectorAll('h3,h4')].find((node) => clean(node.textContent) === '계정 및 연동 설정');
+    const section = settingsHeading?.closest('section');
+    if (!section || section.querySelector('#' + PASSWORD_FORM_ID)) return;
+    const form = document.createElement('form');
+    form.id = PASSWORD_FORM_ID;
+    form.innerHTML = `
+      <h4>로그인 비밀번호 변경</h4>
+      <p>실제 WordPress 로그인 비밀번호가 변경되며, 보안을 위해 모든 기기에서 다시 로그인해야 합니다.</p>
+      <div class="v1-password-grid">
+        <label>현재 비밀번호<input type="password" name="current_password" autocomplete="current-password" required></label>
+        <label>새 비밀번호<input type="password" name="new_password" autocomplete="new-password" minlength="8" required></label>
+        <label>새 비밀번호 확인<input type="password" name="confirm_password" autocomplete="new-password" minlength="8" required></label>
+      </div>
+      <div class="v1-password-actions">
+        <span class="v1-password-message" aria-live="polite"></span>
+        <button type="submit" class="v1-password-submit">비밀번호 변경</button>
+      </div>`;
+    form.addEventListener('submit', (event) => { event.preventDefault(); submitPasswordForm(form); });
+    section.appendChild(form);
+  }
+
   function buildActionSet(id, save, logout){
     const actions = document.createElement('div');
     actions.id = id;
@@ -298,7 +382,7 @@
 
   function apply(){
     const dialog = findMyPageDialog();
-    if (dialog) installTopActions(dialog);
+    if (dialog) { installTopActions(dialog); ensurePasswordForm(dialog); }
   }
 
   let timer = 0;
