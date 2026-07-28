@@ -30,9 +30,6 @@ class Settings(BaseSettings):
     STORYMAKER_JWT_ALGORITHM: str = "HS256"
     STORYMAKER_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24시간
     
-    # 회원가입 초대 코드
-    STORYMAKER_INVITE_CODE: str = "storymaker2026"
-
     # Google Identity Services OAuth 클라이언트 ID (미설정 시 Google 로그인 비활성)
     STORYMAKER_GOOGLE_CLIENT_ID: str = ""
 
