@@ -22,7 +22,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.beta_auth import current_user_id, current_user_role
-from app.beta_mp4_usage import ensure_mp4_usage_table, record_verified_mp4
+from app.beta_mp4_usage import ensure_mp4_usage_table, enforce_monthly_limit, monthly_usage_summary, record_verified_mp4
 from app.beta_storage import canonical_audio_path, prune_unreferenced_shared_images, store_normalized_image
 
 KST = ZoneInfo("Asia/Seoul")
@@ -480,6 +480,11 @@ async def beta_create_job(
 ) -> JSONResponse:
     if not images:
         raise HTTPException(status_code=400, detail="이미지를 한 장 이상 선택하세요.")
+    owner_user_id = current_user_id(request)
+    owner_role = current_user_role(request)
+    quota = monthly_usage_summary(owner_user_id, owner_role)
+    if not quota.get("unlimited") and int(quota.get("used") or 0) >= int(quota.get("limit") or 20):
+        raise HTTPException(status_code=402, detail="무료 월 20회 제작 한도를 모두 사용했습니다.")
     beta_job_id = f"beta_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{secrets.token_hex(3)}"
     job_dir = BETA_JOBS / beta_job_id
     input_dir, output_dir = job_dir / "input", job_dir / "output"
@@ -510,7 +515,6 @@ async def beta_create_job(
     weather_snapshot = get_weather_snapshot(business_region.strip())
     content = beta_make_content(business, topic, len(saved_images))
     created_at = beta_now()
-    owner_user_id = current_user_id(request)
     state = {"beta_job_id": beta_job_id, "title": content["title"], "status": "created", "progress": 0, "created_at": created_at, "owner_user_id": owner_user_id}
     result = {**state, "schema_version": "beta-2.0", "business": business, "topic": topic.strip(), "weather_snapshot": weather_snapshot, "content": content,
               "assets": {"images": saved_images, "videos": saved_videos, "music": None, "script": str(job_dir / "script.txt"), "podcast_script": str(job_dir / "podcast_script.txt"), "channels_dir": str(job_dir / "channels"), "podcast_50": str(job_dir / "podcast_50.txt"), "podcast_80": str(job_dir / "podcast_80.txt"), "audio": None, "mixed_audio": None, "subtitle": None, "thumbnail": None, "video": None}}
@@ -541,10 +545,12 @@ async def beta_create_job(
 @beta_jobs_router.post("/jobs/{beta_job_id}/render")
 def beta_render_job(
     beta_job_id: str,
+    request: Request,
     music_volume: float = Form(0.16),
     script: str = Form(""),
     podcast_version: str = Form("50"),
 ) -> JSONResponse:
+    enforce_monthly_limit(current_user_id(request), current_user_role(request), beta_job_id, "archive")
     job_dir = beta_job_dir(beta_job_id)
     output_dir = job_dir / "output"
     result = beta_read_json(job_dir / "result.json")
@@ -666,6 +672,12 @@ def beta_render_job(
     except Exception as exc:
         beta_update_job(beta_job_id, status="failed", progress=0, error=str(exc))
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@beta_jobs_router.get("/usage-summary")
+def beta_usage_summary(request: Request) -> JSONResponse:
+    summary = monthly_usage_summary(current_user_id(request), current_user_role(request))
+    return JSONResponse({"ok": True, "usage": summary})
 
 
 @beta_jobs_router.get("/v1-profile")

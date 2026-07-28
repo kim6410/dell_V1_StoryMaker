@@ -9,12 +9,13 @@ import shutil
 import subprocess
 import zipfile
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from starlette.background import BackgroundTask
 
 from app.beta_image_download import _clean_name, _watermark_image, build_download_package
-from app.beta_mp4_usage import record_verified_mp4
+from app.beta_auth import current_user_id, current_user_role
+from app.beta_mp4_usage import enforce_monthly_limit, record_verified_mp4
 from app.beta_storage import canonical_audio_path, remove_tree
 
 BETA_ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
@@ -187,6 +188,7 @@ def beta_browser_music(beta_job_id: str) -> FileResponse:
 @beta_browser_router.post("/jobs/{beta_job_id}/upload")
 async def beta_browser_upload(
     beta_job_id: str,
+    request: Request,
     browser_mp3: UploadFile | None = File(None),
     browser_srt: UploadFile | None = File(None),
     browser_mp4: UploadFile | None = File(None),
@@ -198,6 +200,8 @@ async def beta_browser_upload(
     output_dir = job_dir / "output" / "browser"
     output_dir.mkdir(parents=True, exist_ok=True)
     saved: dict[str, str] = {}
+    if browser_mp4 and browser_mp4.filename:
+        enforce_monthly_limit(current_user_id(request), current_user_role(request), beta_job_id, "archive")
     if browser_mp3 and browser_mp3.filename:
         target = output_dir / "browser_podcast.mp3"
         with target.open("wb") as stream:

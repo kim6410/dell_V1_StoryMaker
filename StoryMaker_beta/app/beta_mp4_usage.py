@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 import json
@@ -8,9 +8,13 @@ import os
 import sqlite3
 import subprocess
 
+from fastapi import HTTPException, status
+
 BETA_ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
 BETA_DB = BETA_ROOT / "data" / "storymaker_beta.db"
+V1_DB = Path(os.getenv("STORYMAKER_V1_DB", "/home/bourne/StoryMaker_1/database/storymaker.db"))
 FFPROBE = Path(os.getenv("STORYMAKER_BETA_FFPROBE", "/usr/bin/ffprobe"))
+FREE_MONTHLY_LIMIT = 20
 
 
 def now_iso() -> str:
@@ -52,6 +56,79 @@ def ensure_mp4_usage_table(connection: sqlite3.Connection | None = None) -> None
     finally:
         if owns_connection:
             db.close()
+
+
+def _parse_datetime(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _billing_profile(user_id: int) -> dict[str, Any]:
+    if not V1_DB.exists():
+        return {"plan_code": "free", "period_start": None, "period_end": None}
+    with sqlite3.connect(f"file:{V1_DB}?mode=ro", uri=True, timeout=3) as connection:
+        row = connection.execute(
+            "SELECT current_plan_code,current_period_started_at,current_period_ends_at "
+            "FROM member_billing_profiles WHERE user_id=?",
+            (user_id,),
+        ).fetchone()
+    if not row:
+        return {"plan_code": "free", "period_start": None, "period_end": None}
+    return {"plan_code": str(row[0] or "free").lower(), "period_start": row[1], "period_end": row[2]}
+
+
+def monthly_usage_summary(user_id: int, role: str = "user", now: datetime | None = None) -> dict[str, Any]:
+    now_dt = now or datetime.now(timezone.utc)
+    if str(role or "").lower() == "admin":
+        return {"unlimited": True, "plan_code": "admin", "used": 0, "remaining": None, "limit": None}
+    profile = _billing_profile(user_id)
+    if profile["plan_code"] != "free":
+        return {"unlimited": True, "plan_code": profile["plan_code"], "used": 0, "remaining": None, "limit": None}
+    period_start = _parse_datetime(profile.get("period_start")) or now_dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    period_end = _parse_datetime(profile.get("period_end")) or (period_start + timedelta(days=32)).replace(day=1)
+    with sqlite3.connect(BETA_DB) as connection:
+        ensure_mp4_usage_table(connection)
+        rows = connection.execute(
+            "SELECT mp4_created_at FROM beta_mp4_usage "
+            "WHERE owner_user_id=? AND mp4_status='completed' AND mp4_verified=1",
+            (user_id,),
+        ).fetchall()
+    used = sum(1 for row in rows if (created := _parse_datetime(row[0])) and period_start <= created < period_end)
+    return {
+        "unlimited": False,
+        "plan_code": "free",
+        "used": used,
+        "remaining": max(0, FREE_MONTHLY_LIMIT - used),
+        "limit": FREE_MONTHLY_LIMIT,
+        "period_start": period_start.isoformat(),
+        "period_end": period_end.isoformat(),
+    }
+
+
+def enforce_monthly_limit(user_id: int, role: str, beta_job_id: str, output_type: str) -> dict[str, Any]:
+    if output_type not in {"archive", "shortform"}:
+        raise ValueError("지원하지 않는 MP4 출력 유형입니다.")
+    with sqlite3.connect(BETA_DB) as connection:
+        ensure_mp4_usage_table(connection)
+        existing = connection.execute(
+            "SELECT 1 FROM beta_mp4_usage WHERE beta_job_id=? AND output_type=? "
+            "AND mp4_status='completed' AND mp4_verified=1 LIMIT 1",
+            (beta_job_id, output_type),
+        ).fetchone()
+    summary = monthly_usage_summary(user_id, role)
+    if existing or summary.get("unlimited"):
+        return {**summary, "existing_usage": bool(existing)}
+    if int(summary.get("used") or 0) >= FREE_MONTHLY_LIMIT:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail=f"무료 월 {FREE_MONTHLY_LIMIT}회 제작 한도를 모두 사용했습니다.",
+        )
+    return {**summary, "existing_usage": False}
 
 
 def probe_mp4(path: Path) -> dict[str, Any]:

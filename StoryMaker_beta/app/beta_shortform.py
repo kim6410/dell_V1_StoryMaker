@@ -17,7 +17,8 @@ import uuid
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 
-from app.beta_mp4_usage import record_verified_mp4
+from app.beta_auth import current_user_id, current_user_role
+from app.beta_mp4_usage import enforce_monthly_limit, record_verified_mp4
 from app.beta_storage import canonical_audio_path
 
 ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
@@ -267,6 +268,7 @@ def music_library() -> JSONResponse:
 @beta_shortform_router.post("/jobs/{job_id}/save")
 async def save_shortform_result(
     job_id: str,
+    request: Request,
     shortform_mp4: UploadFile | None = File(None),
     shortform_mp3: UploadFile | None = File(None),
     shortform_srt: UploadFile | None = File(None),
@@ -276,6 +278,8 @@ async def save_shortform_result(
     output = job_dir / "output" / "shortform"
     output.mkdir(parents=True, exist_ok=True)
     saved: dict[str, str] = {}
+    if shortform_mp4 and shortform_mp4.filename:
+        enforce_monthly_limit(current_user_id(request), current_user_role(request), job_id, "shortform")
     for upload, filename, key, minimum in (
         (shortform_mp4, "shortform_final.mp4", "shortform_video", 1024),
         (shortform_mp3, "shortform_audio.mp3", "shortform_audio", 128),
