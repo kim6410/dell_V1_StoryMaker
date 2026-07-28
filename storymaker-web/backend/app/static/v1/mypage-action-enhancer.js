@@ -136,6 +136,11 @@
     const dialog = findMyPageDialog();
     if (!dialog) return false;
 
+    if (typeof window.closeMyPageModal === 'function') {
+      window.closeMyPageModal();
+      return true;
+    }
+
     const nativeClose = [...dialog.querySelectorAll('button')].find((button) => {
       if (button.closest('#' + TOP_ACTIONS_ID) || button.closest('#' + BOTTOM_ACTIONS_ID)) return false;
       return clean(button.textContent) === '닫기';
@@ -147,11 +152,6 @@
       } finally {
         setTimeout(() => { closeBypass = false; }, 100);
       }
-      return true;
-    }
-
-    if (typeof window.closeMyPageModal === 'function') {
-      window.closeMyPageModal();
       return true;
     }
 
