@@ -74,27 +74,56 @@
     return labelEl;
   }
 
+  function visibleSidebarItems() {
+    const selectors = [
+      'aside button', 'aside a', 'aside [role="button"]',
+      'nav button', 'nav a', 'nav [role="button"]',
+      '[class*="sidebar"] button', '[class*="sidebar"] a',
+      '[class*="side-bar"] button', '[class*="side-bar"] a',
+    ];
+    return Array.from(document.querySelectorAll(selectors.join(','))).filter((node) => {
+      const rect = node.getBoundingClientRect();
+      return rect.width > 100 && rect.height >= 34 && rect.height <= 96 && clean(node.textContent);
+    });
+  }
+
   function createMenu() {
     if (document.querySelector(`[${MENU_MARK}]`)) return true;
     const anchorLabels = [USAGE_LABEL, '요금제', '작업큐', '업종별 관리', '보관함'];
-    const usageLabel = anchorLabels.map((label) => findTextElement(label)).find(Boolean);
-    if (!usageLabel) return false;
-    const usageItem = menuClickableFromLabel(usageLabel);
-    const memberItem = usageItem.cloneNode(true);
+    const matchedLabel = anchorLabels.map((label) => findTextElement(label)).find(Boolean);
+    const sidebarItems = visibleSidebarItems();
+    const anchorItem = matchedLabel ? menuClickableFromLabel(matchedLabel) : sidebarItems[0];
+    if (!anchorItem) return false;
+
+    const memberItem = anchorItem.cloneNode(true);
     memberItem.setAttribute(MENU_MARK, '1');
     memberItem.setAttribute(MENU_AUTH_MARK, '1');
+    memberItem.setAttribute('role', 'button');
+    memberItem.setAttribute('tabindex', '0');
+    memberItem.setAttribute('aria-label', MENU_LABEL);
     memberItem.removeAttribute('href');
     memberItem.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
-    const exact = Array.from(memberItem.querySelectorAll('*')).find((el) => clean(el.textContent) === USAGE_LABEL);
+
+    const labelNodes = Array.from(memberItem.querySelectorAll('*')).filter((el) => clean(el.textContent));
+    const exact = labelNodes.find((el) => anchorLabels.includes(clean(el.textContent)));
     if (exact) exact.textContent = MENU_LABEL;
     else memberItem.textContent = MENU_LABEL;
-    memberItem.addEventListener('click', (event) => {
+
+    const openMemberPanel = (event) => {
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
       showPanel();
+    };
+    memberItem.addEventListener('click', openMemberPanel, true);
+    memberItem.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') openMemberPanel(event);
     }, true);
-    usageItem.insertAdjacentElement('afterend', memberItem);
+
+    const matchedItem = matchedLabel ? menuClickableFromLabel(matchedLabel) : null;
+    if (matchedItem?.parentElement) matchedItem.insertAdjacentElement('afterend', memberItem);
+    else if (anchorItem.parentElement) anchorItem.parentElement.appendChild(memberItem);
+    else return false;
     return true;
   }
 
