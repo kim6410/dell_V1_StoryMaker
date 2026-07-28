@@ -43,8 +43,12 @@
       #${PASSWORD_FORM_ID} p{margin:7px 0 0;color:#94a3b8;font-size:12px;font-weight:700;line-height:1.55}
       #${PASSWORD_FORM_ID} .v1-password-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:15px}
       #${PASSWORD_FORM_ID} label{display:grid;gap:7px;color:#cbd5e1;font-size:12px;font-weight:900}
-      #${PASSWORD_FORM_ID} input{width:100%;height:46px;border:1px solid rgba(148,163,184,.34);border-radius:13px;background:#020617;color:#f8fafc;padding:0 13px;box-sizing:border-box;font-size:14px;outline:none}
+      #${PASSWORD_FORM_ID} .v1-password-field{position:relative;display:block}
+      #${PASSWORD_FORM_ID} input{width:100%;height:46px;border:1px solid rgba(148,163,184,.34);border-radius:13px;background:#020617;color:#f8fafc;padding:0 52px 0 13px;box-sizing:border-box;font-size:14px;outline:none}
       #${PASSWORD_FORM_ID} input:focus{border-color:#67e8f9;box-shadow:0 0 0 3px rgba(103,232,249,.12)}
+      #${PASSWORD_FORM_ID} .v1-password-toggle{position:absolute;right:9px;top:50%;transform:translateY(-50%);width:36px;height:36px;display:grid;place-items:center;border:0;border-radius:999px;background:transparent;color:#94a3b8;cursor:pointer;padding:0}
+      #${PASSWORD_FORM_ID} .v1-password-toggle:hover,#${PASSWORD_FORM_ID} .v1-password-toggle:focus-visible{background:rgba(103,232,249,.10);color:#67e8f9;outline:none}
+      #${PASSWORD_FORM_ID} .v1-password-toggle svg{width:21px;height:21px;pointer-events:none}
       #${PASSWORD_FORM_ID} .v1-password-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;flex-wrap:wrap}
       #${PASSWORD_FORM_ID} .v1-password-message{min-height:20px;color:#fda4af;font-size:12px;font-weight:800}
       #${PASSWORD_FORM_ID} .v1-password-submit{min-height:44px;border:1px solid #67e8f9;border-radius:999px;background:#67e8f9;color:#082f49;padding:0 20px;font-size:13px;font-weight:950;cursor:pointer}
@@ -227,6 +231,24 @@
     return headers;
   }
 
+  function passwordEyeSvg(visible){
+    return visible
+      ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.58 10.58a2 2 0 0 0 2.83 2.83"></path><path d="M9.88 5.09A9.77 9.77 0 0 1 12 4c5 0 9 4 10 8a11.8 11.8 0 0 1-2.17 3.19"></path><path d="M6.61 6.61A11.75 11.75 0 0 0 2 12c1 4 5 8 10 8a9.77 9.77 0 0 0 4.91-1.38"></path></svg>`
+      : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+  }
+
+  function togglePasswordVisibility(button){
+    const field = button.closest('.v1-password-field');
+    const input = field?.querySelector('input');
+    if (!input) return;
+    const nextVisible = input.type === 'password';
+    input.type = nextVisible ? 'text' : 'password';
+    button.dataset.visible = nextVisible ? '1' : '0';
+    button.setAttribute('aria-label', nextVisible ? '비밀번호 숨기기' : '비밀번호 표시');
+    button.setAttribute('title', nextVisible ? '비밀번호 숨기기' : '비밀번호 표시');
+    button.innerHTML = passwordEyeSvg(nextVisible);
+  }
+
   async function submitPasswordForm(form){
     const currentInput = form.querySelector('[name="current_password"]');
     const newInput = form.querySelector('[name="new_password"]');
@@ -279,14 +301,17 @@
       <h4>로그인 비밀번호 변경</h4>
       <p>실제 WordPress 로그인 비밀번호가 변경되며, 완료 후 모든 기기에서 다시 로그인해야 합니다.</p>
       <div class="v1-password-grid">
-        <label>현재 비밀번호<input type="password" name="current_password" autocomplete="current-password" required></label>
-        <label>새 비밀번호<input type="password" name="new_password" autocomplete="new-password" minlength="8" required></label>
-        <label>새 비밀번호 확인<input type="password" name="confirm_password" autocomplete="new-password" minlength="8" required></label>
+        <label>현재 비밀번호<span class="v1-password-field"><input type="password" name="current_password" autocomplete="current-password" required><button type="button" class="v1-password-toggle" data-visible="0" aria-label="비밀번호 표시" title="비밀번호 표시">${passwordEyeSvg(false)}</button></span></label>
+        <label>새 비밀번호<span class="v1-password-field"><input type="password" name="new_password" autocomplete="new-password" minlength="8" required><button type="button" class="v1-password-toggle" data-visible="0" aria-label="비밀번호 표시" title="비밀번호 표시">${passwordEyeSvg(false)}</button></span></label>
+        <label>새 비밀번호 확인<span class="v1-password-field"><input type="password" name="confirm_password" autocomplete="new-password" minlength="8" required><button type="button" class="v1-password-toggle" data-visible="0" aria-label="비밀번호 표시" title="비밀번호 표시">${passwordEyeSvg(false)}</button></span></label>
       </div>
       <div class="v1-password-actions">
         <span class="v1-password-message" aria-live="polite"></span>
         <button type="submit" class="v1-password-submit">비밀번호 변경</button>
       </div>`;
+    form.querySelectorAll('.v1-password-toggle').forEach((button) => {
+      button.addEventListener('click', () => togglePasswordVisibility(button));
+    });
     form.addEventListener('submit', (event) => { event.preventDefault(); submitPasswordForm(form); });
 
     const infoGrid = [...section.children].find((child) => child.matches?.('div.grid'));
