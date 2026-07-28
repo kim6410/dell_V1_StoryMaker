@@ -122,7 +122,9 @@ function ensureStoryMakerLoginModal() {
     }
     return modal;
 }
-window.ensureStoryMakerLoginModal = ensureStoryMakerLoginModal;
+if (typeof window.ensureStoryMakerLoginModal !== 'function') {
+    window.ensureStoryMakerLoginModal = ensureStoryMakerLoginModal;
+}
 
 function setStoryMakerAuthMode(tab) {
     if (window.StoryMakerV1AuthModal && typeof window.StoryMakerV1AuthModal.setMode === 'function') {
@@ -233,7 +235,9 @@ function showAuthModal(tab) {
     modal.setAttribute('aria-hidden', 'false');
     setStoryMakerAuthMode(tab || 'login');
 }
-window.showAuthModal = showAuthModal;
+if (typeof window.showAuthModal !== 'function') {
+    window.showAuthModal = showAuthModal;
+}
 
 function openAuthModalFromUrlAction() {
     try {
