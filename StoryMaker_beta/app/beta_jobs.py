@@ -651,6 +651,7 @@ def beta_render_job(
             raise RuntimeError("최종 MP4가 생성되지 않았습니다.")
         completed_at = beta_now()
         result["assets"].update({"audio": str(voice_mp3), "mixed_audio": str(canonical_audio_path(job_dir)), "subtitle": str(subtitle), "thumbnail": str(thumbnail), "video": str(video)})
+        result["assets"].pop("browser_video", None)
         result.update({"status": "completed", "progress": 100, "completed_at": completed_at, "duration_seconds": round(duration, 3)})
         silent_video.unlink(missing_ok=True)
         mixed_audio.unlink(missing_ok=True)
@@ -659,6 +660,8 @@ def beta_render_job(
         beta_write_json(job_dir / "result.json", result)
         beta_update_job(beta_job_id, status="completed", progress=100, completed_at=completed_at)
         mp4_usage = record_verified_mp4(beta_job_id, "archive", video)
+        if mp4_usage:
+            (output_dir / "browser" / "browser_final.mp4").unlink(missing_ok=True)
         return JSONResponse({"ok": True, "job": result, "video_url": f"/beta-api/jobs/{beta_job_id}/file/video", "mp4_usage": mp4_usage})
     except Exception as exc:
         beta_update_job(beta_job_id, status="failed", progress=0, error=str(exc))

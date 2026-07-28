@@ -283,11 +283,13 @@ async def save_shortform_result(
     ):
         if upload and upload.filename:
             target = output / filename
-            with target.open("wb") as stream:
+            temp_target = output / f".{filename}.uploading"
+            with temp_target.open("wb") as stream:
                 shutil.copyfileobj(upload.file, stream)
-            if target.stat().st_size < minimum:
-                target.unlink(missing_ok=True)
+            if temp_target.stat().st_size < minimum:
+                temp_target.unlink(missing_ok=True)
                 raise HTTPException(status_code=400, detail=f"{filename} 파일이 비어 있습니다.")
+            temp_target.replace(target)
             saved[key] = str(target)
     try:
         meta = json.loads(metadata or "{}")

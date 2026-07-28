@@ -253,10 +253,14 @@ async def beta_browser_upload(
         result["shortform"]["selected_podcast"] = selected_version
         result.setdefault("assets", {})["voice_script_hash"] = hashlib.sha256(clean_script.encode("utf-8")).hexdigest()
     result.setdefault("assets", {}).update(saved)
+    if "browser_video" in saved:
+        result["assets"]["video"] = saved["browser_video"]
     result["browser_render"] = {"saved": bool(saved), "diagnostics": diagnostic_data}
     beta_browser_write_result(job_dir, result)
     (output_dir / "diagnostics.json").write_text(json.dumps(diagnostic_data, ensure_ascii=False, indent=2), encoding="utf-8")
     mp4_usage = record_verified_mp4(beta_job_id, "archive", Path(saved["browser_video"])) if "browser_video" in saved else None
+    if mp4_usage:
+        (job_dir / "output" / "final.mp4").unlink(missing_ok=True)
     return JSONResponse({"ok": True, "saved": saved, "mp4_usage": mp4_usage})
 
 
