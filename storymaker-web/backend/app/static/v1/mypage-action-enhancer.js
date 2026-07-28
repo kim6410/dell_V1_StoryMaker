@@ -20,14 +20,14 @@
     const style = document.createElement('style');
     style.id = STYLE_ID;
     style.textContent = `
-      #${TOP_ACTIONS_ID},#${BOTTOM_ACTIONS_ID}{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap}
+      #${TOP_ACTIONS_ID}{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap}
       #${TOP_ACTIONS_ID}{margin-left:auto;margin-right:0}
-      #${BOTTOM_ACTIONS_ID}{width:100%;padding:18px 20px 20px;border-top:1px solid rgba(148,163,184,.16);background:rgba(2,6,23,.24)}
-      #${TOP_ACTIONS_ID} button,#${BOTTOM_ACTIONS_ID} button{min-width:118px;min-height:50px;border-radius:999px;padding:0 24px;font-size:15px;font-weight:950;letter-spacing:-.02em;cursor:pointer;transition:transform .18s ease,filter .18s ease,background .18s ease,border-color .18s ease;box-sizing:border-box}
-      #${TOP_ACTIONS_ID} button:hover,#${BOTTOM_ACTIONS_ID} button:hover{transform:translateY(-1px);filter:brightness(1.05)}
-      #${TOP_ACTIONS_ID} .v1-mypage-action-save,#${BOTTOM_ACTIONS_ID} .v1-mypage-action-save{border:1px solid #67e8f9;background:#67e8f9;color:#082f49;box-shadow:0 10px 26px rgba(103,232,249,.16)}
-      #${TOP_ACTIONS_ID} .v1-mypage-action-logout,#${BOTTOM_ACTIONS_ID} .v1-mypage-action-logout{border:1px solid rgba(251,113,133,.62);background:rgba(159,18,57,.20);color:#ffe4e6}
-      #${TOP_ACTIONS_ID} .v1-mypage-action-close,#${BOTTOM_ACTIONS_ID} .v1-mypage-action-close{border:1px solid rgba(148,163,184,.34);background:rgba(15,23,42,.58);color:#f8fafc}
+      #${BOTTOM_ACTIONS_ID}{display:none!important}
+      #${TOP_ACTIONS_ID} button{min-width:118px;min-height:50px;border-radius:999px;padding:0 24px;font-size:15px;font-weight:950;letter-spacing:-.02em;cursor:pointer;transition:transform .18s ease,filter .18s ease,background .18s ease,border-color .18s ease;box-sizing:border-box}
+      #${TOP_ACTIONS_ID} button:hover{transform:translateY(-1px);filter:brightness(1.05)}
+      #${TOP_ACTIONS_ID} .v1-mypage-action-save{border:1px solid #67e8f9;background:#67e8f9;color:#082f49;box-shadow:0 10px 26px rgba(103,232,249,.16)}
+      #${TOP_ACTIONS_ID} .v1-mypage-action-logout{border:1px solid rgba(251,113,133,.62);background:rgba(159,18,57,.20);color:#ffe4e6}
+      #${TOP_ACTIONS_ID} .v1-mypage-action-close{border:1px solid rgba(148,163,184,.34);background:rgba(15,23,42,.58);color:#f8fafc}
       [data-v1-mypage-native-bottom="1"]{display:none!important}
       #${CONFIRM_ID}{position:fixed;inset:0;z-index:2147483600;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(2,6,23,.62);backdrop-filter:blur(5px)}
       #${CONFIRM_ID}.is-open{display:flex}
@@ -49,7 +49,7 @@
       #${PASSWORD_FORM_ID} .v1-password-message{min-height:20px;color:#fda4af;font-size:12px;font-weight:800}
       #${PASSWORD_FORM_ID} .v1-password-submit{min-height:44px;border:1px solid #67e8f9;border-radius:999px;background:#67e8f9;color:#082f49;padding:0 20px;font-size:13px;font-weight:950;cursor:pointer}
       #${PASSWORD_FORM_ID} .v1-password-submit:disabled{cursor:wait;opacity:.55}
-      @media(max-width:720px){#${TOP_ACTIONS_ID},#${BOTTOM_ACTIONS_ID}{width:100%;justify-content:stretch}#${TOP_ACTIONS_ID}{margin:10px 0 0}#${TOP_ACTIONS_ID} button,#${BOTTOM_ACTIONS_ID} button{flex:1;min-width:105px;padding:0 14px;font-size:14px}#${PASSWORD_FORM_ID} .v1-password-grid{grid-template-columns:1fr}}
+      @media(max-width:720px){#${TOP_ACTIONS_ID}{width:100%;justify-content:stretch;margin:10px 0 0}#${TOP_ACTIONS_ID} button{flex:1;min-width:105px;padding:0 14px;font-size:14px}#${PASSWORD_FORM_ID} .v1-password-grid{grid-template-columns:1fr}}
     `;
     document.head.appendChild(style);
   }
@@ -268,16 +268,16 @@
   }
 
   function ensurePasswordForm(dialog){
-    const settingsButton = [...dialog.querySelectorAll('button')].find((button) => clean(button.textContent) === '계정 및 연동 설정');
-    if (!settingsButton || settingsButton.getAttribute('aria-pressed') === 'false') return;
-    const settingsHeading = [...dialog.querySelectorAll('h3,h4')].find((node) => clean(node.textContent) === '계정 및 연동 설정');
-    const section = settingsHeading?.closest('section');
+    const settingsHeading = [...dialog.querySelectorAll('h2,h3,h4')].find((node) => clean(node.textContent) === '계정 및 연동 설정');
+    if (!settingsHeading) return;
+    const section = settingsHeading.closest('section');
     if (!section || section.querySelector('#' + PASSWORD_FORM_ID)) return;
+
     const form = document.createElement('form');
     form.id = PASSWORD_FORM_ID;
     form.innerHTML = `
       <h4>로그인 비밀번호 변경</h4>
-      <p>실제 WordPress 로그인 비밀번호가 변경되며, 보안을 위해 모든 기기에서 다시 로그인해야 합니다.</p>
+      <p>실제 WordPress 로그인 비밀번호가 변경되며, 완료 후 모든 기기에서 다시 로그인해야 합니다.</p>
       <div class="v1-password-grid">
         <label>현재 비밀번호<input type="password" name="current_password" autocomplete="current-password" required></label>
         <label>새 비밀번호<input type="password" name="new_password" autocomplete="new-password" minlength="8" required></label>
@@ -288,8 +288,12 @@
         <button type="submit" class="v1-password-submit">비밀번호 변경</button>
       </div>`;
     form.addEventListener('submit', (event) => { event.preventDefault(); submitPasswordForm(form); });
-    section.appendChild(form);
+
+    const infoGrid = [...section.children].find((child) => child.matches?.('div.grid'));
+    if (infoGrid) infoGrid.insertAdjacentElement('afterend', form);
+    else section.appendChild(form);
   }
+
 
   function buildActionSet(id, save, logout){
     const actions = document.createElement('div');
@@ -338,21 +342,13 @@
       nativeClose.style.display = 'none';
     }
 
-    if (!dialog.querySelector('#' + BOTTOM_ACTIONS_ID)) {
-      const nativeLogout = [...dialog.querySelectorAll('button')].find((button) => {
-        if (button.closest('#' + TOP_ACTIONS_ID)) return false;
-        return clean(button.textContent) === '로그아웃';
-      });
-      const nativeBottomRow = nativeLogout?.parentElement;
-      if (nativeBottomRow) nativeBottomRow.dataset.v1MypageNativeBottom = '1';
-
-      const bottomActions = buildActionSet(BOTTOM_ACTIONS_ID, save, logout);
-      const scrollArea = dialog.querySelector('.min-h-0.overflow-y-auto') || dialog.querySelector('[class*="overflow-y-auto"]');
-      const footer = nativeBottomRow?.parentElement;
-      if (footer && footer !== header) footer.insertAdjacentElement('beforebegin', bottomActions);
-      else if (scrollArea) scrollArea.appendChild(bottomActions);
-      else dialog.appendChild(bottomActions);
-    }
+    dialog.querySelector('#' + BOTTOM_ACTIONS_ID)?.remove();
+    const nativeLogout = [...dialog.querySelectorAll('button')].find((button) => {
+      if (button.closest('#' + TOP_ACTIONS_ID)) return false;
+      return clean(button.textContent) === '로그아웃';
+    });
+    const nativeBottomRow = nativeLogout?.parentElement;
+    if (nativeBottomRow) nativeBottomRow.dataset.v1MypageNativeBottom = '1';
   }
 
   document.addEventListener('click', (event) => {
