@@ -3,7 +3,7 @@
 
 기존 제작 API, Queue, Worker와 분리된 관리자 전용 회원·페르소나 관리 기능입니다.
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 import calendar
 import os
 import sqlite3
@@ -34,6 +34,10 @@ class BillingPlanChangeRequest(BaseModel):
 class BillingAddonCreditRequest(BaseModel):
     quantity: int = 30
     price_krw: int = 4900
+
+
+class BillingDateUpdateRequest(BaseModel):
+    billing_date: str
 
 
 router = APIRouter()
@@ -97,6 +101,19 @@ def _one_month_later_text(value: datetime) -> str:
     return value.replace(year=year, month=month, day=day).strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _free_30_day_cycle(created_at: str | None, now: datetime | None = None) -> tuple[datetime, datetime]:
+    now_dt = now or datetime.now()
+    try:
+        anchor = datetime.fromisoformat(str(created_at or "").replace("Z", "+00:00")).replace(tzinfo=None)
+    except (TypeError, ValueError):
+        anchor = now_dt
+    if now_dt < anchor:
+        return anchor, anchor + timedelta(days=30)
+    cycle_index = int((now_dt - anchor).total_seconds() // (30 * 86400))
+    cycle_start = anchor + timedelta(days=cycle_index * 30)
+    return cycle_start, cycle_start + timedelta(days=30)
+
+
 def _require_billable_user(db: Session, user_id: int) -> User:
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -153,6 +170,70 @@ def _credit_totals(db: Session, user_id: int) -> dict:
     }
 
 
+def _daily_usage_history(db: Session, user_id: int, days: int = 14) -> list[dict]:
+    """Beta 딸깍 제작 DB만 기준으로 최근 일자별 실제 제작 사용량을 반환합니다."""
+    safe_days = max(7, min(int(days or 14), 31))
+    end_date = datetime.now().date()
+    start_date = end_date - timedelta(days=safe_days - 1)
+    consumed: dict[str, int] = {}
+    reserved: dict[str, int] = {}
+
+    beta_db_path = os.getenv("STORYMAKER_BETA_DB_PATH", "/beta_data/storymaker_beta.db")
+    beta_host_prefix = "/home/bourne/StoryMaker_1/StoryMaker_beta/data"
+
+    def _beta_runtime_path(value: object) -> str:
+        path = str(value or "").strip()
+        if path.startswith(beta_host_prefix):
+            return "/beta_data" + path[len(beta_host_prefix):]
+        return path
+
+    if os.path.exists(beta_db_path):
+        try:
+            beta_connection = sqlite3.connect(f"file:{beta_db_path}?mode=ro", uri=True, timeout=3)
+            beta_rows = beta_connection.execute(
+                """
+                select beta_job_id, status, created_at, result_json, selected_thumbnail_path
+                from beta_jobs
+                where owner_user_id = ?
+                  and substr(created_at, 1, 10) >= ?
+                order by created_at
+                """,
+                (int(user_id), start_date.isoformat()),
+            ).fetchall()
+            beta_connection.close()
+
+            for beta_job_id, status_value, created_at, result_json, selected_thumbnail_path in beta_rows:
+                usage_date = str(created_at or "")[:10]
+                if not usage_date:
+                    continue
+
+                # 제작 완료는 Beta DB에 작업이 저장되어 있고 최종 MP4가 실제 생성된 경우만 인정합니다.
+                job_root = os.path.dirname(_beta_runtime_path(result_json)) if result_json else ""
+                final_mp4_candidates = (
+                    os.path.join(job_root, "output", "browser", "browser_final.mp4"),
+                    os.path.join(job_root, "output", "shortform", "final.mp4"),
+                    os.path.join(job_root, "output", "final.mp4"),
+                )
+                mp4_exists = any(
+                    path and os.path.isfile(path) and os.path.getsize(path) > 0
+                    for path in final_mp4_candidates
+                )
+
+                if mp4_exists:
+                    consumed[usage_date] = consumed.get(usage_date, 0) + 1
+        except Exception:
+            pass
+
+    return [
+        {
+            "date": (start_date + timedelta(days=index)).isoformat(),
+            "used": int(consumed.get((start_date + timedelta(days=index)).isoformat(), 0)),
+            "reserved": int(reserved.get((start_date + timedelta(days=index)).isoformat(), 0)),
+        }
+        for index in range(safe_days)
+    ]
+
+
 def _billing_summary(db: Session, user: User) -> dict:
     fallback_plan = (getattr(user, "tier", None) or "free").strip() or "free"
     profile = None
@@ -170,6 +251,29 @@ def _billing_summary(db: Session, user: User) -> dict:
     base_credits = int((plan or {}).get("base_video_credits") or 0)
     carryover_percent = int((plan or {}).get("rollover_percent") or 0)
     archive_item_limit = None if str(user.role or "").lower() == "admin" else int((plan or {}).get("archive_item_limit") or 10)
+    beta_stats = _beta_completed_stats(user.id)
+    monthly_credit = credit_summary(db, user.id, str(user.role or "user"))
+    if str(plan_code or "free").lower() == "free" and str(user.role or "user").lower() != "admin":
+        cycle_start, cycle_end = _free_30_day_cycle(user.created_at)
+        cycle_used = 0
+        for stamp in beta_stats.get("completed_at") or []:
+            try:
+                completed_at = datetime.fromisoformat(str(stamp).replace("Z", "+00:00")).replace(tzinfo=None)
+            except (TypeError, ValueError):
+                continue
+            if cycle_start <= completed_at < cycle_end:
+                cycle_used += 1
+        monthly_credit = {
+            **monthly_credit,
+            "plan_code": "free",
+            "period_start": cycle_start.strftime("%Y-%m-%d %H:%M:%S"),
+            "period_end": cycle_end.strftime("%Y-%m-%d %H:%M:%S"),
+            "next_reset_at": cycle_end.strftime("%Y-%m-%d %H:%M:%S"),
+            "monthly_granted": 20,
+            "monthly_used": cycle_used,
+            "monthly_reserved": 0,
+            "monthly_remaining": max(0, 20 - cycle_used),
+        }
     return {
         "user_id": user.id,
         "username": user.username,
@@ -180,7 +284,17 @@ def _billing_summary(db: Session, user: User) -> dict:
         "current_period_ends_at": (profile or {}).get("current_period_ends_at"),
         "next_billing_at": (profile or {}).get("next_billing_at"),
         "free_signup_credit_given": bool((profile or {}).get("free_signup_credit_given") or False),
-        "monthly_credit": credit_summary(db, user.id, str(user.role or "user")),
+        "monthly_credit": monthly_credit,
+        "daily_usage": _daily_usage_history(db, user.id, 14),
+        "beta_usage": {
+            "today": int(beta_stats.get("today") or 0),
+            "month": int(beta_stats.get("month") or 0),
+            "total": int(beta_stats.get("total") or 0),
+            "last_completed_at": beta_stats.get("last_completed_at"),
+        },
+        "member_created_at": user.created_at,
+        "last_login_at": user.last_login_at,
+        "last_activity_at": user.last_activity_at,
         "base_video_credits": base_credits,
         "total_granted": credits["total_granted"],
         "total_used": credits["total_used"],
@@ -194,19 +308,55 @@ def _billing_summary(db: Session, user: User) -> dict:
     }
 
 
-def _beta_project_counts() -> dict[int, int]:
+def _beta_completed_stats(user_id: int | None = None) -> dict:
     db_path = os.getenv("STORYMAKER_BETA_DB_PATH", "/beta_data/storymaker_beta.db")
+    host_prefix = "/home/bourne/StoryMaker_1/StoryMaker_beta/data"
+    result = {"total": 0, "today": 0, "month": 0, "last_completed_at": None, "completed_at": [], "by_user": {}}
     if not os.path.exists(db_path):
-        return {}
+        return result
+
+    def runtime_path(value: object) -> str:
+        path = str(value or "").strip()
+        if path.startswith(host_prefix):
+            return "/beta_data" + path[len(host_prefix):]
+        return path
+
     try:
         connection = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=3)
-        rows = connection.execute(
-            "select owner_user_id, count(*) from beta_jobs where owner_user_id is not null group by owner_user_id"
-        ).fetchall()
+        sql = "select owner_user_id, created_at, result_json from beta_jobs where owner_user_id is not null"
+        params: tuple = ()
+        if user_id is not None:
+            sql += " and owner_user_id = ?"
+            params = (int(user_id),)
+        rows = connection.execute(sql, params).fetchall()
         connection.close()
-        return {int(user_id): int(count) for user_id, count in rows}
+        today_text = datetime.now().date().isoformat()
+        month_text = today_text[:7]
+        completed_rows: list[tuple[int, str]] = []
+        for owner_user_id, created_at, result_json in rows:
+            job_root = os.path.dirname(runtime_path(result_json)) if result_json else ""
+            candidates = (
+                os.path.join(job_root, "output", "browser", "browser_final.mp4"),
+                os.path.join(job_root, "output", "shortform", "final.mp4"),
+                os.path.join(job_root, "output", "final.mp4"),
+            )
+            if not any(path and os.path.isfile(path) and os.path.getsize(path) > 0 for path in candidates):
+                continue
+            stamp = str(created_at or "")
+            completed_rows.append((int(owner_user_id), stamp))
+            result["by_user"][int(owner_user_id)] = int(result["by_user"].get(int(owner_user_id), 0)) + 1
+        result["total"] = len(completed_rows)
+        result["today"] = sum(1 for _, stamp in completed_rows if stamp[:10] == today_text)
+        result["month"] = sum(1 for _, stamp in completed_rows if stamp[:7] == month_text)
+        result["last_completed_at"] = max((stamp for _, stamp in completed_rows), default=None)
+        result["completed_at"] = [stamp for _, stamp in completed_rows]
+        return result
     except Exception:
-        return {}
+        return result
+
+
+def _beta_project_counts() -> dict[int, int]:
+    return dict(_beta_completed_stats().get("by_user") or {})
 
 
 @router.get("/admin/members", response_model=CommonResponse)
@@ -524,8 +674,34 @@ def change_member_billing_plan(
     grant_amount = int(plan.get("base_video_credits") or 0)
     if current_plan != plan_code and grant_amount > 0:
         _grant_wallet_credit(db, user.id, grant_amount, "plan_base", f"plan:{plan_code}", f"{plan.get('name') or plan_code} 기본 제공량 지급")
+    user.tier = plan_code
+    user.updated_at = now
     db.commit()
     return CommonResponse(ok=True, data=_billing_summary(db, user), message="요금제를 변경했습니다.")
+
+
+@router.put("/admin/members/{user_id}/billing/date", response_model=CommonResponse)
+def update_member_billing_date(
+    user_id: int,
+    req: BillingDateUpdateRequest,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_admin_user),
+):
+    user = _require_billable_user(db, user_id)
+    raw_date = str(req.billing_date or "").strip()
+    try:
+        billing_dt = datetime.strptime(raw_date, "%Y-%m-%d")
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="결제일 형식이 올바르지 않습니다.") from exc
+    profile = _ensure_billing_profile(db, user.id, str(user.tier or "free"))
+    now = _now_text()
+    billing_text = billing_dt.strftime("%Y-%m-%d 00:00:00")
+    db.execute(
+        text("update member_billing_profiles set next_billing_at=:billing_date, updated_at=:now where user_id=:user_id"),
+        {"billing_date": billing_text, "now": now, "user_id": user.id},
+    )
+    db.commit()
+    return CommonResponse(ok=True, data=_billing_summary(db, user), message="결제일을 저장했습니다.")
 
 
 @router.post("/admin/members/{user_id}/billing/addon-credit", response_model=CommonResponse)
