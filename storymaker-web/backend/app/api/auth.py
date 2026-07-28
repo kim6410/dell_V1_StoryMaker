@@ -727,15 +727,27 @@ def request_password_reset(req: PasswordResetRequest, request: Request):
         ) from exc
 
     body_text = wp_response.text or ""
+    location = str(wp_response.headers.get("location") or "")
     mail_failure_markers = (
         "이메일을 보낼 수 없습니다",
+        "메일을 보낼 수 없습니다",
+        "메일 발송에 실패",
         "The email could not be sent",
+        "Could not send the email",
         "wp_mail_failed",
     )
-    if wp_response.status_code >= 500 or any(marker in body_text for marker in mail_failure_markers):
+    confirmed_redirect = (
+        wp_response.status_code in {301, 302, 303, 307, 308}
+        and "checkemail=confirm" in location.lower()
+    )
+    if (
+        wp_response.status_code >= 500
+        or any(marker.casefold() in body_text.casefold() for marker in mail_failure_markers)
+        or not confirmed_redirect
+    ):
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="비밀번호 재설정 메일을 발송하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+            detail="비밀번호 재설정 메일 발송 완료를 확인하지 못했습니다. 가입 정보를 확인한 뒤 다시 시도해 주세요.",
         )
 
     return CommonResponse(
