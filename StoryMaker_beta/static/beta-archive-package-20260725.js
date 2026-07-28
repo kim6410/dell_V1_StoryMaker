@@ -14,6 +14,8 @@
   const statMp4 = document.getElementById('archive-stat-mp4');
   let jobs = [];
   let isAdmin = false;
+  const PAGE_SIZE = 10;
+  let currentPage = 1;
 
   function detectAdmin(user) {
     if (!user || typeof user !== 'object') return false;
@@ -431,6 +433,10 @@
       if (sortMode === 'title') return String(a.title || '').localeCompare(String(b.title || ''), 'ko');
       return String(b.created_at || '').localeCompare(String(a.created_at || ''));
     });
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    currentPage = Math.min(Math.max(1, currentPage), totalPages);
+    const pageStart = (currentPage - 1) * PAGE_SIZE;
+    const pageItems = filtered.slice(pageStart, pageStart + PAGE_SIZE);
     renderStats();
     if (!filtered.length) {
       list.className = 'empty';
@@ -438,7 +444,7 @@
       return;
     }
     list.className = 'archive-grid';
-    list.innerHTML = filtered.map((job) => {
+    list.innerHTML = pageItems.map((job) => {
       const f = flags(job);
       const firstImage = job.assets?.images?.length ? `/beta-api/browser/jobs/${encodeURIComponent(job.beta_job_id)}/image/1` : '';
       const thumb = job.assets?.thumbnail ? `/beta-api/jobs/${encodeURIComponent(job.beta_job_id)}/file/thumbnail` : firstImage;
@@ -454,7 +460,23 @@
           <div class="delete-wrap"><button type="button" class="delete-button" data-delete-job="${esc(job.beta_job_id)}" ${job.media_deleted_at ? 'disabled' : ''}>${job.media_deleted_at ? '파일 삭제됨' : '파일 삭제'}</button><div class="delete-confirm" data-confirm-for="${esc(job.beta_job_id)}" hidden><span>목록과 DB는 남기고 저장 파일만 삭제할까요?</span><button type="button" data-delete-yes="${esc(job.beta_job_id)}">예</button><button type="button" data-delete-no="${esc(job.beta_job_id)}">아니오</button></div></div>
         </div>
       </article>`;
-    }).join('');
+    }).join('') + `<nav class="archive-pagination" aria-label="보관함 페이지 이동">
+      <button type="button" data-page-prev ${currentPage <= 1 ? 'disabled' : ''}>이전</button>
+      <span>${currentPage} / ${totalPages} 페이지 · 전체 ${filtered.length}개</span>
+      <button type="button" data-page-next ${currentPage >= totalPages ? 'disabled' : ''}>다음</button>
+    </nav>`;
+    list.querySelector('[data-page-prev]')?.addEventListener('click', () => {
+      if (currentPage <= 1) return;
+      currentPage -= 1;
+      renderList();
+      list.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    list.querySelector('[data-page-next]')?.addEventListener('click', () => {
+      if (currentPage >= totalPages) return;
+      currentPage += 1;
+      renderList();
+      list.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
     list.querySelectorAll('[data-open-job]').forEach((button) => button.addEventListener('click', (event) => {
       event.stopPropagation();
       openDetail(button.dataset.openJob);
@@ -683,9 +705,9 @@
     }
   }
 
-  search?.addEventListener('input', renderList);
-  filter?.addEventListener('change', renderList);
-  sort?.addEventListener('change', renderList);
-  refresh?.addEventListener('click', load);
+  search?.addEventListener('input', () => { currentPage = 1; renderList(); });
+  filter?.addEventListener('change', () => { currentPage = 1; renderList(); });
+  sort?.addEventListener('change', () => { currentPage = 1; renderList(); });
+  refresh?.addEventListener('click', () => { currentPage = 1; load(); });
   load();
 })();
