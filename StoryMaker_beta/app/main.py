@@ -17,7 +17,7 @@ from app.beta_gemini_worker import beta_gemini_worker_router
 from app.beta_shortform import beta_shortform_router
 from app.beta_content_reference import router as beta_content_reference_router
 from app.beta_auth import current_user_id, current_user_role, enforce_beta_user_isolation
-from app.beta_archive_retention import enforce_all_beta_archive_limits
+from app.beta_archive_retention import start_beta_archive_retention_scheduler
 
 ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
 STATIC_DIR = ROOT / "static"
@@ -44,8 +44,8 @@ app.include_router(beta_content_reference_router)
 
 
 @app.on_event("startup")
-def enforce_beta_archive_limits_on_startup() -> None:
-    enforce_all_beta_archive_limits()
+def start_beta_archive_retention_on_startup() -> None:
+    start_beta_archive_retention_scheduler()
 
 
 def connect_db() -> sqlite3.Connection:

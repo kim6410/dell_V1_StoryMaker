@@ -41,6 +41,7 @@ StoryMaker_beta/data/*.db-wal
 StoryMaker_beta/data/*.db-shm
 StoryMaker_beta/data/jobs/
 StoryMaker_beta/data/cache/
+StoryMaker_beta/data/.beta_archive_retention.lock
 StoryMaker_beta/data/gemini_queue/
 StoryMaker_beta/data/chrome-debug/
 StoryMaker_beta/data/chrome-test/

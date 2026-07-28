@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import fcntl
 import json
+import logging
 import os
 import shutil
 import sqlite3
 import threading
+import time
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from app.beta_storage import SHARED_IMAGE_DIR, prune_unreferenced_shared_images
 
@@ -15,9 +19,19 @@ ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMa
 BETA_DB = ROOT / "data" / "storymaker_beta.db"
 JOBS_DIR = ROOT / "data" / "jobs"
 V1_DB = Path(os.getenv("STORYMAKER_V1_DB_PATH", "/home/bourne/StoryMaker_1/database/storymaker.db"))
+LOG_DIR = ROOT / "logs"
+AUDIT_LOG = LOG_DIR / "beta_archive_retention.jsonl"
+LOCK_FILE = ROOT / "data" / ".beta_archive_retention.lock"
+QUARANTINE_PREFIX = ".__archive_limit__"
 FREE_LIMIT = 10
 PAID_LIMIT = 20
-_RETENTION_LOCK = threading.Lock()
+RETENTION_INTERVAL_SECONDS = max(300, int(os.getenv("BETA_ARCHIVE_RETENTION_INTERVAL_SECONDS", "3600")))
+AUDIT_MAX_BYTES = max(1024 * 1024, int(os.getenv("BETA_ARCHIVE_RETENTION_AUDIT_MAX_BYTES", str(5 * 1024 * 1024))))
+
+logger = logging.getLogger(__name__)
+_RETENTION_LOCK = threading.RLock()
+_SCHEDULER_LOCK = threading.Lock()
+_SCHEDULER_STARTED = False
 
 
 def _now() -> str:
@@ -25,9 +39,36 @@ def _now() -> str:
 
 
 def _connect(path: Path) -> sqlite3.Connection:
-    connection = sqlite3.connect(path)
+    connection = sqlite3.connect(path, timeout=30)
     connection.row_factory = sqlite3.Row
     return connection
+
+
+def _audit(event: str, payload: dict[str, Any]) -> None:
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    record = {"at": _now(), "event": str(event), **payload}
+    try:
+        if AUDIT_LOG.is_file() and AUDIT_LOG.stat().st_size >= AUDIT_MAX_BYTES:
+            rotated = AUDIT_LOG.with_suffix(AUDIT_LOG.suffix + ".1")
+            rotated.unlink(missing_ok=True)
+            AUDIT_LOG.replace(rotated)
+        with AUDIT_LOG.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except OSError:
+        logger.exception("Beta archive retention audit write failed event=%s", event)
+
+
+@contextmanager
+def _retention_guard() -> Iterator[None]:
+    """Serialize retention across threads and future multi-worker processes."""
+    LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with _RETENTION_LOCK:
+        with LOCK_FILE.open("a+") as stream:
+            fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -48,19 +89,24 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 
 
 def archive_limit_for_user(user_id: int) -> int | None:
-    """Administrators are unlimited, free users keep 10 and paid users keep 20."""
+    """Admin is unlimited; free keeps 10; every paid plan keeps 20.
+
+    If membership data cannot be verified, return None and skip deletion. This
+    fail-safe prevents a temporary V1 DB problem from downgrading paid/admin
+    users to the free limit.
+    """
     safe_user_id = int(user_id or 0)
-    if safe_user_id <= 0:
-        return FREE_LIMIT
-    if not V1_DB.is_file():
-        return FREE_LIMIT
+    if safe_user_id <= 0 or not V1_DB.is_file():
+        return None
     try:
         with _connect(V1_DB) as connection:
             user = connection.execute(
                 "SELECT role FROM users WHERE id=? LIMIT 1",
                 (safe_user_id,),
             ).fetchone()
-            role = str(user["role"] if user else "user").strip().lower()
+            if not user:
+                return None
+            role = str(user["role"] or "user").strip().lower()
             if role == "admin":
                 return None
             billing = connection.execute(
@@ -70,8 +116,9 @@ def archive_limit_for_user(user_id: int) -> int | None:
             ).fetchone()
             plan = str(billing["plan"] if billing else "free").strip().lower()
             return FREE_LIMIT if plan in {"", "free"} else PAID_LIMIT
-    except sqlite3.Error:
-        return FREE_LIMIT
+    except sqlite3.Error as exc:
+        _audit("membership_lookup_failed", {"user_id": safe_user_id, "error": str(exc)[:300]})
+        return None
 
 
 def _folder_size(path: Path) -> int:
@@ -86,6 +133,34 @@ def _folder_size(path: Path) -> int:
         except OSError:
             continue
     return total
+
+
+def _job_has_generated_media(job_id: str) -> bool:
+    """Count only jobs that actually hold generated/uploaded media."""
+    job_dir = JOBS_DIR / str(job_id)
+    if not job_dir.is_dir():
+        return False
+    ignored = {"result.json", "state.json"}
+    for path in job_dir.rglob("*"):
+        if path.is_file() and path.name not in ignored:
+            try:
+                if path.stat().st_size > 0:
+                    return True
+            except OSError:
+                continue
+    result = _read_json(job_dir / "result.json")
+    assets = result.get("assets") if isinstance(result.get("assets"), dict) else {}
+    for value in assets.values():
+        values = value if isinstance(value, list) else [value]
+        for candidate in values:
+            if not candidate:
+                continue
+            try:
+                if Path(str(candidate)).is_file():
+                    return True
+            except (OSError, ValueError):
+                continue
+    return False
 
 
 def _shared_images(result: dict[str, Any]) -> list[Path]:
@@ -137,6 +212,83 @@ def _compact_state(state: dict[str, Any], job_id: str, deleted_at: str) -> dict[
     return compact
 
 
+def _clear_deleted_db_marker(connection: sqlite3.Connection, job_id: str) -> None:
+    connection.execute(
+        "UPDATE beta_jobs SET media_deleted_at='',media_deleted_bytes=0,media_delete_reason='' WHERE beta_job_id=?",
+        (job_id,),
+    )
+    connection.commit()
+
+
+def _recover_stale_quarantines_locked() -> dict[str, int]:
+    """Recover or finalize interrupted archive-limit operations without data loss."""
+    recovered = 0
+    finalized = 0
+    conflicts = 0
+    if not JOBS_DIR.is_dir() or not BETA_DB.is_file():
+        return {"recovered": 0, "finalized": 0, "conflicts": 0}
+    with _connect(BETA_DB) as connection:
+        for quarantine in JOBS_DIR.glob(f"{QUARANTINE_PREFIX}*"):
+            job_id = quarantine.name[len(QUARANTINE_PREFIX):]
+            job_dir = JOBS_DIR / job_id
+            row = connection.execute(
+                "SELECT media_deleted_at,media_delete_reason FROM beta_jobs WHERE beta_job_id=? LIMIT 1",
+                (job_id,),
+            ).fetchone()
+            if not row:
+                conflicts += 1
+                _audit("quarantine_orphan_preserved", {"job_id": job_id, "path": str(quarantine)})
+                continue
+            db_deleted = bool(str(row["media_deleted_at"] or "")) and str(row["media_delete_reason"] or "") == "archive_limit"
+            compact = _read_json(job_dir / "result.json") if job_dir.is_dir() else {}
+            compact_deleted = str(compact.get("media_delete_reason") or "") == "archive_limit"
+
+            if db_deleted and compact_deleted:
+                try:
+                    shutil.rmtree(quarantine) if quarantine.is_dir() else quarantine.unlink()
+                    finalized += 1
+                    _audit("quarantine_finalized", {"job_id": job_id})
+                except OSError as exc:
+                    conflicts += 1
+                    _audit("quarantine_finalize_failed", {"job_id": job_id, "error": str(exc)[:300]})
+                continue
+
+            if not db_deleted:
+                try:
+                    if compact_deleted and job_dir.exists():
+                        shutil.rmtree(job_dir)
+                    if not job_dir.exists():
+                        quarantine.replace(job_dir)
+                        recovered += 1
+                        _audit("quarantine_restored", {"job_id": job_id})
+                    else:
+                        conflicts += 1
+                        _audit("quarantine_conflict_preserved", {"job_id": job_id, "path": str(quarantine)})
+                except OSError as exc:
+                    conflicts += 1
+                    _audit("quarantine_restore_failed", {"job_id": job_id, "error": str(exc)[:300]})
+                continue
+
+            # DB says deleted, but compact metadata is missing. Restore original
+            # and clear the DB marker rather than losing the only complete copy.
+            try:
+                if job_dir.exists():
+                    shutil.rmtree(job_dir)
+                quarantine.replace(job_dir)
+                _clear_deleted_db_marker(connection, job_id)
+                recovered += 1
+                _audit("quarantine_db_rollback", {"job_id": job_id})
+            except OSError as exc:
+                conflicts += 1
+                _audit("quarantine_db_rollback_failed", {"job_id": job_id, "error": str(exc)[:300]})
+    return {"recovered": recovered, "finalized": finalized, "conflicts": conflicts}
+
+
+def recover_stale_beta_archive_quarantines() -> dict[str, int]:
+    with _retention_guard():
+        return _recover_stale_quarantines_locked()
+
+
 def _delete_one_preserve_metadata(connection: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]:
     job_id = str(row["beta_job_id"] or "").strip()
     if not job_id:
@@ -149,13 +301,10 @@ def _delete_one_preserve_metadata(connection: sqlite3.Connection, row: sqlite3.R
     shared_images = _shared_images(result)
     original_bytes = _folder_size(job_dir)
     deleted_at = _now()
-    quarantine = JOBS_DIR / f".__archive_limit__{job_id}"
+    quarantine = JOBS_DIR / f"{QUARANTINE_PREFIX}{job_id}"
 
     if quarantine.exists():
-        if quarantine.is_dir():
-            shutil.rmtree(quarantine)
-        else:
-            quarantine.unlink()
+        raise RuntimeError(f"unresolved archive quarantine exists: {quarantine.name}")
 
     moved = False
     try:
@@ -176,6 +325,7 @@ def _delete_one_preserve_metadata(connection: sqlite3.Connection, row: sqlite3.R
         )
         connection.commit()
     except Exception:
+        connection.rollback()
         try:
             if job_dir.exists():
                 shutil.rmtree(job_dir)
@@ -184,12 +334,13 @@ def _delete_one_preserve_metadata(connection: sqlite3.Connection, row: sqlite3.R
         finally:
             raise
 
-    if quarantine.exists():
-        if quarantine.is_dir():
-            shutil.rmtree(quarantine)
-        else:
-            quarantine.unlink()
+    try:
+        if quarantine.exists():
+            shutil.rmtree(quarantine) if quarantine.is_dir() else quarantine.unlink()
+    except OSError as exc:
+        _audit("quarantine_cleanup_deferred", {"job_id": job_id, "error": str(exc)[:300]})
 
+    _audit("media_pruned", {"job_id": job_id, "deleted_bytes": int(deleted_bytes), "reason": "archive_limit"})
     return {
         "job_id": job_id,
         "files_deleted": True,
@@ -215,19 +366,22 @@ def enforce_beta_archive_limit_for_user(user_id: int) -> dict[str, Any]:
             "list_preserved": True,
         }
 
-    with _RETENTION_LOCK:
+    with _retention_guard():
+        recovery = _recover_stale_quarantines_locked()
         with _connect(BETA_DB) as connection:
-            rows = connection.execute(
+            active_rows = connection.execute(
                 "SELECT beta_job_id,owner_user_id,created_at,result_json,media_deleted_at "
                 "FROM beta_jobs WHERE owner_user_id=? AND COALESCE(media_deleted_at,'')='' "
-                "ORDER BY created_at DESC,beta_job_id DESC LIMIT -1 OFFSET ?",
-                (safe_user_id, int(limit)),
+                "ORDER BY created_at DESC,beta_job_id DESC",
+                (safe_user_id,),
             ).fetchall()
+            media_rows = [row for row in active_rows if _job_has_generated_media(str(row["beta_job_id"]))]
+            overflow_rows = media_rows[int(limit):]
             deleted_jobs = 0
             deleted_bytes = 0
             failed = 0
             details: list[dict[str, Any]] = []
-            for row in reversed(rows):
+            for row in reversed(overflow_rows):
                 try:
                     detail = _delete_one_preserve_metadata(connection, row)
                     details.append(detail)
@@ -237,22 +391,31 @@ def enforce_beta_archive_limit_for_user(user_id: int) -> dict[str, Any]:
                     connection.rollback()
                     failed += 1
                     details.append({"job_id": str(row["beta_job_id"]), "failed": True, "error": str(exc)[:300]})
+                    _audit("media_prune_failed", {"user_id": safe_user_id, "job_id": str(row["beta_job_id"]), "error": str(exc)[:300]})
 
-        pruned_images, pruned_bytes = prune_unreferenced_shared_images(JOBS_DIR)
-        return {
+        pruned_images = 0
+        pruned_bytes = 0
+        if deleted_jobs:
+            pruned_images, pruned_bytes = prune_unreferenced_shared_images(JOBS_DIR)
+        result = {
             "user_id": safe_user_id,
             "limit": int(limit),
             "unlimited": False,
-            "overflow": len(rows),
+            "eligible_media_jobs": len(media_rows),
+            "overflow": len(overflow_rows),
             "deleted_jobs": deleted_jobs,
             "deleted_bytes": int(deleted_bytes + pruned_bytes),
             "pruned_shared_images": int(pruned_images),
             "pruned_shared_bytes": int(pruned_bytes),
             "failed": failed,
+            "recovery": recovery,
             "db_preserved": True,
             "list_preserved": True,
             "details": details,
         }
+        if overflow_rows or failed or any(recovery.values()):
+            _audit("retention_result", result)
+        return result
 
 
 def enforce_beta_archive_limit_for_job(job_id: str) -> dict[str, Any]:
@@ -272,6 +435,7 @@ def enforce_beta_archive_limit_for_job(job_id: str) -> dict[str, Any]:
 def enforce_all_beta_archive_limits() -> dict[str, Any]:
     if not BETA_DB.is_file():
         return {"users_checked": 0, "deleted_jobs": 0, "deleted_bytes": 0, "failed": 0}
+    recover_stale_beta_archive_quarantines()
     with _connect(BETA_DB) as connection:
         users = [
             int(row[0])
@@ -279,7 +443,7 @@ def enforce_all_beta_archive_limits() -> dict[str, Any]:
                 "SELECT DISTINCT owner_user_id FROM beta_jobs WHERE owner_user_id IS NOT NULL AND owner_user_id>0 ORDER BY owner_user_id"
             ).fetchall()
         ]
-    total = {"users_checked": 0, "deleted_jobs": 0, "deleted_bytes": 0, "failed": 0, "results": []}
+    total: dict[str, Any] = {"users_checked": 0, "deleted_jobs": 0, "deleted_bytes": 0, "failed": 0, "results": []}
     for user_id in users:
         result = enforce_beta_archive_limit_for_user(user_id)
         total["users_checked"] += 1
@@ -288,3 +452,35 @@ def enforce_all_beta_archive_limits() -> dict[str, Any]:
         total["failed"] += int(result.get("failed") or 0)
         total["results"].append(result)
     return total
+
+
+def _retention_loop() -> None:
+    while True:
+        time.sleep(RETENTION_INTERVAL_SECONDS)
+        try:
+            enforce_all_beta_archive_limits()
+        except Exception as exc:
+            logger.exception("Beta archive retention loop failed")
+            _audit("scheduler_failed", {"error": str(exc)[:300]})
+
+
+def start_beta_archive_retention_scheduler() -> dict[str, Any]:
+    """Run startup recovery/enforcement and start one hourly daemon checker."""
+    global _SCHEDULER_STARTED
+    with _SCHEDULER_LOCK:
+        if _SCHEDULER_STARTED:
+            return {"started": False, "already_started": True}
+        try:
+            startup_result = enforce_all_beta_archive_limits()
+        except Exception as exc:
+            logger.exception("Beta archive retention startup check failed")
+            startup_result = {"users_checked": 0, "deleted_jobs": 0, "deleted_bytes": 0, "failed": 1, "error": str(exc)[:300]}
+            _audit("startup_check_failed", {"error": str(exc)[:300]})
+        threading.Thread(
+            target=_retention_loop,
+            name="beta-archive-retention",
+            daemon=True,
+        ).start()
+        _SCHEDULER_STARTED = True
+    _audit("scheduler_started", {"interval_seconds": RETENTION_INTERVAL_SECONDS, "startup": startup_result})
+    return {"started": True, "interval_seconds": RETENTION_INTERVAL_SECONDS, "startup": startup_result}

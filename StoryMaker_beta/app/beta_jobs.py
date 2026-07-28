@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from app.beta_auth import current_user_id, current_user_role
 from app.beta_mp4_usage import ensure_mp4_usage_table, enforce_monthly_limit, monthly_usage_summary, record_verified_mp4
-from app.beta_archive_retention import enforce_beta_archive_limit_for_job
+from app.beta_archive_retention import enforce_beta_archive_limit_for_job, enforce_beta_archive_limit_for_user
 from app.beta_storage import canonical_audio_path, prune_unreferenced_shared_images, store_normalized_image
 
 KST = ZoneInfo("Asia/Seoul")
@@ -859,6 +859,7 @@ def beta_v1_profile(request: Request) -> JSONResponse:
 def beta_list_jobs(request: Request) -> JSONResponse:
     user_id = current_user_id(request)
     role = current_user_role(request)
+    retention = enforce_beta_archive_limit_for_user(int(user_id))
     force_refresh = str(request.query_params.get("refresh") or "").strip() == "1"
     columns = (
         "beta_job_id,title,status,progress,created_at,completed_at,result_json,owner_user_id,"
@@ -888,6 +889,7 @@ def beta_list_jobs(request: Request) -> JSONResponse:
             "signature": signature,
             "count": len(items),
         },
+        "retention": retention,
     })
 
 
