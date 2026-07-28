@@ -2,8 +2,8 @@
   'use strict';
 
   const MENU_ITEMS = [
-    { key: 'betaProduction', label: '딸깍 제작 Beta', src: '/v1/beta/production' },
-    { key: 'betaArchive', label: '보관함 Beta', src: '/v1/beta/archive' },
+    { key: 'betaProduction', label: '딸깍 제작', src: '/v1/beta/production' },
+    { key: 'betaArchive', label: '보관함', src: '/v1/beta/archive' },
   ];
 
   function findNav() {
@@ -134,12 +134,12 @@
         <div class="grid min-w-0 gap-3 sm:grid-cols-2 lg:min-w-[430px]">
           <button type="button" data-beta-dashboard-key="betaProduction" class="group rounded-2xl border border-cyan-300/35 bg-cyan-300/10 px-5 py-4 text-left shadow-lg shadow-cyan-950/20 transition hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-cyan-300/20">
             <span class="block text-xs font-black tracking-[0.14em] text-cyan-300">BETA PRODUCTION</span>
-            <span class="mt-1 block text-lg font-black text-white">딸깍 제작 Beta</span>
+            <span class="mt-1 block text-lg font-black text-white">딸깍 제작</span>
             <span class="mt-1 block text-xs font-bold text-slate-400">콘텐츠·음성·숏폼 자동 제작</span>
           </button>
           <button type="button" data-beta-dashboard-key="betaArchive" class="group rounded-2xl border border-violet-300/35 bg-violet-300/10 px-5 py-4 text-left shadow-lg shadow-violet-950/20 transition hover:-translate-y-0.5 hover:border-violet-200 hover:bg-violet-300/20">
             <span class="block text-xs font-black tracking-[0.14em] text-violet-300">BETA ARCHIVE</span>
-            <span class="mt-1 block text-lg font-black text-white">보관함 Beta</span>
+            <span class="mt-1 block text-lg font-black text-white">보관함</span>
             <span class="mt-1 block text-xs font-bold text-slate-400">글·MP3·SRT·썸네일·MP4 확인</span>
           </button>
         </div>

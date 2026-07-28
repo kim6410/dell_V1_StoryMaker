@@ -186,9 +186,6 @@
       bindTrigger(card, normalizeRegion(clean(card.textContent || '')));
     }
 
-    const dateLabel = Array.from(document.querySelectorAll('div,span,p,strong'))
-      .find((node) => /^\d{1,2}\s*\/\s*\d{1,2}/.test(clean(node.textContent || '')));
-    if (dateLabel) bindTrigger(bestCard(dateLabel, clean(dateLabel.textContent || '')), getBusinessRegion());
   }
 
   window.addEventListener('resize', () => {

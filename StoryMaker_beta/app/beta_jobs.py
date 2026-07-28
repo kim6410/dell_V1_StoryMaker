@@ -731,8 +731,7 @@ def beta_list_jobs(request: Request) -> JSONResponse:
     with beta_connect() as connection:
         if role == "admin":
             rows = connection.execute(
-                "SELECT beta_job_id,title,status,progress,created_at,completed_at,media_deleted_at,media_deleted_bytes,media_delete_reason FROM beta_jobs WHERE owner_user_id=? OR owner_user_id IS NULL ORDER BY created_at DESC",
-                (user_id,),
+                "SELECT beta_job_id,title,status,progress,created_at,completed_at,media_deleted_at,media_deleted_bytes,media_delete_reason FROM beta_jobs ORDER BY created_at DESC"
             ).fetchall()
         else:
             rows = connection.execute(
@@ -945,6 +944,7 @@ def beta_delete_job(beta_job_id: str, request: Request) -> JSONResponse:
             quarantine.replace(job_dir)
         raise HTTPException(status_code=500, detail=f"Beta 저장 파일 삭제 실패: {exc}")
 
+    files_deleted = not job_dir.exists() and not quarantine.exists()
     pruned_images, pruned_bytes = prune_unreferenced_shared_images(jobs_root)
     return JSONResponse({
         "ok": True,
@@ -956,6 +956,94 @@ def beta_delete_job(beta_job_id: str, request: Request) -> JSONResponse:
         "deleted_bytes": int(deleted_bytes),
         "shared_images_pruned": pruned_images,
         "shared_bytes_pruned": pruned_bytes,
+    })
+
+
+@beta_jobs_router.delete("/admin/jobs/{beta_job_id}/permanent")
+def beta_admin_permanent_delete_job(beta_job_id: str, request: Request) -> JSONResponse:
+    if current_user_role(request) != "admin":
+        raise HTTPException(status_code=403, detail="관리자만 Beta 작업을 완전삭제할 수 있습니다.")
+    if beta_safe(beta_job_id) != beta_job_id or not beta_job_id.startswith("beta_"):
+        raise HTTPException(status_code=400, detail="완전삭제할 수 없는 작업 ID입니다.")
+
+    jobs_root = BETA_JOBS.resolve()
+    job_dir = (jobs_root / beta_job_id).resolve()
+    if job_dir.parent != jobs_root:
+        raise HTTPException(status_code=400, detail="완전삭제할 수 없는 작업 경로입니다.")
+
+    with beta_connect() as connection:
+        row = connection.execute(
+            "SELECT beta_job_id FROM beta_jobs WHERE beta_job_id=?",
+            (beta_job_id,),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Beta 작업 DB 레코드를 찾을 수 없습니다.")
+
+    deleted_bytes = 0
+    if job_dir.exists():
+        for path in job_dir.rglob("*"):
+            if path.is_file():
+                try:
+                    deleted_bytes += path.stat().st_size
+                except OSError:
+                    pass
+
+    quarantine = jobs_root / f".__permanent_deleting__{beta_job_id}"
+    moved_to_quarantine = False
+    try:
+        if quarantine.exists():
+            if quarantine.is_dir():
+                shutil.rmtree(quarantine)
+            else:
+                quarantine.unlink()
+        if job_dir.exists():
+            job_dir.replace(quarantine)
+            moved_to_quarantine = True
+
+        with beta_connect() as connection:
+            connection.execute("BEGIN")
+            usage_deleted = connection.execute(
+                "DELETE FROM beta_mp4_usage WHERE beta_job_id=?",
+                (beta_job_id,),
+            ).rowcount
+            job_deleted = connection.execute(
+                "DELETE FROM beta_jobs WHERE beta_job_id=?",
+                (beta_job_id,),
+            ).rowcount
+            if job_deleted != 1:
+                raise RuntimeError("Beta 작업 DB 레코드 삭제 건수가 올바르지 않습니다.")
+            connection.commit()
+    except Exception as exc:
+        if moved_to_quarantine and quarantine.exists() and not job_dir.exists():
+            quarantine.replace(job_dir)
+        raise HTTPException(status_code=500, detail=f"Beta 작업 완전삭제 실패: {exc}")
+
+    files_deleted = False
+    cleanup_warning = ""
+    if quarantine.exists():
+        try:
+            if quarantine.is_dir():
+                shutil.rmtree(quarantine)
+            else:
+                quarantine.unlink()
+            files_deleted = True
+        except Exception as exc:
+            cleanup_warning = str(exc)[:300]
+    elif not job_dir.exists():
+        files_deleted = True
+
+    files_deleted = not job_dir.exists() and not quarantine.exists()
+    pruned_images, pruned_bytes = prune_unreferenced_shared_images(jobs_root)
+    return JSONResponse({
+        "ok": True,
+        "permanently_deleted": beta_job_id,
+        "db_deleted": True,
+        "usage_rows_deleted": int(usage_deleted or 0),
+        "files_deleted": files_deleted,
+        "deleted_bytes": int(deleted_bytes),
+        "shared_images_pruned": pruned_images,
+        "shared_bytes_pruned": pruned_bytes,
+        "cleanup_warning": cleanup_warning,
     })
 
 

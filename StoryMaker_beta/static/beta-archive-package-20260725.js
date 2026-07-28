@@ -458,6 +458,7 @@
         <div class="archive-assets">
           ${assetButton('SNS', f.sns)}${assetButton('이미지', f.images)}${assetButton('MP3', f.mp3)}${assetButton('썸네일', f.thumb)}${assetButton('MP4', f.mp4)}
           <div class="delete-wrap"><button type="button" class="delete-button" data-delete-job="${esc(job.beta_job_id)}" ${job.media_deleted_at ? 'disabled' : ''}>${job.media_deleted_at ? '파일 삭제됨' : '파일 삭제'}</button><div class="delete-confirm" data-confirm-for="${esc(job.beta_job_id)}" hidden><span>목록과 DB는 남기고 저장 파일만 삭제할까요?</span><button type="button" data-delete-yes="${esc(job.beta_job_id)}">예</button><button type="button" data-delete-no="${esc(job.beta_job_id)}">아니오</button></div></div>
+          ${isAdmin ? `<div class="delete-wrap"><button type="button" class="permanent-delete-button" data-permanent-delete-job="${esc(job.beta_job_id)}">완전삭제</button><div class="permanent-delete-confirm" data-permanent-confirm-for="${esc(job.beta_job_id)}" hidden><span>DB 기록과 모든 작업 파일을 복구할 수 없게 삭제할까요?</span><button type="button" data-permanent-delete-yes="${esc(job.beta_job_id)}">완전삭제</button><button type="button" data-permanent-delete-no="${esc(job.beta_job_id)}">취소</button></div></div>` : ''}
         </div>
       </article>`;
     }).join('') + `<nav class="archive-pagination" aria-label="보관함 페이지 이동">
@@ -483,7 +484,7 @@
     }));
     list.querySelectorAll('[data-card-job]').forEach((card) => {
       const openCard = (event) => {
-        if (event.target.closest('button,a,input,select,textarea,[data-delete-job],[data-delete-yes],[data-delete-no]')) return;
+        if (event.target.closest('button,a,input,select,textarea,[data-delete-job],[data-delete-yes],[data-delete-no],[data-permanent-delete-job],[data-permanent-delete-yes],[data-permanent-delete-no]')) return;
         openDetail(card.dataset.cardJob);
       };
       card.addEventListener('click', openCard);
@@ -507,6 +508,23 @@
       const box = button.closest('.delete-confirm'); if (box) box.hidden = true;
     }));
     list.querySelectorAll('[data-delete-yes]').forEach((button) => button.addEventListener('click', () => deleteJob(button.dataset.deleteYes, button)));
+    list.querySelectorAll('[data-permanent-delete-job]').forEach((button) => button.addEventListener('click', () => {
+      list.querySelectorAll('.delete-confirm,.permanent-delete-confirm').forEach((box) => {
+        if (box.dataset.permanentConfirmFor !== button.dataset.permanentDeleteJob) box.hidden = true;
+      });
+      const box = list.querySelector(`[data-permanent-confirm-for="${CSS.escape(button.dataset.permanentDeleteJob)}"]`);
+      if (!box) return;
+      box.hidden = !box.hidden;
+      if (!box.hidden) {
+        const yesButton = box.querySelector('[data-permanent-delete-yes]');
+        requestAnimationFrame(() => yesButton?.focus({ preventScroll: true }));
+      }
+    }));
+    list.querySelectorAll('[data-permanent-delete-no]').forEach((button) => button.addEventListener('click', () => {
+      const box = button.closest('.permanent-delete-confirm');
+      if (box) box.hidden = true;
+    }));
+    list.querySelectorAll('[data-permanent-delete-yes]').forEach((button) => button.addEventListener('click', () => permanentDeleteJob(button.dataset.permanentDeleteYes, button)));
   }
 
   function ensureMediaPreviewModal() {
@@ -615,6 +633,25 @@
       button.disabled = false;
       button.textContent = '예';
       alert(`파일 삭제 실패: ${error.message}`);
+    }
+  }
+
+  async function permanentDeleteJob(jobId, button) {
+    if (!isAdmin || !jobId || button.disabled) return;
+    button.disabled = true;
+    button.textContent = '완전삭제 중';
+    try {
+      const result = await req(`/beta-api/admin/jobs/${encodeURIComponent(jobId)}/permanent`, { method: 'DELETE' });
+      jobs = jobs.filter((job) => job.beta_job_id !== jobId);
+      renderList();
+      const usageText = result.usage_rows_deleted ? `\n사용량 기록 삭제: ${Number(result.usage_rows_deleted).toLocaleString('ko-KR')}건` : '';
+      const sizeText = result.deleted_bytes ? `\n삭제 파일 용량: ${Number(result.deleted_bytes).toLocaleString('ko-KR')}바이트` : '';
+      const warningText = result.cleanup_warning ? `\n파일 정리 경고: ${result.cleanup_warning}` : '';
+      alert(`완전삭제했습니다. DB 기록과 작업 파일이 모두 제거되었습니다.${usageText}${sizeText}${warningText}`);
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = '완전삭제';
+      alert(`완전삭제 실패: ${error.message}`);
     }
   }
 

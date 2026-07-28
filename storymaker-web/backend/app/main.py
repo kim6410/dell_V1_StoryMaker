@@ -10,6 +10,7 @@ import hmac
 import re
 import urllib.request
 import urllib.error
+import urllib.parse
 import threading
 import time
 from functools import wraps
@@ -1887,6 +1888,37 @@ class NoCacheStaticFiles(StaticFiles):
 
 # 정적 리소스 파일 시스템 경로 획득
 static_dir = os.path.join(os.path.dirname(__file__), "static")
+
+
+@app.get("/api/v1/dashboard/hero-images", include_in_schema=False)
+def read_v1_dashboard_hero_images():
+    image_dir = Path(static_dir) / "media" / "image"
+    allowed_suffixes = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+    images = [
+        f"/v1-api/v1/dashboard/hero-image/{urllib.parse.quote(path.name)}"
+        for path in sorted(image_dir.iterdir(), key=lambda item: item.name.lower())
+        if path.is_file() and path.suffix.lower() in allowed_suffixes
+    ] if image_dir.is_dir() else []
+    return {"ok": True, "count": len(images), "images": images}
+
+
+@app.get("/api/v1/dashboard/hero-image/{filename:path}", include_in_schema=False)
+def read_v1_dashboard_hero_image(filename: str):
+    image_dir = (Path(static_dir) / "media" / "image").resolve()
+    safe_name = Path(filename).name
+    image_path = (image_dir / safe_name).resolve()
+    allowed_suffixes = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+    if image_path.parent != image_dir or not image_path.is_file() or image_path.suffix.lower() not in allowed_suffixes:
+        raise HTTPException(status_code=404, detail="Hero image not found")
+    return FileResponse(
+        image_path,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
+
 
 # 사용자가 정적 V1 폴더 루트로 접속해도 실제 V1 화면으로 안내한다.
 @app.get("/static/v1", include_in_schema=False)
