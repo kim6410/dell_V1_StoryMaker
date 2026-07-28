@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from app.beta_gemini import CHANNEL_KEYS, BetaGeminiRequest, beta_build_prompt, beta_parse_content
+from app.beta_title import clean_beta_title, persist_beta_job_title
 
 ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
 JOBS_DIR = ROOT / "data" / "jobs"
@@ -358,8 +359,10 @@ def save_content(job_id: str, raw_text: str, source: str) -> dict[str, Any]:
     content["provider"] = provider
     content["model"] = model_name
     content["podcast_script"] = content.get("script", "")
+    cleaned_title = clean_beta_title(content.get("title") or result.get("title"), result.get("title") or "Beta 제작")
+    content["title"] = cleaned_title
     result["content"] = content
-    result["title"] = content.get("title") or result.get("title")
+    result["title"] = cleaned_title
     result["status"] = "gemini_completed"
     result["progress"] = 100
     result["gemini"] = {
@@ -390,6 +393,7 @@ def save_content(job_id: str, raw_text: str, source: str) -> dict[str, Any]:
     tmp = result_path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(result_path)
+    persist_beta_job_title(ROOT / "data" / "storymaker_beta.db", job_id, cleaned_title)
     update_job_progress(job_id, "gemini_completed", 100, None)
     return result
 

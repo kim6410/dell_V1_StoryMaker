@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.beta_auth import current_user_role
+from app.beta_title import clean_beta_title, persist_beta_job_title
 
 beta_gemini_router = APIRouter(prefix="/beta-api/gemini", tags=["beta-gemini"])
 
@@ -927,8 +928,10 @@ def beta_gemini_generate_for_job(beta_job_id: str) -> dict[str, Any]:
         weather_snapshot=result.get("weather_snapshot"),
     )
     content = beta_call_ai(payload)
+    cleaned_title = clean_beta_title(content.get("title") or result.get("title"), result.get("title") or "Beta 제작")
+    content["title"] = cleaned_title
     result["content"] = content
-    result["title"] = content.get("title") or result.get("title")
+    result["title"] = cleaned_title
     result["gemini"] = {
         "provider": content.get("provider", "gemini"),
         "model": content.get("model", beta_gemini_model()),
@@ -952,4 +955,5 @@ def beta_gemini_generate_for_job(beta_job_id: str) -> dict[str, Any]:
     tmp = result_path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(result_path)
+    persist_beta_job_title(job_dir.parent.parent / "storymaker_beta.db", beta_job_id, cleaned_title)
     return {"ok": True, "job": result}

@@ -26,6 +26,7 @@ from app.beta_auth import current_user_id, current_user_role
 from app.beta_mp4_usage import ensure_mp4_usage_table, enforce_monthly_limit, monthly_usage_summary, record_verified_mp4
 from app.beta_archive_retention import enforce_beta_archive_limit_for_job, enforce_beta_archive_limit_for_user
 from app.beta_storage import canonical_audio_path, prune_unreferenced_shared_images, store_normalized_image
+from app.beta_title import clean_beta_title
 
 KST = ZoneInfo("Asia/Seoul")
 
@@ -244,7 +245,7 @@ def beta_archive_summary(row: sqlite3.Row) -> dict[str, Any]:
     business = result.get("business") if isinstance(result.get("business"), dict) else {}
     return {
         "beta_job_id": row["beta_job_id"],
-        "title": str(result.get("title") or row["title"] or "")[:500],
+        "title": clean_beta_title(result.get("title") or row["title"] or "")[:500],
         "status": row["status"],
         "progress": int(row["progress"] or 0),
         "created_at": row["created_at"],
@@ -644,6 +645,7 @@ async def beta_create_job(
     business = {"name": business_name.strip(), "region": business_region.strip(), "service": business_service.strip(), "phone": business_phone.strip()}
     weather_snapshot = get_weather_snapshot(business_region.strip())
     content = beta_make_content(business, topic, len(saved_images))
+    content["title"] = clean_beta_title(content.get("title"), f"{business_region.strip()} {topic.strip()}")
     created_at = beta_now()
     state = {"beta_job_id": beta_job_id, "title": content["title"], "status": "created", "progress": 0, "created_at": created_at, "owner_user_id": owner_user_id}
     result = {**state, "schema_version": "beta-2.0", "business": business, "topic": topic.strip(), "weather_snapshot": weather_snapshot, "content": content,
@@ -921,6 +923,10 @@ def beta_get_job(beta_job_id: str, request: Request) -> JSONResponse:
             "assets": {},
             "content": {"channels": {}, "channel_order": []},
         }
+    job["title"] = clean_beta_title(job.get("title") or row["title"] or "")
+    content = job.get("content") if isinstance(job.get("content"), dict) else {}
+    if content:
+        content["title"] = clean_beta_title(content.get("title") or job["title"], job["title"])
     job["media_deleted_at"] = row["media_deleted_at"] or ""
     job["media_deleted_bytes"] = int(row["media_deleted_bytes"] or 0)
     job["media_delete_reason"] = row["media_delete_reason"] or ""
