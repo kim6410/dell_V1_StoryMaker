@@ -433,6 +433,7 @@ def list_content_board_job_summaries(
             FROM mobile_one_shot_jobs
             WHERE user_id = :user_id
               AND result_path != ''
+              AND COALESCE(archive_visible, 1) = 1
             ORDER BY created_at DESC
             LIMIT :limit OFFSET :offset
         """), {
@@ -455,6 +456,7 @@ def list_content_board_overflow_jobs(user_id: int, keep_limit: int) -> list[dict
             FROM mobile_one_shot_jobs
             WHERE user_id = :user_id
               AND result_path != ''
+              AND COALESCE(archive_visible, 1) = 1
             ORDER BY created_at DESC, job_id DESC
             LIMIT -1 OFFSET :keep_limit
         """), {
@@ -492,6 +494,7 @@ def get_content_board_job_record(job_id: str, user_id: int, cutoff_at: str) -> d
             WHERE job_id = :job_id
               AND user_id = :user_id
               AND result_path != ''
+              AND COALESCE(archive_visible, 1) = 1
               AND created_at >= :cutoff_at
             LIMIT 1
         """), {

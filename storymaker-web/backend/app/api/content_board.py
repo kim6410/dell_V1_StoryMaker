@@ -57,7 +57,7 @@ from app.db.models import User, UserPersona
 from app.services.content_asset_service import sync_content_archive_assets
 from app.services.content_storage_service import load_documents
 from app.services.image_download_watermark import prepare_watermarked_download_images
-from app.services.content_integrity_service import delete_job_bundle
+from app.services.content_integrity_service import delete_job_files_preserve_db
 
 router = APIRouter(prefix="/v2/content-board", tags=["V2 Content Board"])
 logger = logging.getLogger(__name__)
@@ -66,6 +66,38 @@ ARCHIVE_LIMIT_INTERVAL_SECONDS = 3600
 _JOB_ID_PATTERN = re.compile(r"mob-[0-9]{14}-[a-f0-9]{8}")
 _retention_thread_started = False
 _retention_lock = threading.Lock()
+_archive_schema_lock = threading.Lock()
+_archive_schema_ready = False
+
+
+def _ensure_archive_metadata_columns() -> None:
+    """작업 통계 DB를 보존하면서 보관함 노출과 미디어 삭제 상태만 관리합니다."""
+    global _archive_schema_ready
+    if _archive_schema_ready:
+        return
+    with _archive_schema_lock:
+        if _archive_schema_ready:
+            return
+        with SessionLocal() as db:
+            columns = {
+                str(row[1])
+                for row in db.execute(text("PRAGMA table_info(mobile_one_shot_jobs)")).all()
+            }
+            additions = [
+                ("archive_visible", "INTEGER NOT NULL DEFAULT 1"),
+                ("media_deleted_at", "VARCHAR(40) NOT NULL DEFAULT ''"),
+                ("media_deleted_bytes", "INTEGER NOT NULL DEFAULT 0"),
+                ("media_delete_reason", "VARCHAR(40) NOT NULL DEFAULT ''"),
+            ]
+            for name, definition in additions:
+                if name not in columns:
+                    db.execute(text(f"ALTER TABLE mobile_one_shot_jobs ADD COLUMN {name} {definition}"))
+            db.execute(text("""
+                CREATE INDEX IF NOT EXISTS ix_mobile_jobs_user_archive_visible_created
+                ON mobile_one_shot_jobs(user_id, archive_visible, created_at DESC)
+            """))
+            db.commit()
+        _archive_schema_ready = True
 
 
 def _cutoff_at() -> str:
@@ -292,14 +324,14 @@ def _summary_item(record: dict, result_file: Path, data: dict) -> dict[str, Any]
 
 
 def _hard_delete_record(record: dict) -> tuple[bool, bool]:
-    """작업·문서·자산·실제 폴더를 하나의 서비스로 정리합니다."""
+    """호환용 함수. DB는 보존하고 사용자 파일만 삭제·숨김 처리합니다."""
     job_id = str(record.get("job_id") or "").strip()
     user_id = int(record.get("user_id") or 0)
     if not job_id or not user_id:
         return False, False
-    result = delete_job_bundle(user_id, job_id, delete_files=True)
-    deleted_db = bool(result.get("jobs") or result.get("documents") or result.get("assets"))
-    return deleted_db, bool(result.get("folder_deleted"))
+    _ensure_archive_metadata_columns()
+    result = delete_job_files_preserve_db(user_id, job_id, reason="archive_cleanup")
+    return False, bool(result.get("files_deleted"))
 
 def _is_admin_user(user: User | None) -> bool:
     return bool(user and str(getattr(user, "role", "") or "").strip().lower() == "admin")
@@ -330,24 +362,38 @@ def _archive_limit_for_user(user_id: int) -> int | None:
 
 
 def enforce_content_board_limit_for_user(user_id: int) -> dict:
+    """보관 한도 초과분은 파일만 삭제하고 작업·문서·자산 DB는 영구 보존합니다."""
+    _ensure_archive_metadata_columns()
     archive_limit = _archive_limit_for_user(user_id)
     if archive_limit is None:
-        return {"user_id": int(user_id), "archive_limit": None, "unlimited": True,
-                "overflow": 0, "deleted_db": 0, "deleted_folders": 0, "failed": 0}
+        return {
+            "user_id": int(user_id),
+            "archive_limit": None,
+            "unlimited": True,
+            "overflow": 0,
+            "deleted_db": 0,
+            "deleted_folders": 0,
+            "failed": 0,
+            "db_preserved": True,
+        }
 
     overflow_rows = list_content_board_overflow_jobs(int(user_id), archive_limit)
-    deleted_db = 0
     deleted_folders = 0
+    deleted_bytes = 0
     failed = 0
     for record in overflow_rows:
         try:
-            row_deleted, folder_deleted = _hard_delete_record(record)
-            deleted_db += int(row_deleted)
-            deleted_folders += int(folder_deleted)
+            result = delete_job_files_preserve_db(
+                int(user_id),
+                str(record.get("job_id") or ""),
+                reason="archive_limit",
+            )
+            deleted_folders += int(bool(result.get("files_deleted")))
+            deleted_bytes += int(result.get("deleted_bytes") or 0)
         except Exception:
             failed += 1
             logger.exception(
-                "content board archive-limit cleanup failed user_id=%s job_id=%s",
+                "content board file-only archive cleanup failed user_id=%s job_id=%s",
                 user_id,
                 record.get("job_id"),
             )
@@ -356,12 +402,14 @@ def enforce_content_board_limit_for_user(user_id: int) -> dict:
         "archive_limit": archive_limit,
         "unlimited": False,
         "overflow": len(overflow_rows),
-        "deleted_db": deleted_db,
+        "deleted_db": 0,
         "deleted_folders": deleted_folders,
+        "deleted_bytes": deleted_bytes,
         "failed": failed,
+        "db_preserved": True,
     }
     if overflow_rows or failed:
-        logger.info("content board archive-limit result=%s", result)
+        logger.info("content board file-only archive-limit result=%s", result)
     return result
 
 
@@ -566,6 +614,7 @@ def get_content_board_item(
     content_id: str,
     current_user: User = Depends(get_current_user),
 ):
+    _ensure_archive_metadata_columns()
     if not _JOB_ID_PATTERN.fullmatch(content_id):
         raise HTTPException(status_code=400, detail="content_id 형식이 올바르지 않습니다.")
     record = get_content_board_job_record(content_id, current_user.id, _cutoff_at())
@@ -643,6 +692,7 @@ def delete_content_board_item(
     content_id: str,
     current_user: User = Depends(get_current_user),
 ):
+    _ensure_archive_metadata_columns()
     if not _JOB_ID_PATTERN.fullmatch(content_id):
         raise HTTPException(status_code=400, detail="content_id 형식이 올바르지 않습니다.")
     record = get_content_board_job_record(content_id, current_user.id, _cutoff_at())
@@ -657,13 +707,20 @@ def delete_content_board_item(
     if not record:
         raise HTTPException(status_code=404, detail="삭제할 게시물을 찾을 수 없습니다.")
     record["user_id"] = current_user.id
-    deleted_db, deleted_folder = _hard_delete_record(record)
-    if not deleted_db and not deleted_folder:
+    result = delete_job_files_preserve_db(
+        current_user.id,
+        content_id,
+        reason="user_delete",
+    )
+    if not result.get("job_found"):
         raise HTTPException(status_code=404, detail="삭제할 게시물을 찾을 수 없습니다.")
     return {
         "ok": True,
         "content_id": content_id,
         "job_id": content_id,
-        "deleted_db": deleted_db,
-        "deleted_folder": deleted_folder,
+        "deleted_db": False,
+        "db_preserved": True,
+        "archive_hidden": bool(result.get("archive_hidden")),
+        "files_deleted": bool(result.get("files_deleted")),
+        "deleted_bytes": int(result.get("deleted_bytes") or 0),
     }

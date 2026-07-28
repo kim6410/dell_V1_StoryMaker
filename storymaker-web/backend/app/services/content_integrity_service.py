@@ -228,63 +228,159 @@ def audit_missing_orphan_assets() -> list[dict[str, Any]]:
     return findings
 
 
-def delete_job_bundle(user_id: int, job_id: str, delete_files: bool = True) -> dict[str, Any]:
+def delete_job_files_preserve_db(
+    user_id: int,
+    job_id: str,
+    *,
+    reason: str = "user_delete",
+) -> dict[str, Any]:
+    """보관함 파일만 제거하고 작업·문서·자산 DB 기록은 모두 유지합니다."""
+    with engine.begin() as connection:
+        columns = {
+            str(row[1])
+            for row in connection.execute(text("PRAGMA table_info(mobile_one_shot_jobs)")).all()
+        }
+        additions = [
+            ("archive_visible", "INTEGER NOT NULL DEFAULT 1"),
+            ("media_deleted_at", "VARCHAR(40) NOT NULL DEFAULT ''"),
+            ("media_deleted_bytes", "INTEGER NOT NULL DEFAULT 0"),
+            ("media_delete_reason", "VARCHAR(40) NOT NULL DEFAULT ''"),
+        ]
+        for name, definition in additions:
+            if name not in columns:
+                connection.execute(text(
+                    f"ALTER TABLE mobile_one_shot_jobs ADD COLUMN {name} {definition}"
+                ))
+        connection.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_mobile_jobs_user_archive_visible_created
+            ON mobile_one_shot_jobs(user_id, archive_visible, created_at DESC)
+        """))
+
     with engine.begin() as connection:
         job = connection.execute(text("""
-            SELECT result_path FROM mobile_one_shot_jobs WHERE user_id=:user_id AND job_id=:job_id
+            SELECT result_path FROM mobile_one_shot_jobs
+            WHERE user_id=:user_id AND job_id=:job_id
         """), {"user_id": user_id, "job_id": job_id}).mappings().first()
-    result_path = str(job["result_path"] or "") if job else ""
+    if not job:
+        return {"job_found": False, "files_deleted": False, "deleted_bytes": 0}
+
+    result_path = str(job["result_path"] or "")
     original_folder: Path | None = None
     trash_folder: Path | None = None
-    TOMBSTONE_ROOT.mkdir(parents=True, exist_ok=True)
-    tombstone_path = _job_tombstone_path(job_id)
-    tombstone_path.write_text(json.dumps({
-        "job_id": job_id,
-        "user_id": user_id,
-        "deleted_at": _now(),
-        "result_path": result_path,
-    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    deleted_bytes = 0
+    now_text = _now()
 
-    if delete_files and result_path:
+    if result_path:
         result_file = Path(result_path)
         candidate = result_file.parent
         if candidate.exists() and MOBILE_ROOT in candidate.parents:
+            original_folder = candidate
+            try:
+                deleted_bytes = sum(
+                    path.stat().st_size
+                    for path in candidate.rglob("*")
+                    if path.is_file()
+                )
+            except Exception:
+                deleted_bytes = 0
             TRASH_ROOT.mkdir(parents=True, exist_ok=True)
             trash_folder = TRASH_ROOT / f"{job_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
             try:
                 shutil.move(str(candidate), str(trash_folder))
-                original_folder = candidate
             except Exception as exc:
-                _append_audit("delete_move_failed", {"user_id": user_id, "job_id": job_id, "folder": str(candidate), "error": str(exc)})
-                return {"jobs": 0, "documents": 0, "assets": 0, "folder_deleted": False, "moved_to_trash": False, "error": "folder_move_failed"}
+                _append_audit("media_delete_move_failed", {
+                    "user_id": user_id,
+                    "job_id": job_id,
+                    "folder": str(candidate),
+                    "error": str(exc),
+                })
+                return {
+                    "job_found": True,
+                    "files_deleted": False,
+                    "deleted_bytes": 0,
+                    "error": "folder_move_failed",
+                }
 
     try:
         with engine.begin() as connection:
-            doc_count = connection.execute(text("DELETE FROM content_documents WHERE user_id=:user_id AND job_id=:job_id"), {"user_id": user_id, "job_id": job_id}).rowcount
-            asset_count = connection.execute(text("DELETE FROM content_archive_assets WHERE user_id=:user_id AND archive_job_id=:job_id"), {"user_id": user_id, "job_id": job_id}).rowcount
-            job_count = connection.execute(text("DELETE FROM mobile_one_shot_jobs WHERE user_id=:user_id AND job_id=:job_id"), {"user_id": user_id, "job_id": job_id}).rowcount
+            connection.execute(text("""
+                UPDATE mobile_one_shot_jobs
+                SET archive_visible=0,
+                    media_deleted_at=:deleted_at,
+                    media_deleted_bytes=:deleted_bytes,
+                    media_delete_reason=:reason,
+                    updated_at=:deleted_at
+                WHERE user_id=:user_id AND job_id=:job_id
+            """), {
+                "deleted_at": now_text,
+                "deleted_bytes": int(deleted_bytes),
+                "reason": str(reason or "user_delete")[:40],
+                "user_id": user_id,
+                "job_id": job_id,
+            })
+            connection.execute(text("""
+                UPDATE content_archive_assets
+                SET status='deleted_by_user', storage_type='deleted', updated_at=:deleted_at
+                WHERE user_id=:user_id AND archive_job_id=:job_id
+            """), {
+                "deleted_at": now_text,
+                "user_id": user_id,
+                "job_id": job_id,
+            })
     except Exception as exc:
         if trash_folder and original_folder and trash_folder.exists() and not original_folder.exists():
             try:
                 shutil.move(str(trash_folder), str(original_folder))
             except Exception:
                 pass
-        _append_audit("delete_db_failed", {"user_id": user_id, "job_id": job_id, "error": str(exc)})
+        _append_audit("media_delete_db_mark_failed", {
+            "user_id": user_id,
+            "job_id": job_id,
+            "error": str(exc),
+        })
         raise
 
-    _append_audit("delete_bundle", {
+    files_deleted = False
+    if trash_folder and trash_folder.exists():
+        shutil.rmtree(trash_folder)
+        files_deleted = True
+
+    TOMBSTONE_ROOT.mkdir(parents=True, exist_ok=True)
+    _job_tombstone_path(job_id).write_text(json.dumps({
+        "job_id": job_id,
+        "user_id": user_id,
+        "media_deleted_at": now_text,
+        "media_deleted_bytes": int(deleted_bytes),
+        "reason": reason,
+        "db_preserved": True,
+        "result_path": result_path,
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    _append_audit("media_delete_preserve_db", {
         "user_id": user_id,
         "job_id": job_id,
-        "jobs": int(job_count or 0),
-        "documents": int(doc_count or 0),
-        "assets": int(asset_count or 0),
-        "trash_path": str(trash_folder or ""),
+        "files_deleted": files_deleted,
+        "deleted_bytes": int(deleted_bytes),
+        "db_preserved": True,
     })
     return {
-        "jobs": int(job_count or 0),
-        "documents": int(doc_count or 0),
-        "assets": int(asset_count or 0),
-        "folder_deleted": False,
-        "moved_to_trash": bool(trash_folder),
-        "trash_path": str(trash_folder or ""),
+        "job_found": True,
+        "files_deleted": files_deleted,
+        "deleted_bytes": int(deleted_bytes),
+        "db_preserved": True,
+        "archive_hidden": True,
+    }
+
+
+def delete_job_bundle(user_id: int, job_id: str, delete_files: bool = True) -> dict[str, Any]:
+    """호환용 진입점. 작업 DB는 삭제하지 않고 파일만 제거합니다."""
+    result = delete_job_files_preserve_db(user_id, job_id, reason="legacy_delete_bundle")
+    return {
+        "jobs": 0,
+        "documents": 0,
+        "assets": 0,
+        "folder_deleted": bool(result.get("files_deleted")),
+        "moved_to_trash": False,
+        "deleted_bytes": int(result.get("deleted_bytes") or 0),
+        "db_preserved": True,
+        "archive_hidden": bool(result.get("archive_hidden")),
     }
