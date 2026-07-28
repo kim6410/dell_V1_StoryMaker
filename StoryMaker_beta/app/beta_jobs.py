@@ -11,6 +11,7 @@ import shutil
 import hashlib
 import sqlite3
 import subprocess
+import threading
 import urllib.request
 import urllib.error
 import urllib.parse
@@ -139,6 +140,8 @@ BETA_ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/St
 BETA_DATA = BETA_ROOT / "data"
 BETA_JOBS = BETA_DATA / "jobs"
 BETA_DB = BETA_DATA / "storymaker_beta.db"
+BETA_ARCHIVE_CACHE = BETA_DATA / "cache" / "archive_summaries"
+BETA_ARCHIVE_CACHE_LOCK = threading.Lock()
 BETA_FFMPEG = Path(os.getenv("STORYMAKER_BETA_FFMPEG", "/usr/bin/ffmpeg"))
 
 BETA_INDUSTRY_LABELS = {
@@ -179,6 +182,131 @@ def beta_read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
 
 
+def beta_archive_cache_path(user_id: int, role: str) -> Path:
+    scope = "admin" if role == "admin" else f"user_{int(user_id)}"
+    return BETA_ARCHIVE_CACHE / f"{scope}.json"
+
+
+def beta_archive_signature(rows: list[sqlite3.Row], user_id: int, role: str) -> str:
+    fingerprint: list[dict[str, Any]] = []
+    for row in rows:
+        result_path = Path(str(row["result_json"] or ""))
+        try:
+            stat = result_path.stat()
+            result_stamp = [int(stat.st_size), int(stat.st_mtime_ns)]
+        except OSError:
+            result_stamp = [0, 0]
+        fingerprint.append({
+            "beta_job_id": row["beta_job_id"],
+            "title": row["title"],
+            "status": row["status"],
+            "progress": int(row["progress"] or 0),
+            "created_at": row["created_at"],
+            "completed_at": row["completed_at"],
+            "owner_user_id": int(row["owner_user_id"] or 0),
+            "selected_thumbnail_template": row["selected_thumbnail_template"] or "",
+            "selected_thumbnail_path": row["selected_thumbnail_path"] or "",
+            "media_deleted_at": row["media_deleted_at"] or "",
+            "media_deleted_bytes": int(row["media_deleted_bytes"] or 0),
+            "media_delete_reason": row["media_delete_reason"] or "",
+            "result_stamp": result_stamp,
+        })
+    signature_user_id = 0 if role == "admin" else int(user_id)
+    raw = json.dumps(
+        {"role": role, "user_id": signature_user_id, "rows": fingerprint},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def beta_archive_summary(row: sqlite3.Row) -> dict[str, Any]:
+    result_path = Path(str(row["result_json"] or ""))
+    try:
+        result = beta_read_json(result_path) if result_path.is_file() else {}
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        result = {}
+    assets = result.get("assets") if isinstance(result.get("assets"), dict) else {}
+    content = result.get("content") if isinstance(result.get("content"), dict) else {}
+    channels = content.get("channels") if isinstance(content.get("channels"), dict) else {}
+    images = assets.get("images") if isinstance(assets.get("images"), list) else []
+    media_deleted = bool(row["media_deleted_at"])
+    asset_flags = {
+        "sns": len(channels) >= 8,
+        "images": bool(images) and not media_deleted,
+        "mp3": bool(assets.get("browser_audio") or assets.get("audio")) and not media_deleted,
+        "srt": bool(assets.get("subtitle")) and not media_deleted,
+        "thumb": bool(assets.get("thumbnail") or row["selected_thumbnail_path"]) and not media_deleted,
+        "mp4": bool(assets.get("browser_video") or assets.get("video")) and not media_deleted,
+    }
+    business = result.get("business") if isinstance(result.get("business"), dict) else {}
+    return {
+        "beta_job_id": row["beta_job_id"],
+        "title": str(result.get("title") or row["title"] or "")[:500],
+        "status": row["status"],
+        "progress": int(row["progress"] or 0),
+        "created_at": row["created_at"],
+        "completed_at": row["completed_at"],
+        "owner_user_id": int(row["owner_user_id"] or 0),
+        "media_deleted_at": row["media_deleted_at"] or "",
+        "media_deleted_bytes": int(row["media_deleted_bytes"] or 0),
+        "media_delete_reason": row["media_delete_reason"] or "",
+        "business": {
+            "name": str(business.get("name") or ""),
+            "region": str(business.get("region") or ""),
+            "service": str(business.get("service") or ""),
+            "phone": str(business.get("phone") or ""),
+        },
+        "image_count": len(images) if not media_deleted else 0,
+        "asset_flags": asset_flags,
+    }
+
+
+def beta_archive_cached_items(
+    rows: list[sqlite3.Row],
+    user_id: int,
+    role: str,
+    force_refresh: bool = False,
+) -> tuple[list[dict[str, Any]], bool, str]:
+    signature = beta_archive_signature(rows, user_id, role)
+    cache_path = beta_archive_cache_path(user_id, role)
+    with BETA_ARCHIVE_CACHE_LOCK:
+        if not force_refresh and cache_path.is_file():
+            try:
+                cached = beta_read_json(cache_path)
+                items = cached.get("items")
+                if cached.get("signature") == signature and isinstance(items, list):
+                    return items, True, signature
+            except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                pass
+        items = [beta_archive_summary(row) for row in rows]
+        BETA_ARCHIVE_CACHE.mkdir(parents=True, exist_ok=True)
+        beta_write_json(cache_path, {
+            "signature": signature,
+            "generated_at": beta_now(),
+            "scope": "admin" if role == "admin" else f"user_{int(user_id)}",
+            "items": items,
+        })
+        return items, False, signature
+
+
+def beta_warm_archive_caches() -> None:
+    columns = (
+        "beta_job_id,title,status,progress,created_at,completed_at,result_json,owner_user_id,"
+        "selected_thumbnail_template,selected_thumbnail_path,media_deleted_at,media_deleted_bytes,media_delete_reason"
+    )
+    with beta_connect() as connection:
+        rows = connection.execute(
+            f"SELECT {columns} FROM beta_jobs ORDER BY created_at DESC"
+        ).fetchall()
+    beta_archive_cached_items(rows, 0, "admin", force_refresh=True)
+    owner_ids = sorted({int(row["owner_user_id"] or 0) for row in rows if int(row["owner_user_id"] or 0) > 0})
+    for owner_id in owner_ids:
+        owner_rows = [row for row in rows if int(row["owner_user_id"] or 0) == owner_id]
+        beta_archive_cached_items(owner_rows, owner_id, "user", force_refresh=True)
+
+
 def beta_connect() -> sqlite3.Connection:
     connection = sqlite3.connect(BETA_DB)
     connection.row_factory = sqlite3.Row
@@ -216,6 +344,7 @@ def beta_init() -> None:
         if "media_delete_reason" not in columns:
             connection.execute("ALTER TABLE beta_jobs ADD COLUMN media_delete_reason TEXT NOT NULL DEFAULT ''")
         ensure_mp4_usage_table(connection)
+    beta_warm_archive_caches()
 
 
 def beta_job_dir(beta_job_id: str) -> Path:
@@ -728,17 +857,36 @@ def beta_v1_profile(request: Request) -> JSONResponse:
 def beta_list_jobs(request: Request) -> JSONResponse:
     user_id = current_user_id(request)
     role = current_user_role(request)
+    force_refresh = str(request.query_params.get("refresh") or "").strip() == "1"
+    columns = (
+        "beta_job_id,title,status,progress,created_at,completed_at,result_json,owner_user_id,"
+        "selected_thumbnail_template,selected_thumbnail_path,media_deleted_at,media_deleted_bytes,media_delete_reason"
+    )
     with beta_connect() as connection:
         if role == "admin":
             rows = connection.execute(
-                "SELECT beta_job_id,title,status,progress,created_at,completed_at,media_deleted_at,media_deleted_bytes,media_delete_reason FROM beta_jobs ORDER BY created_at DESC"
+                f"SELECT {columns} FROM beta_jobs ORDER BY created_at DESC"
             ).fetchall()
         else:
             rows = connection.execute(
-                "SELECT beta_job_id,title,status,progress,created_at,completed_at,media_deleted_at,media_deleted_bytes,media_delete_reason FROM beta_jobs WHERE owner_user_id=? ORDER BY created_at DESC",
+                f"SELECT {columns} FROM beta_jobs WHERE owner_user_id=? ORDER BY created_at DESC",
                 (user_id,),
             ).fetchall()
-    return JSONResponse({"ok": True, "items": [dict(row) for row in rows]})
+    items, cache_hit, signature = beta_archive_cached_items(
+        rows,
+        int(user_id),
+        role,
+        force_refresh=force_refresh,
+    )
+    return JSONResponse({
+        "ok": True,
+        "items": items,
+        "cache": {
+            "hit": cache_hit,
+            "signature": signature,
+            "count": len(items),
+        },
+    })
 
 
 @beta_jobs_router.get("/jobs/{beta_job_id}")

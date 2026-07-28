@@ -386,6 +386,16 @@
   }
 
   function flags(job) {
+    if (job?.asset_flags && typeof job.asset_flags === 'object') {
+      return {
+        sns: Boolean(job.asset_flags.sns),
+        images: Boolean(job.asset_flags.images),
+        mp3: Boolean(job.asset_flags.mp3),
+        srt: Boolean(job.asset_flags.srt),
+        thumb: Boolean(job.asset_flags.thumb),
+        mp4: Boolean(job.asset_flags.mp4)
+      };
+    }
     const assets = job.assets || {};
     return {
       sns: Object.keys(job.content?.channels || {}).length === 8,
@@ -446,8 +456,10 @@
     list.className = 'archive-grid';
     list.innerHTML = pageItems.map((job) => {
       const f = flags(job);
-      const firstImage = job.assets?.images?.length ? `/beta-api/browser/jobs/${encodeURIComponent(job.beta_job_id)}/image/1` : '';
-      const thumb = job.assets?.thumbnail ? `/beta-api/jobs/${encodeURIComponent(job.beta_job_id)}/file/thumbnail` : firstImage;
+      const firstImage = Number(job.image_count || job.assets?.images?.length || 0) > 0
+        ? `/beta-api/browser/jobs/${encodeURIComponent(job.beta_job_id)}/image/1`
+        : '';
+      const thumb = f.thumb ? `/beta-api/jobs/${encodeURIComponent(job.beta_job_id)}/file/thumbnail` : firstImage;
       const assetButton = (label, ready) => `<span class="asset-button ${ready ? 'ready' : 'waiting'}">${esc(label)}</span>`;
       return `<article class="archive-card" data-card-job="${esc(job.beta_job_id)}" tabindex="0" role="button" aria-label="${esc(job.title || 'Beta 제작')} 상세보기">
         ${thumb ? `<button type="button" class="archive-thumb-button" data-open-job="${esc(job.beta_job_id)}"><img class="archive-thumb" loading="lazy" src="${thumb}" alt="미리보기"></button>` : `<button type="button" class="archive-thumb-placeholder" data-open-job="${esc(job.beta_job_id)}">미리보기 없음</button>`}
@@ -716,15 +728,12 @@
     if (!modal.hidden) closeDetail();
   });
 
-  async function load() {
+  async function load(forceRefresh = false) {
     list.className = 'empty'; list.textContent = '불러오는 중...';
     try {
       await resolveAdminAccess();
-      const summaries = (await req('/beta-api/jobs')).items || [];
-      jobs = await Promise.all(summaries.map(async (item) => {
-        try { return { ...item, ...(await req(`/beta-api/jobs/${encodeURIComponent(item.beta_job_id)}`)).job }; }
-        catch (_) { return item; }
-      }));
+      const url = forceRefresh ? '/beta-api/jobs?refresh=1' : '/beta-api/jobs';
+      jobs = (await req(url)).items || [];
       jobs.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
       renderList();
     } catch (error) {
@@ -735,6 +744,6 @@
   search?.addEventListener('input', () => { currentPage = 1; renderList(); });
   filter?.addEventListener('change', () => { currentPage = 1; renderList(); });
   sort?.addEventListener('change', () => { currentPage = 1; renderList(); });
-  refresh?.addEventListener('click', () => { currentPage = 1; load(); });
+  refresh?.addEventListener('click', () => { currentPage = 1; load(true); });
   load();
 })();
