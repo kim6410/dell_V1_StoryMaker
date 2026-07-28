@@ -16,7 +16,7 @@
   let roleChecked = false;
   let itemsCache = [];
 
-  const clean = (value = '') => String(value).replace(/\s+/g, ' ').trim();
+  const clean = (value = '') => String(value ?? '').replace(/\s+/g, ' ').trim();
   const esc = (value = '') => String(value)
     .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
