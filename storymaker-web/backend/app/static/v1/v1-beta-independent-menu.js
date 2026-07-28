@@ -15,6 +15,29 @@
     );
   }
 
+  const ACTIVE_MENU_CLASSES = [
+    'border', 'border-blue-900/80', 'bg-gradient-to-br',
+    'from-slate-900', 'via-blue-950', 'to-blue-900', 'text-blue-50'
+  ];
+
+  function syncBetaMenuSelection(activeKey = '') {
+    const nav = findNav();
+    if (!nav) return;
+
+    nav.querySelectorAll('button').forEach((button) => {
+      button.removeAttribute('aria-current');
+      button.removeAttribute('data-active');
+      ACTIVE_MENU_CLASSES.forEach((className) => button.classList.remove(className));
+    });
+
+    if (!activeKey) return;
+    const activeButton = nav.querySelector(`[data-storymaker-beta-key="${activeKey}"]`);
+    if (!activeButton) return;
+    activeButton.setAttribute('data-active', '1');
+    activeButton.setAttribute('aria-current', 'page');
+    ACTIVE_MENU_CLASSES.forEach((className) => activeButton.classList.add(className));
+  }
+
   function findContentSection() {
     return Array.from(document.querySelectorAll('main section')).find((section) =>
       section.className && String(section.className).includes('min-w-0') && String(section.className).includes('flex-1')
@@ -32,7 +55,8 @@
     }
     document.querySelectorAll('[data-storymaker-beta-menu="1"]').forEach((button) => {
       button.removeAttribute('data-active');
-      button.classList.remove('border', 'border-blue-900/80', 'bg-gradient-to-br', 'from-slate-900', 'via-blue-950', 'to-blue-900', 'text-blue-50');
+      button.removeAttribute('aria-current');
+      ACTIVE_MENU_CLASSES.forEach((className) => button.classList.remove(className));
     });
   }
 
@@ -69,8 +93,7 @@
       history.pushState({}, '', '/v1/');
     });
 
-    const activeButton = document.querySelector(`[data-storymaker-beta-key="${item.key}"]`);
-    if (activeButton) activeButton.setAttribute('data-active', '1');
+    syncBetaMenuSelection(item.key);
     if (updateHistory) history.pushState({}, '', `/v1/?page=${encodeURIComponent(item.key)}`);
   }
 
@@ -140,7 +163,16 @@
   function installMenu() {
     installDashboardButtons();
     const nav = findNav();
-    if (!nav || nav.querySelector('[data-storymaker-beta-menu="1"]')) return;
+    if (!nav) return;
+    if (nav.querySelector('[data-storymaker-beta-menu="1"]')) {
+      const panel = document.getElementById('storymaker-beta-independent-panel');
+      if (panel) {
+        const requestedKey = new URLSearchParams(location.search).get('page') || '';
+        const activeItem = MENU_ITEMS.find((entry) => entry.key === requestedKey);
+        if (activeItem) syncBetaMenuSelection(activeItem.key);
+      }
+      return;
+    }
 
     const template = nav.querySelector('button');
     MENU_ITEMS.forEach((item, index) => {
