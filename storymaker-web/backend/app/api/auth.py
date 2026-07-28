@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Security, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import secrets
 import os
@@ -181,6 +181,28 @@ def _clear_auth_cookie(response: Response, request: Request | None = None) -> No
 
 
 
+def _cleanup_expired_sessions(db: Session, now_dt: datetime | None = None) -> int:
+    """JWT 수명(24시간)을 넘긴 미종료 세션을 자동 종료합니다."""
+    current = now_dt or datetime.now()
+    cutoff = (current - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+    now_stamp = current.strftime("%Y-%m-%d %H:%M:%S")
+    stale_sessions = db.query(UserSession).filter(
+        UserSession.logout_at.is_(None),
+        UserSession.login_at < cutoff,
+    ).all()
+    for session in stale_sessions:
+        session.logout_at = now_stamp
+        try:
+            login_dt = datetime.strptime(session.login_at, "%Y-%m-%d %H:%M:%S")
+            session.duration_seconds = max(0, int((current - login_dt).total_seconds()))
+        except Exception:
+            pass
+        session.last_seen_at = session.last_seen_at or now_stamp
+    if stale_sessions:
+        db.flush()
+    return len(stale_sessions)
+
+
 def _issue_login_response(user: User, request: Request, db: Session, response: Response, action: str = "login") -> CommonResponse:
     """로컬/Google 로그인에 공통인 세션 기록과 JWT 발급을 수행합니다."""
     if not user.is_active:
@@ -191,7 +213,9 @@ def _issue_login_response(user: User, request: Request, db: Session, response: R
 
     ip_addr = request.client.host if request.client else "127.0.0.1"
     user_agt = request.headers.get("user-agent", "Unknown")
-    now_stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_dt = datetime.now()
+    _cleanup_expired_sessions(db, now_dt)
+    now_stamp = now_dt.strftime("%Y-%m-%d %H:%M:%S")
     user.last_login_at = now_stamp
     user.last_activity_at = now_stamp
 
@@ -838,7 +862,9 @@ def logout(
     
     ip_addr = request.client.host if request.client else "127.0.0.1"
     user_agt = request.headers.get("user-agent", "Unknown")
-    now_stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_dt = datetime.now()
+    _cleanup_expired_sessions(db, now_dt)
+    now_stamp = now_dt.strftime("%Y-%m-%d %H:%M:%S")
     
     if payload and "session_id" in payload:
         session_id = payload["session_id"]
