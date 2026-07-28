@@ -6,6 +6,8 @@
 
   const TOOLBAR_ID = 'storymaker-v1-company-add-toolbar';
   const STYLE_ID = 'storymaker-v1-company-info-ui-style';
+  const INQUIRY_OVERLAY_ID = 'storymaker-v1-inquiry-frame-overlay';
+  const INQUIRY_FRAME_URL = '/static/v1/feature-requests-frame.html';
   const KEYWORD_EDITOR_CLASS = 'storymaker-v1-keyword-slots';
   const clean = (value = '') => String(value).replace(/\s+/g, ' ').trim();
 
@@ -28,6 +30,7 @@
       #${TOOLBAR_ID} {
         display: flex;
         justify-content: flex-end;
+        gap: 12px;
         margin-bottom: 12px;
         min-height: 42px;
       }
@@ -46,6 +49,97 @@
       #${TOOLBAR_ID} button:hover {
         background: #67e8f9;
         border-color: #a5f3fc;
+      }
+      #${INQUIRY_OVERLAY_ID} {
+        position: fixed;
+        inset: 0;
+        z-index: 99990;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 28px;
+        background: rgba(2, 6, 23, 0.72);
+        backdrop-filter: blur(4px);
+      }
+      #${INQUIRY_OVERLAY_ID}[hidden] { display: none !important; }
+      #${INQUIRY_OVERLAY_ID} .sm-v1-inquiry-frame-shell {
+        position: relative;
+        width: min(1180px, calc(100vw - 56px));
+        height: min(820px, calc(100vh - 56px));
+        overflow: hidden;
+        border: 1px solid rgba(103, 232, 249, 0.38);
+        border-radius: 18px;
+        background: #07111f;
+        box-shadow: 0 28px 90px rgba(0, 0, 0, 0.52);
+      }
+      #${INQUIRY_OVERLAY_ID} iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #07111f;
+      }
+      #${INQUIRY_OVERLAY_ID} .sm-v1-inquiry-frame-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 2;
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        border: 1px solid rgba(148, 163, 184, 0.34);
+        border-radius: 10px;
+        background: rgba(15, 23, 42, 0.92);
+        color: #f8fafc;
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      #${INQUIRY_OVERLAY_ID} .sm-v1-inquiry-frame-close:hover {
+        background: #1e293b;
+        border-color: rgba(103, 232, 249, 0.7);
+      }
+      [data-v1-company-card-action="1"] {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        min-height: 36px !important;
+        padding: 0 !important;
+        border-radius: 9px !important;
+        cursor: pointer;
+        transition: transform .15s ease, background .15s ease, border-color .15s ease;
+      }
+      [data-v1-company-card-action="1"] svg {
+        width: 18px;
+        height: 18px;
+        pointer-events: none;
+      }
+      [data-v1-company-inquiry="1"] {
+        border: 1px solid rgba(250, 204, 21, .58) !important;
+        background: rgba(250, 204, 21, .14) !important;
+        color: #facc15 !important;
+        margin-left: auto !important;
+      }
+      [data-v1-company-inquiry="1"]:hover {
+        background: #facc15 !important;
+        border-color: #fde047 !important;
+        color: #422006 !important;
+        transform: translateY(-1px);
+      }
+      [data-v1-company-delete="1"] {
+        border: 1px solid rgba(248, 113, 113, .42) !important;
+        background: rgba(239, 68, 68, .10) !important;
+        color: #f87171 !important;
+        margin-left: 8px !important;
+      }
+      [data-v1-company-delete="1"]:hover {
+        background: #ef4444 !important;
+        border-color: #fca5a5 !important;
+        color: #fff !important;
+        transform: translateY(-1px);
       }
       [data-v1-company-edit="1"] {
         order: 999;
@@ -297,6 +391,40 @@
     }) || layout.firstElementChild;
   }
 
+  function closeInquiryFrame() {
+    const overlay = document.getElementById(INQUIRY_OVERLAY_ID);
+    if (!overlay) return;
+    overlay.hidden = true;
+    document.body.style.removeProperty('overflow');
+  }
+
+  function openInquiryFrame() {
+    let overlay = document.getElementById(INQUIRY_OVERLAY_ID);
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = INQUIRY_OVERLAY_ID;
+      overlay.hidden = true;
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-label', '문의하기');
+      overlay.innerHTML = `<div class="sm-v1-inquiry-frame-shell"><button type="button" class="sm-v1-inquiry-frame-close" aria-label="문의하기 닫기">×</button><iframe title="문의하기 목록" loading="eager"></iframe></div>`;
+      document.body.appendChild(overlay);
+
+      overlay.addEventListener('click', (event) => {
+        if (event.target === overlay || event.target.closest('.sm-v1-inquiry-frame-close')) closeInquiryFrame();
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !overlay.hidden) closeInquiryFrame();
+      });
+    }
+
+    const frame = overlay.querySelector('iframe');
+    if (frame && !frame.getAttribute('src')) frame.setAttribute('src', INQUIRY_FRAME_URL);
+    overlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+    overlay.querySelector('.sm-v1-inquiry-frame-close')?.focus();
+  }
+
   function installAddButton(hero, listPanel) {
     const sourceButton = findExact(hero, 'button', '신규 업체 등록');
     if (!sourceButton || !listPanel) return;
@@ -340,6 +468,29 @@
 
       editButton.dataset.v1CompanyEdit = '1';
       if (header.lastElementChild !== editButton) header.appendChild(editButton);
+
+      const deleteButton = findExact(article, 'button', '삭제');
+      const actionRow = deleteButton?.parentElement;
+      if (!deleteButton || !actionRow) return;
+
+      deleteButton.dataset.v1CompanyCardAction = '1';
+      deleteButton.dataset.v1CompanyDelete = '1';
+      deleteButton.setAttribute('aria-label', '업체 삭제');
+      deleteButton.setAttribute('title', '업체 삭제');
+      deleteButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
+
+      let inquiryButton = actionRow.querySelector('[data-v1-company-inquiry="1"]');
+      if (!inquiryButton) {
+        inquiryButton = document.createElement('button');
+        inquiryButton.type = 'button';
+        inquiryButton.dataset.v1CompanyCardAction = '1';
+        inquiryButton.dataset.v1CompanyInquiry = '1';
+        inquiryButton.setAttribute('aria-label', '문의하기');
+        inquiryButton.setAttribute('title', '문의하기');
+        inquiryButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/></svg>';
+        inquiryButton.addEventListener('click', openInquiryFrame);
+        actionRow.insertBefore(inquiryButton, deleteButton);
+      }
     });
   }
 
@@ -350,11 +501,41 @@
     if (node) node.nodeValue = after;
   }
 
+  function directLabelText(label) {
+    return [...label.childNodes]
+      .filter((child) => child.nodeType === Node.TEXT_NODE)
+      .map((child) => clean(child.nodeValue))
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  function findLabel(form, names) {
+    return [...form.querySelectorAll('label')].find((label) => {
+      const value = directLabelText(label).replace(/^\*\s*/, '');
+      return names.includes(value);
+    }) || null;
+  }
+
+  function markRequired(label, title) {
+    if (!label) return;
+    [...label.childNodes]
+      .filter((child) => child.nodeType === Node.TEXT_NODE)
+      .forEach((child) => {
+        if (clean(child.nodeValue).replace(/^\*\s*/, '') === title) child.nodeValue = `* ${title}`;
+      });
+    label.dataset.v1RequiredCompanyField = '1';
+  }
+
   function tuneEditor(layout) {
     const form = layout?.querySelector('form');
-    const heading = form && findExact(form, 'h2,h3', '기존 업체 수정')
-      || form && findExact(form, 'h2,h3', '신규 업체 저장');
+    const heading = form && (
+      findExact(form, 'h2,h3', '기존 업체 수정')
+      || findExact(form, 'h2,h3', '신규 업체 저장')
+      || findExact(form, 'h2,h3', '업체 등록 / 수정')
+    );
     if (!form || !heading) return;
+
+    heading.textContent = '업체 등록 / 수정';
 
     const labels = {
       '웹사이트': '홈페이지/SNS 선택',
@@ -368,6 +549,52 @@
         renameDirectText(label, before, after);
       });
     });
+
+    const companyLabel = findLabel(form, ['업체명']);
+    const regionLabel = findLabel(form, ['지역', '지역 필수']);
+    const phoneLabel = findLabel(form, ['전화번호']);
+    const keywordLabel = findLabel(form, ['핵심 키워드']);
+    const personaLabel = findLabel(form, ['페르소나 상세 설명']);
+
+    markRequired(companyLabel, '업체명');
+    markRequired(regionLabel, directLabelText(regionLabel).replace(/^\*\s*/, '') || '지역');
+    markRequired(phoneLabel, '전화번호');
+    markRequired(keywordLabel, '핵심 키워드');
+    markRequired(personaLabel, '페르소나 상세 설명');
+
+    const requiredFields = [
+      ['업체명', companyLabel?.querySelector('input,select,textarea')],
+      ['지역', regionLabel?.querySelector('input,select,textarea')],
+      ['전화번호', phoneLabel?.querySelector('input,select,textarea')],
+      ['핵심 키워드', keywordLabel?.querySelector('input,select,textarea')],
+      ['페르소나 상세 설명', personaLabel?.querySelector('input,select,textarea')]
+    ];
+
+    requiredFields.forEach(([, field]) => {
+      if (field) field.required = true;
+    });
+
+    if (form.dataset.v1RequiredCompanyValidation !== '1') {
+      form.dataset.v1RequiredCompanyValidation = '1';
+      form.addEventListener('submit', (event) => {
+        const editor = form.querySelector(`.${KEYWORD_EDITOR_CLASS}`);
+        const source = form.querySelector('[data-v1-keyword-source="1"]');
+        if (editor && source) commitKeywordSlots(editor, source);
+
+        const missing = requiredFields
+          .filter(([name, field]) => {
+            const value = clean(field?.value);
+            return name === '페르소나 상세 설명' ? value.length < 10 : !value;
+          })
+          .map(([name]) => name);
+
+        if (!missing.length) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        window.alert(`필수 입력 항목을 확인해 주세요.\n\n누락: ${missing.join(', ')}\n\n* 표시 항목은 반드시 입력해야 합니다.`);
+        requiredFields.find(([name]) => missing.includes(name))?.[1]?.focus();
+      }, true);
+    }
 
     const toneLabel = findExact(form, 'span', '기본 말투');
     if (toneLabel) toneLabel.textContent = '기본 감성 톤';

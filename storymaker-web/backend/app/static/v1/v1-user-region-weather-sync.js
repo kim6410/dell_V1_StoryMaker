@@ -57,11 +57,14 @@
       const personaPayload = await fetchJson(PERSONAS_API);
       const list = getPersonas(personaPayload);
       const profile = list.find((item) => item?.is_default) || list[0] || {};
-      const region = normalizeRegion(profile.region || '서울');
-      const weatherPayload = await fetchJson(`${WEATHER_API}?page=1&page_size=1&region=${encodeURIComponent(region)}`);
+      const displayRegion = typeof window.formatRegionDisplay === 'function'
+        ? window.formatRegionDisplay(profile.region || '서울')
+        : clean(profile.region || '서울');
+      const weatherRegion = normalizeRegion(displayRegion || '서울');
+      const weatherPayload = await fetchJson(`${WEATHER_API}?page=1&page_size=1&region=${encodeURIComponent(weatherRegion)}`);
       const weatherItem = Array.isArray(weatherPayload?.items) ? (weatherPayload.items[0] || {}) : {};
       current = {
-        region: clean(weatherItem.region || region),
+        region: displayRegion,
         weather: clean(weatherItem.weather || ''),
         company: clean(profile.company_name) || '업체명 미등록',
         phone: clean(profile.phone_number) || '전화번호 미등록',

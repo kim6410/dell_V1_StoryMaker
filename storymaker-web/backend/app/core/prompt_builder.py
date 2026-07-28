@@ -13,6 +13,8 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from app.settings import settings
+from app.core.region_display import format_region_display, format_region_text
+from app.services.weather_cache_service import get_or_fetch_weather
 
 
 KST = ZoneInfo("Asia/Seoul")
@@ -43,6 +45,12 @@ REGION_WEATHER_QUERY_MAP = {
     "경남": "경상남도 창원시",
     "제주": "제주특별자치도 제주시",
     "양양": "강원도 양양군",
+    "인천광역시 강화군 강화읍": "인천광역시 강화군 강화읍",
+    "인천광역시 강화군 불은면": "인천광역시 강화군 불은면",
+    "울산광역시 울주군 언양읍": "울산광역시 울주군 언양읍",
+    "울산광역시 울주군 서생면": "울산광역시 울주군 서생면",
+    "경기도 남양주시 진접읍": "경기도 남양주시 진접읍",
+    "경기도 하남시 미사1동": "경기도 하남시 미사1동",
 }
 
 REGION_SUBAREAS_MAP = {
@@ -106,15 +114,7 @@ def normalize_region_alias(value: str) -> str:
     compact = re.sub(r"\s+", "", raw)
     if compact in REGION_ALIAS_MAP:
         return REGION_ALIAS_MAP[compact]
-    if compact.endswith("광역시") or compact.endswith("특별시"):
-        return compact[:-3]
-    if compact.endswith("특별자치시"):
-        return compact[:-5]
-    if compact.endswith("특별자치도"):
-        return compact[:-5]
-    if compact.endswith("도") and compact in REGION_ALIAS_MAP:
-        return REGION_ALIAS_MAP[compact]
-    return raw
+    return format_region_display(raw)
 
 
 def build_region_lookup_candidates(region: str) -> list[str]:
@@ -493,7 +493,7 @@ def fetch_region_weather_summary(region: str) -> str:
         return "Weather 모듈 실행 실패. 선택 지역만 참고합니다."
 
 
-def fetch_weather_and_temp(region: str) -> tuple[str, str]:
+def _fetch_weather_and_temp_uncached(region: str) -> tuple[str, str]:
     """
     지정된 지역의 날씨 상태와 기온을 조회하여 반환합니다.
     실패 시 기본값을 반환합니다.
@@ -598,6 +598,14 @@ def fetch_weather_and_temp(region: str) -> tuple[str, str]:
             pass
 
     return "맑음", "20"
+
+
+def fetch_weather_and_temp(region: str) -> tuple[str, str]:
+    """사용자 요청 지역의 최신 날씨를 요청형 캐시로 조회합니다."""
+    try:
+        return get_or_fetch_weather(region, _fetch_weather_and_temp_uncached)
+    except Exception:
+        return "맑음", "20"
 
 
 def _format_temp_range(min_temp, max_temp) -> str:
@@ -932,64 +940,33 @@ def fetch_ai_brain_summary_for_prompt() -> str:
 
 def fetch_weather_context_for_prompt(region: str) -> tuple[str, str, str]:
     """
-    프롬프트용 날씨 문장을 우선순위에 따라 반환합니다.
-    1순위: 오늘 지역 summary_text
-    2순위: 오늘 지역 avg/min/max/dominant_weather 조합
-    3순위: DB 데이터가 없으면 외부 조회 없이 기본 안내 문장 반환
+    제미나이 프롬프트용 최신 날씨 문장을 반환합니다.
+    1순위: weather_cache.db의 60분 이내 최신 캐시
+    2순위: 캐시가 없거나 만료되면 요청형 외부 조회 후 최신 캐시 저장
+    3순위: 외부 조회 실패 시 weather_cache.db의 직전 캐시
+    4순위: 모든 조회가 실패하면 안전한 기본 안내 문장
     """
     region_name = str(region or "").strip()
     if not region_name:
-        return "오늘 날씨 정보는 아직 충분하지 않습니다. 기본 날씨값을 참고해 자연스럽게 작성해 주세요.", "맑음", "20"
-
-    today = datetime.now(KST).strftime("%Y-%m-%d")
-    try:
-        db_path = str(settings.STORYMAKER_DB_PATH)
-        with sqlite3.connect(db_path, timeout=2) as conn:
-            conn.row_factory = sqlite3.Row
-            lookup_regions = build_region_lookup_candidates(region_name)
-            placeholders = ",".join("?" for _ in lookup_regions)
-            row = conn.execute(
-                f"""
-                SELECT summary_text, avg_temp, min_temp, max_temp, dominant_weather
-                FROM weather_daily_summaries
-                WHERE region IN ({placeholders}) AND date = ?
-                LIMIT 1
-                """,
-                (*lookup_regions, today),
-            ).fetchone()
-            if row:
-                summary_text = str(row["summary_text"] or "").strip()
-                if summary_text:
-                    temp_val = row["avg_temp"] if row["avg_temp"] is not None else "20"
-                    weather_val = row["dominant_weather"] or "맑음"
-                    if any(token in summary_text for token in ("평균", "최저", "최고", "흐름입니다")):
-                        summary_text = _build_weather_story_sentence(
-                            region_name,
-                            weather_val,
-                            row["avg_temp"],
-                            row["min_temp"],
-                            row["max_temp"],
-                        )
-                    return summary_text, str(weather_val), str(temp_val)
-                composed = _compose_weather_summary_from_daily(
-                    region_name,
-                    row["avg_temp"],
-                    row["min_temp"],
-                    row["max_temp"],
-                    row["dominant_weather"],
-                )
-                temp_val = row["avg_temp"] if row["avg_temp"] is not None else "20"
-                weather_val = row["dominant_weather"] or "맑음"
-                return composed, str(weather_val), str(temp_val)
-    except Exception:
-        pass
+        return "오늘 날씨 정보는 아직 충분하지 않습니다. 기본 날씨값을 참고해 자연스럽게 작성해 주세요.", "날씨 확인", "20"
 
     try:
-        raise RuntimeError("weather_daily_summaries miss")
-        context = f"오늘 {region_name}의 날씨는 {weather}입니다. 현재 기온은 {temperature}℃입니다."
-        return context, weather, temperature
+        weather, temperature = fetch_weather_and_temp(region_name)
+        weather_val = str(weather or "날씨 확인").strip()
+        temp_val = str(temperature or "20").strip()
+        context = (
+            f"오늘 {region_name}의 날씨는 {weather_val}입니다. "
+            f"현재 기온은 {temp_val}℃입니다. "
+            "날씨를 길게 설명하지 말고 오늘의 공기와 현장 분위기에 자연스럽게 반영해 주세요."
+        )
+        return context, weather_val, temp_val
     except Exception:
-        return f"오늘 {region_name}의 날씨 정보는 아직 DB에 충분히 쌓이지 않았습니다. 계절감과 시간대 흐름만 자연스럽게 반영해 주세요.", "날씨 확인", "20"
+        return (
+            f"오늘 {region_name}의 최신 날씨를 확인하지 못했습니다. "
+            "계절감과 시간대 흐름만 자연스럽게 반영해 주세요.",
+            "날씨 확인",
+            "20",
+        )
 
 
 def _extract_korean_region_candidates(*texts: str) -> list[str]:
@@ -1181,7 +1158,9 @@ def build_prompt_markdown(company: str, persona: str, base_content: str, referen
     if compact_reference_text:
         reference_parts.append(f"### [압축 참고자료]\n{compact_reference_text}")
     reference_block = "\n\n".join(reference_parts) if reference_parts else "(참고자료 없음)"
-    keyword_lines = "\n".join([f"- {k}" for k in keywords if str(k).strip()]) if keywords else "(핵심 키워드 없음)"
+    prompt_persona = format_region_text(persona.strip())
+    normalized_keywords = [format_region_text(str(k).strip()) for k in (keywords or []) if str(k).strip()]
+    keyword_lines = "\n".join([f"- {k}" for k in normalized_keywords]) if normalized_keywords else "(핵심 키워드 없음)"
 
     # 날짜, 요일, 계절, 시간대, 생활 흐름 자동 생성
     now = datetime.now(KST)
@@ -1504,7 +1483,7 @@ PODCAST_50, PODCAST_80
 {company}
 
 ### 업체 페르소나
-{persona.strip()}
+{prompt_persona}
 
 ## 입력 자료
 ### 기초내용 입력

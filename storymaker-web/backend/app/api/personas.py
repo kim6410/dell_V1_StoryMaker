@@ -21,6 +21,7 @@ from app.api.auth import get_current_user
 from app.services import StoryMakerService
 from app.schemas import PersonaUpdate, PersonaResponse, CommonResponse
 from app.schemas.persona import UserPersonaUpsert
+from app.core.region_display import format_region_display
 
 router = APIRouter()
 
@@ -59,7 +60,7 @@ def serialize_user_persona(persona: UserPersona) -> dict:
         "company_name": persona.company_name,
         "phone_number": persona.phone_number,
         "website_url": getattr(persona, "website_url", None) or "",
-        "region": getattr(persona, "region", None) or "",
+        "region": format_region_display(getattr(persona, "region", None) or ""),
         "industry_key": getattr(persona, "industry_key", None) or "general",
         "default_style": getattr(persona, "default_style", None) or "네이버 블로그",
         "blog_content_length": normalize_blog_content_length(getattr(persona, "blog_content_length", 1500)),
@@ -76,7 +77,7 @@ def clean_persona_payload(req: UserPersonaUpsert) -> tuple[str, str, str, str, s
     company_name = req.company_name.strip()
     phone_number = normalize_korean_phone_number(req.phone_number)
     website_url = (req.website_url or "").strip()
-    region = (req.region or "").strip()
+    region = format_region_display(req.region)
     industry_candidates = {"general", "home_repair", "boiler_facility", "appliance_clean", "general_cleaning", "window_screen", "key_doorlock", "lighting_electric", "drain_unclog", "restaurant", "meat_korean", "bakery_dessert", "pub_bar", "mealkit_sidedish", "cafe", "workshop_class", "partyroom_studio", "beauty_wellness", "hair_salon", "nail_art", "skin_care", "fitness_pt", "body_massage", "car_repair", "car_detailing", "car_rental", "pet_beauty_hotel", "veterinary_clinic", "flower_shop", "kids_cafe", "real_estate", "education_academy", "study_cafe", "professional_service", "moving_service", "camping", "logistics"}
     style_candidates = {"네이버 블로그", "티스토리", "인스타그램", "스레드", "브런치스토리", "워드프레스"}
     tone_candidates = {"따뜻함", "전문가", "친근함", "신뢰감", "현장감", "진정성", "차분함", "활기", "담백함", "순박함", "진지함"}
@@ -100,10 +101,22 @@ def clean_persona_payload(req: UserPersonaUpsert) -> tuple[str, str, str, str, s
         cleaned = keyword.strip()
         if cleaned and cleaned not in keywords:
             keywords.append(cleaned)
+    missing_fields = []
     if not company_name:
-        company_name = "새 업체"
+        missing_fields.append("업체명")
     if not region:
-        region = "지역 미입력"
+        missing_fields.append("지역")
+    if not phone_number:
+        missing_fields.append("전화번호")
+    if not keywords:
+        missing_fields.append("핵심 키워드")
+    if len(content) < 10:
+        missing_fields.append("페르소나 상세 설명")
+    if missing_fields:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"필수 입력 항목을 확인해 주세요: {', '.join(missing_fields)}",
+        )
     return company_name, phone_number, website_url, region, industry_key, default_style, blog_content_length, default_tones[:11], keywords[:30], content
 
 

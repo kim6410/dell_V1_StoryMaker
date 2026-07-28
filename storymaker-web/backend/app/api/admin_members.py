@@ -19,6 +19,7 @@ from app.db.database import get_db
 from app.db.models import Project, User, UserPersona
 from app.schemas import CommonResponse
 from app.schemas.persona import UserPersonaUpsert
+from app.services.video_credit_service import credit_summary, ensure_free_monthly_cycle
 from pydantic import BaseModel
 
 
@@ -179,6 +180,7 @@ def _billing_summary(db: Session, user: User) -> dict:
         "current_period_ends_at": (profile or {}).get("current_period_ends_at"),
         "next_billing_at": (profile or {}).get("next_billing_at"),
         "free_signup_credit_given": bool((profile or {}).get("free_signup_credit_given") or False),
+        "monthly_credit": credit_summary(db, user.id, str(user.role or "user")),
         "base_video_credits": base_credits,
         "total_granted": credits["total_granted"],
         "total_used": credits["total_used"],
@@ -468,14 +470,10 @@ def grant_member_free_signup_credit(
     admin_user: User = Depends(get_admin_user),
 ):
     user = _require_billable_user(db, user_id)
-    profile = _ensure_billing_profile(db, user.id, "free")
-    if bool(profile.get("free_signup_credit_given")):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Free 최초 20회는 이미 지급되었습니다.")
-    _grant_wallet_credit(db, user.id, 20, "free_signup", "free_signup_credit", "Free 최초 20회 지급")
-    now = _now_text()
-    db.execute(text("update member_billing_profiles set current_plan_code=coalesce(current_plan_code,'free'), free_signup_credit_given=1, free_signup_credit_given_at=:now, updated_at=:now where user_id=:user_id"), {"user_id": user.id, "now": now})
+    _ensure_billing_profile(db, user.id, "free")
+    ensure_free_monthly_cycle(db, user.id, str(user.role or "user"))
     db.commit()
-    return CommonResponse(ok=True, data=_billing_summary(db, user), message="Free 최초 20회를 지급했습니다.")
+    return CommonResponse(ok=True, data=_billing_summary(db, user), message="Free 월 20회 사용 주기를 시작했습니다.")
 
 
 @router.post("/admin/members/{user_id}/billing/free-bonus-credit", response_model=CommonResponse)

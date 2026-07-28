@@ -40,6 +40,7 @@ from app.api.podcast import API_URL as WORKER_API_URL, normalize_podcast_speaker
 from app.db.database import get_db
 from app.db.models import User, UserPersona
 from app.services.content_integrity_service import delete_job_bundle
+from app.services.video_credit_service import consume_credit, release_credit, reserve_credit
 from app.db.mobile_one_shot_repository import delete_mobile_one_shot_job, get_mobile_one_shot_admin_usage, get_mobile_one_shot_progress, get_mobile_one_shot_result_path, list_mobile_one_shot_admin_queue, list_mobile_one_shot_job_summaries, list_mobile_one_shot_result_paths, list_mobile_one_shot_title_backfill_candidates, sync_mobile_one_shot_job_from_result, update_mobile_one_shot_job_memo, update_mobile_one_shot_progress, upsert_mobile_one_shot_job
 from app.schemas import PromptRequest, ResultParseRequest
 from app.services import StoryMakerService
@@ -1999,6 +2000,7 @@ async def create_mobile_one_shot_job(
     created_at = _now()
     timing = {"job_created_at": created_at.isoformat(timespec="milliseconds")}
     job_id = f"mob-{created_at.strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:8]}"
+    reserve_credit(db, current_user.id, str(current_user.role or "user"), "v1_mobile_one_shot", job_id)
     job_dir = _job_dir(job_id, created_at.strftime(KST_DATE_FORMAT))
     image_dir = job_dir / "images"
     image_dir.mkdir(parents=True, exist_ok=True)
@@ -3313,6 +3315,7 @@ async def upload_mobile_one_shot_browser_shortform(
     provider: str = Form(default="browser"),
     duration_seconds: float = Form(default=0),
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     result_file = _find_mobile_result_file(job_id, current_user)
     data = json.loads(result_file.read_text(encoding="utf-8"))
@@ -3385,6 +3388,8 @@ async def upload_mobile_one_shot_browser_shortform(
     except Exception:
         pass
 
+    consume_credit(db, current_user.id, "v1_mobile_one_shot", job_id)
+    db.commit()
     return {
         "ok": True,
         "job_id": job_id,
@@ -3403,6 +3408,7 @@ async def upload_mobile_one_shot_browser_podcast(
     provider: str = Form(default="wasm"),
     duration_seconds: float = Form(default=0),
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     result_file = _find_mobile_result_file(job_id, current_user)
     data = json.loads(result_file.read_text(encoding="utf-8"))

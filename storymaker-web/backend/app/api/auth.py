@@ -4,6 +4,7 @@ StoryMaker 웹앱 백엔드 사용자 인증 API 라우터 및 의존성 주입 
 """
 from fastapi import APIRouter, Depends, HTTPException, Security, status, Request, Response, Cookie
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from datetime import datetime
 import json
@@ -23,6 +24,7 @@ from app.db.database import get_db
 from app.db.repositories import get_user_by_username, create_user
 from app.db.models import User, UserSession, ActivityLog, UserPersona, IndustryPromptTemplate, RegionOption
 from app.core.security import verify_password, create_access_token, verify_access_token, hash_password
+from app.core.region_display import format_region_display, normalize_region_search_text
 from app.schemas import CommonResponse
 from app.schemas.user import (
     GoogleCredentialRequest,
@@ -944,6 +946,47 @@ def list_user_region_options(
         "region_type": item.region_type or "province",
         "sort_order": item.sort_order or 0,
     } for item in items]
+    return CommonResponse(ok=True, data=data, message="")
+
+
+@router.get("/auth/regions/search", response_model=CommonResponse)
+def search_legal_districts(
+    q: str = "",
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    query = str(q or "").strip()
+    if len(query.replace(" ", "")) < 2:
+        return CommonResponse(ok=True, data=[], message="두 글자 이상 입력해 주세요.")
+    safe_limit = max(1, min(int(limit or 20), 30))
+    tokens = [token for token in query.split() if token]
+    compact = normalize_region_search_text(query)
+    where_parts = ["selectable=1", "is_active=1"]
+    params: dict[str, object] = {"limit": safe_limit, "compact": f"%{compact}%", "exact": query}
+    for index, token in enumerate(tokens):
+        key = f"token_{index}"
+        where_parts.append(f"(full_name LIKE :{key} OR search_text LIKE :{key})")
+        params[key] = f"%{token}%"
+    rows = db.execute(text(f"""
+        SELECT legal_code, full_name, short_name, sido, sigungu, locality, region_type
+        FROM legal_districts
+        WHERE {' AND '.join(where_parts)}
+        ORDER BY
+          CASE WHEN short_name=:exact THEN 0 WHEN short_name LIKE :exact_prefix THEN 1 ELSE 2 END,
+          length(full_name), full_name
+        LIMIT :limit
+    """), {**params, "exact_prefix": f"{query}%"}).mappings().all()
+    data = [{
+        "legal_code": row["legal_code"],
+        "full_name": row["full_name"],
+        "display_name": format_region_display(row["full_name"]),
+        "short_name": row["short_name"],
+        "sido": row["sido"],
+        "sigungu": row["sigungu"],
+        "locality": row["locality"],
+        "region_type": row["region_type"],
+    } for row in rows]
     return CommonResponse(ok=True, data=data, message="")
 
 

@@ -25,6 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy import text
 from app.db.database import engine, Base, SessionLocal, migrate_user_auth_columns, migrate_weather_tables, migrate_industry_prompt_templates, migrate_project_assets_table, migrate_region_options
+from app.db.billing_migration import migrate_billing_credit_tables
 from app.db.pattern_repository import migrate_pattern_tables
 from app.db.performance_repository import migrate_performance_tables
 from app.db.intelligence_repository import migrate_intelligence_tables
@@ -35,6 +36,7 @@ from app.db.models import User
 from app.db.repositories import seed_admin_user
 from app.services.common_archive_service import register_common_archive
 from app.services.content_asset_service import backfill_recent_content_archive_assets
+from app.services.weather_cache_service import cleanup_expired_weather_cache, ensure_weather_cache_db
 from app.core.prompt_builder import REGION_WEATHER_QUERY_MAP, fetch_weather_and_temp
 
 KST = ZoneInfo("Asia/Seoul")
@@ -95,6 +97,7 @@ migrate_performance_tables()
 migrate_intelligence_tables()
 migrate_mobile_one_shot_jobs_table()
 migrate_content_archive_assets_table()
+migrate_billing_credit_tables(engine)
 ensure_content_storage_schema()
 try:
     restore_orphan_document_parents()
@@ -331,8 +334,14 @@ def start_weather_collector() -> None:
     if getattr(app.state, "weather_collector_started", False):
         return
     app.state.weather_collector_started = True
-    thread = threading.Thread(target=_weather_collector_loop, daemon=True)
-    thread.start()
+    ensure_weather_cache_db()
+    removed = cleanup_expired_weather_cache()
+    app.state.latest_weather_collect_result = {
+        "ok": True,
+        "mode": "on_demand_latest_cache",
+        "auto_collection": False,
+        "expired_removed": removed,
+    }
     start_learning_scheduler()
     start_performance_scheduler()
     start_brain_scheduler()
@@ -341,7 +350,12 @@ def start_weather_collector() -> None:
 
 @app.get("/api/weather/collect-now")
 def collect_weather_now():
-    return collect_weather_snapshots_once()
+    return {
+        "ok": True,
+        "mode": "on_demand_latest_cache",
+        "auto_collection": False,
+        "message": "전국 일괄 수집은 비활성화되어 있으며 사용자 요청 지역만 캐싱합니다.",
+    }
 
 
 @app.get("/api/weather/collect-status")
@@ -2035,7 +2049,15 @@ def read_root():
 @app.get("/storymaker")
 @app.get("/app/storymaker")
 @app.get("/app/storymaker/")
-def read_storymaker():
+def read_storymaker(request: Request):
+    action = str(request.query_params.get("action") or "").strip().lower()
+    if action in {"login", "register", "join", "password", "lostpassword", "mypage", "admin"}:
+        query = request.url.query
+        target = "/v1/"
+        if query:
+            target = f"{target}?{query}"
+        return RedirectResponse(url=target, status_code=307)
+
     headers = {
         "Cache-Control": "no-cache, no-store, must-revalidate",
         "Pragma": "no-cache",

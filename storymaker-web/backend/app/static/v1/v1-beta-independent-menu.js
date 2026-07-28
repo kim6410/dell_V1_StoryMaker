@@ -2,8 +2,8 @@
   'use strict';
 
   const MENU_ITEMS = [
-    { key: 'betaProduction', label: '딸깍 제작 Beta', src: '/v1/beta/production' },
-    { key: 'betaArchive', label: '보관함 Beta', src: '/v1/beta/archive' },
+    { key: 'betaProduction', label: '딸깍 제작', src: '/v1/beta/production' },
+    { key: 'betaArchive', label: '보관함', src: '/v1/beta/archive' },
   ];
 
   function findNav() {
@@ -149,7 +149,7 @@
       button.dataset.storymakerBetaMenu = '1';
       button.dataset.storymakerBetaKey = item.key;
       button.className = template?.className || 'rounded-lg px-4 py-3.5 text-left text-lg font-black text-slate-100 hover:bg-slate-900';
-      button.innerHTML = `<span class="flex w-full items-center justify-between gap-3"><span>${item.label}</span>${index === 0 ? '<span class="rounded-full border border-cyan-300/40 bg-cyan-300/10 px-2 py-0.5 text-[10px] font-black text-cyan-200">BETA</span>' : ''}</span>`;
+      button.innerHTML = `<span class="flex w-full items-center justify-between gap-3"><span>${item.label}</span><span class="rounded-full border border-cyan-300/40 bg-cyan-300/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">BETA</span></span>`;
       button.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();

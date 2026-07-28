@@ -259,17 +259,25 @@
     const plans = (Array.isArray(summary.plans) ? summary.plans : []).filter((plan) => ['free', 'starter'].includes(String(plan.code || '').toLowerCase()));
     const isStarter = String(summary.plan_code || '').toLowerCase() === 'starter';
     const statusText = isStarter ? '유료 회원' : '무료 회원';
-    const periodStart = formatKoreanDate(summary.current_period_started_at);
-    const periodEnd = formatKoreanDate(summary.current_period_ends_at);
+    const monthly = summary.monthly_credit || {};
+    const periodStart = formatKoreanDate(monthly.period_start || summary.current_period_started_at);
+    const periodEnd = formatKoreanDate(monthly.period_end || summary.current_period_ends_at);
+    const nextReset = formatKoreanDate(monthly.next_reset_at || summary.next_billing_at || summary.current_period_ends_at);
+    const monthlyGranted = Number(monthly.monthly_granted || 0);
+    const monthlyUsed = Number(monthly.monthly_used || 0);
+    const monthlyReserved = Number(monthly.monthly_reserved || 0);
+    const monthlyRemaining = Number(monthly.monthly_remaining || 0);
+    const bonusRemaining = Number(monthly.bonus_remaining || 0);
+    const totalRemaining = Number(monthly.remaining ?? summary.remaining_credits ?? 0);
     return `<div class="sm-member-box sm-billing-box" data-billing-user-id="${Number(summary.user_id || currentUserId)}" style="margin:0 0 14px">
       <div class="sm-detail-head" style="margin-bottom:12px"><div><h3 style="margin:0">요금제 관리</h3><div class="sm-user-meta" style="margin:5px 0 0">선택한 회원의 요금제와 무료 이용권을 관리합니다.</div></div><span class="sm-badge">관리자 전용</span></div>
       <div class="sm-member-cards" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px">
         <div class="sm-member-card"><div>회원 상태</div><strong>${esc(statusText)}</strong><small>${isStarter ? '구독 활성' : '무료 이용'}</small></div>
         <div class="sm-member-card"><div>현재 요금제</div><strong>${esc(isStarter ? 'Starter' : 'Free')}</strong><small>${isStarter ? '월 4,500원' : '0원'}</small></div>
-        <div class="sm-member-card"><div>${isStarter ? '첫 달 운영' : '현재 이용 가능'}</div><strong>${isStarter ? '무제한' : `${Number(summary.remaining_credits || 0).toLocaleString()}회`}</strong><small>${isStarter ? '사용량만 집계' : `사용 ${Number(summary.total_used || 0).toLocaleString()}회`}</small></div>
-        <div class="sm-member-card"><div>${isStarter ? '이용 정책' : '무료 이용권'}</div><strong>${isStarter ? '모니터링' : esc(freeCredit)}</strong><small>${isStarter ? '추가 충전 없음' : '20회 단위 지급'}</small></div>
+        <div class="sm-member-card"><div>${isStarter ? '첫 달 운영' : '전체 이용 가능'}</div><strong>${isStarter ? '무제한' : `${totalRemaining.toLocaleString()}회`}</strong><small>${isStarter ? '사용량만 집계' : `월 ${monthlyRemaining.toLocaleString()}회 + 추가 ${bonusRemaining.toLocaleString()}회`}</small></div>
+        <div class="sm-member-card"><div>${isStarter ? '이용 정책' : '이번 달 사용'}</div><strong>${isStarter ? '모니터링' : `${monthlyUsed.toLocaleString()} / ${monthlyGranted.toLocaleString()}회`}</strong><small>${isStarter ? '추가 충전 없음' : monthlyReserved > 0 ? `제작 중 ${monthlyReserved.toLocaleString()}회 예약` : '제작 중 예약 없음'}</small></div>
       </div>
-      ${isStarter ? `<div class="sm-subscription-period" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 12px"><div class="sm-member-card"><div>구독 시작일</div><strong>${esc(periodStart)}</strong><small>Starter 적용일</small></div><div class="sm-member-card"><div>구독 종료일</div><strong>${esc(periodEnd)}</strong><small>다음 결제 예정일</small></div></div>` : ''}
+      ${isStarter ? `<div class="sm-subscription-period" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 12px"><div class="sm-member-card"><div>구독 시작일</div><strong>${esc(periodStart)}</strong><small>Starter 적용일</small></div><div class="sm-member-card"><div>구독 종료일</div><strong>${esc(periodEnd)}</strong><small>다음 결제 예정일</small></div></div>` : `<div class="sm-subscription-period" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 12px"><div class="sm-member-card"><div>월 제공량</div><strong>${monthlyGranted.toLocaleString()}회</strong><small>무료 월 기본량</small></div><div class="sm-member-card"><div>월 잔여량</div><strong>${monthlyRemaining.toLocaleString()}회</strong><small>이번 이용기간 잔여</small></div><div class="sm-member-card"><div>추가 지급 잔여</div><strong>${bonusRemaining.toLocaleString()}회</strong><small>관리자 추가 지급분</small></div><div class="sm-member-card"><div>다음 리셋일</div><strong>${esc(nextReset)}</strong><small>${esc(periodStart)} ~ ${esc(periodEnd)}</small></div></div>`}
       <div class="sm-member-toolbar" style="margin-top:12px;display:grid;grid-template-columns:minmax(260px,1fr) auto;gap:10px;align-items:center">
         <select class="sm-member-input" data-billing-plan>${plans.map((plan) => `<option value="${esc(plan.code)}" ${plan.code === summary.plan_code ? 'selected' : ''}>${String(plan.code).toLowerCase() === 'starter' ? 'Starter · 월 4,500원' : 'Free · 0원'}</option>`).join('')}</select>
         <button type="button" class="sm-action sm-primary" data-billing-change-plan>요금제 변경</button>

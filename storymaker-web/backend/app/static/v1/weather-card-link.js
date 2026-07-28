@@ -123,8 +123,24 @@
     node.setAttribute('aria-label', '기상정보 DB 열기');
   }
 
+  function isLoginCardTarget(target) {
+    let node = target;
+    for (let depth = 0; node && depth < 7; depth += 1, node = node.parentElement) {
+      const text = clean(node.textContent || '');
+      const rect = node.getBoundingClientRect?.();
+      if (!rect) continue;
+      const isLoginCopy = text.includes('LOGIN') || text.includes('저장/생성 기능은 로그인 후 사용할 수 있습니다.');
+      if (isLoginCopy && rect.width >= 180 && rect.width <= 460 && rect.height >= 70 && rect.height <= 260) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function captureWeatherActivation(event) {
     if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+    if (event.target?.closest?.('[data-mypage-react-linked="1"], [data-mypage-profile-card="1"]')) return;
+    if (isLoginCardTarget(event.target)) return;
     const trigger = event.target?.closest?.('[data-storymaker-weather-inline-trigger="1"]');
     if (!trigger) return;
     const interactive = event.target?.closest?.('button,a,input,select,textarea,[role="button"]');
@@ -138,6 +154,27 @@
   document.addEventListener('click', captureWeatherActivation, true);
   document.addEventListener('keydown', captureWeatherActivation, true);
 
+  function formatBusinessSummary(card) {
+    if (!card) return;
+    const summary = Array.from(card.querySelectorAll('div,span,p,strong'))
+      .find((node) => {
+        const text = clean(node.textContent || '');
+        return text.includes('지역:') && text.includes('상호:') && text.includes('전화번호:');
+      });
+    if (!summary) return;
+
+    const text = clean(summary.textContent || '');
+    const region = (text.match(/지역:\s*(.*?)\s*\/\s*상호:/) || [])[1]?.trim();
+    const company = (text.match(/상호:\s*(.*?)\s*\/\s*전화번호:/) || [])[1]?.trim();
+    const phone = (text.match(/전화번호:\s*(01[016789]-?\d{3,4}-?\d{4})/) || [])[1]?.trim();
+    if (!region || !company || !phone) return;
+
+    const signature = `${company}|${region}|${phone}`;
+    if (summary.dataset.storymakerBusinessSummary === signature) return;
+    summary.dataset.storymakerBusinessSummary = signature;
+    summary.innerHTML = `<strong style="font-size:calc(1em + 2px);font-weight:900;color:inherit">${company}</strong><span> / ${region} / ${phone}</span>`;
+  }
+
   function refreshTriggers() {
     document.querySelectorAll('[data-weather-menu-live]').forEach((node) => node.remove());
 
@@ -145,6 +182,7 @@
       .find((node) => clean(node.textContent) === '실시간 날씨');
     if (weatherLabel) {
       const card = bestCard(weatherLabel, '실시간 날씨');
+      formatBusinessSummary(card);
       bindTrigger(card, normalizeRegion(clean(card.textContent || '')));
     }
 
