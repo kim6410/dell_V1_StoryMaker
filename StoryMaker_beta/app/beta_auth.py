@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 from fastapi import HTTPException, Request
+from fastapi.responses import JSONResponse
 
 ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
 DB_PATH = ROOT / "data" / "storymaker_beta.db"
@@ -73,12 +74,10 @@ def require_job_owner(request: Request, job_id: str) -> None:
         ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Beta 작업을 찾을 수 없습니다.")
-    owner_user_id = row[0]
-    if owner_user_id is None:
-        if role != "admin":
-            raise HTTPException(status_code=404, detail="Beta 작업을 찾을 수 없습니다.")
+    if role == "admin":
         return
-    if int(owner_user_id) != user_id:
+    owner_user_id = row[0]
+    if owner_user_id is None or int(owner_user_id) != user_id:
         raise HTTPException(status_code=404, detail="Beta 작업을 찾을 수 없습니다.")
 
 
@@ -87,8 +86,15 @@ async def enforce_beta_user_isolation(request: Request, call_next):
     if not path.startswith("/beta-api") or path == "/beta-api/health":
         return await call_next(request)
 
-    require_signed_user(request)
-    match = JOB_PATH_PATTERN.search(path)
-    if match:
-        require_job_owner(request, match.group(1))
+    try:
+        require_signed_user(request)
+        match = JOB_PATH_PATTERN.search(path)
+        if match:
+            require_job_owner(request, match.group(1))
+    except HTTPException as exc:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+            headers=exc.headers or {},
+        )
     return await call_next(request)
