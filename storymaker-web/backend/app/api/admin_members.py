@@ -171,7 +171,7 @@ def _credit_totals(db: Session, user_id: int) -> dict:
 
 
 def _daily_usage_history(db: Session, user_id: int, days: int = 14) -> list[dict]:
-    """Beta 딸깍 제작 DB만 기준으로 최근 일자별 실제 제작 사용량을 반환합니다."""
+    """검증 완료된 Beta MP4 사용량 원장을 기준으로 최근 일자별 사용량을 반환합니다."""
     safe_days = max(7, min(int(days or 14), 31))
     end_date = datetime.now().date()
     start_date = end_date - timedelta(days=safe_days - 1)
@@ -179,48 +179,29 @@ def _daily_usage_history(db: Session, user_id: int, days: int = 14) -> list[dict
     reserved: dict[str, int] = {}
 
     beta_db_path = os.getenv("STORYMAKER_BETA_DB_PATH", "/beta_data/storymaker_beta.db")
-    beta_host_prefix = "/home/bourne/StoryMaker_1/StoryMaker_beta/data"
-
-    def _beta_runtime_path(value: object) -> str:
-        path = str(value or "").strip()
-        if path.startswith(beta_host_prefix):
-            return "/beta_data" + path[len(beta_host_prefix):]
-        return path
-
     if os.path.exists(beta_db_path):
         try:
-            beta_connection = sqlite3.connect(f"file:{beta_db_path}?mode=ro", uri=True, timeout=3)
-            beta_rows = beta_connection.execute(
-                """
-                select beta_job_id, status, created_at, result_json, selected_thumbnail_path
-                from beta_jobs
-                where owner_user_id = ?
-                  and substr(created_at, 1, 10) >= ?
-                order by created_at
-                """,
-                (int(user_id), start_date.isoformat()),
-            ).fetchall()
-            beta_connection.close()
+            with sqlite3.connect(f"file:{beta_db_path}?mode=ro", uri=True, timeout=3) as beta_connection:
+                rows = beta_connection.execute(
+                    """
+                    select mp4_created_at, mp4_status, mp4_verified
+                    from beta_mp4_usage
+                    where owner_user_id = ?
+                      and substr(mp4_created_at, 1, 10) >= ?
+                      and mp4_status in ('completed', 'reserved')
+                    order by mp4_created_at
+                    """,
+                    (int(user_id), start_date.isoformat()),
+                ).fetchall()
 
-            for beta_job_id, status_value, created_at, result_json, selected_thumbnail_path in beta_rows:
+            for created_at, status_value, verified_value in rows:
                 usage_date = str(created_at or "")[:10]
                 if not usage_date:
                     continue
-
-                # 제작 완료는 Beta DB에 작업이 저장되어 있고 최종 MP4가 실제 생성된 경우만 인정합니다.
-                job_root = os.path.dirname(_beta_runtime_path(result_json)) if result_json else ""
-                final_mp4_candidates = (
-                    os.path.join(job_root, "output", "browser", "browser_final.mp4"),
-                    os.path.join(job_root, "output", "shortform", "final.mp4"),
-                    os.path.join(job_root, "output", "final.mp4"),
-                )
-                mp4_exists = any(
-                    path and os.path.isfile(path) and os.path.getsize(path) > 0
-                    for path in final_mp4_candidates
-                )
-
-                if mp4_exists:
+                if status_value == "completed" and int(verified_value or 0) == 1:
                     consumed[usage_date] = consumed.get(usage_date, 0) + 1
+                elif status_value == "reserved":
+                    reserved[usage_date] = reserved.get(usage_date, 0) + 1
         except Exception:
             pass
 
@@ -309,42 +290,37 @@ def _billing_summary(db: Session, user: User) -> dict:
 
 
 def _beta_completed_stats(user_id: int | None = None) -> dict:
+    """파일 삭제 여부와 무관하게 검증 완료된 Beta MP4 원장을 집계합니다."""
     db_path = os.getenv("STORYMAKER_BETA_DB_PATH", "/beta_data/storymaker_beta.db")
-    host_prefix = "/home/bourne/StoryMaker_1/StoryMaker_beta/data"
     result = {"total": 0, "today": 0, "month": 0, "last_completed_at": None, "completed_at": [], "by_user": {}}
     if not os.path.exists(db_path):
         return result
 
-    def runtime_path(value: object) -> str:
-        path = str(value or "").strip()
-        if path.startswith(host_prefix):
-            return "/beta_data" + path[len(host_prefix):]
-        return path
-
     try:
-        connection = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=3)
-        sql = "select owner_user_id, created_at, result_json from beta_jobs where owner_user_id is not null"
-        params: tuple = ()
-        if user_id is not None:
-            sql += " and owner_user_id = ?"
-            params = (int(user_id),)
-        rows = connection.execute(sql, params).fetchall()
-        connection.close()
+        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=3) as connection:
+            sql = (
+                "select owner_user_id, mp4_created_at "
+                "from beta_mp4_usage "
+                "where owner_user_id is not null "
+                "and mp4_status='completed' and mp4_verified=1"
+            )
+            params: tuple = ()
+            if user_id is not None:
+                sql += " and owner_user_id = ?"
+                params = (int(user_id),)
+            rows = connection.execute(sql, params).fetchall()
+
         today_text = datetime.now().date().isoformat()
         month_text = today_text[:7]
         completed_rows: list[tuple[int, str]] = []
-        for owner_user_id, created_at, result_json in rows:
-            job_root = os.path.dirname(runtime_path(result_json)) if result_json else ""
-            candidates = (
-                os.path.join(job_root, "output", "browser", "browser_final.mp4"),
-                os.path.join(job_root, "output", "shortform", "final.mp4"),
-                os.path.join(job_root, "output", "final.mp4"),
-            )
-            if not any(path and os.path.isfile(path) and os.path.getsize(path) > 0 for path in candidates):
-                continue
+        for owner_user_id, created_at in rows:
             stamp = str(created_at or "")
-            completed_rows.append((int(owner_user_id), stamp))
-            result["by_user"][int(owner_user_id)] = int(result["by_user"].get(int(owner_user_id), 0)) + 1
+            if not stamp:
+                continue
+            owner_id = int(owner_user_id)
+            completed_rows.append((owner_id, stamp))
+            result["by_user"][owner_id] = int(result["by_user"].get(owner_id, 0)) + 1
+
         result["total"] = len(completed_rows)
         result["today"] = sum(1 for _, stamp in completed_rows if stamp[:10] == today_text)
         result["month"] = sum(1 for _, stamp in completed_rows if stamp[:7] == month_text)
