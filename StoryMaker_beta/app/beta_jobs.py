@@ -485,7 +485,7 @@ async def beta_create_job(
     quota = monthly_usage_summary(owner_user_id, owner_role)
     if not quota.get("unlimited") and int(quota.get("used") or 0) >= int(quota.get("limit") or 20):
         raise HTTPException(status_code=402, detail="무료 월 20회 제작 한도를 모두 사용했습니다.")
-    beta_job_id = f"beta_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{secrets.token_hex(3)}"
+    beta_job_id = f"beta_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{secrets.token_hex(6)}"
     job_dir = BETA_JOBS / beta_job_id
     input_dir, output_dir = job_dir / "input", job_dir / "output"
     input_dir.mkdir(parents=True)
