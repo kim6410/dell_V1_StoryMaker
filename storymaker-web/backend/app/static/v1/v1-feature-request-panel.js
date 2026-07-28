@@ -226,6 +226,7 @@
       const payload = await apiFetch(`${API_ADMIN_LIST}/${Number(item.id)}`, { method: 'PUT', body: JSON.stringify({ status: note ? '완료' : selectedStatus, admin_note: note || null }) });
       const updated = payload?.data || item;
       itemsCache = itemsCache.map((row) => Number(row.id) === Number(updated.id) ? updated : row);
+      window.dispatchEvent(new CustomEvent('storymaker:feature-request-updated', { detail: updated }));
       message.textContent = '답변과 상태가 저장되었습니다.';
       renderDetail(host, Number(updated.id));
       host.querySelector('[data-request-message]').textContent = '답변과 상태가 저장되었습니다.';
