@@ -1,0 +1,22 @@
+@media (max-width: 767px) {
+  #sm-mobile-pc-continue-card {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 14px !important;
+    width: 100% !important;
+    margin: 18px 0 28px !important;
+    padding: 18px !important;
+    border: 1px solid rgba(56,189,248,.38) !important;
+    border-radius: 22px !important;
+    background: linear-gradient(145deg,rgba(8,47,73,.96),rgba(15,23,42,.98)) !important;
+    color: #e0f2fe !important;
+    box-shadow: 0 16px 34px rgba(2,8,23,.3) !important;
+  }
+  #sm-mobile-pc-continue-card .sm-icon {
+    display:grid!important;place-items:center!important;flex:0 0 48px!important;
+    width:48px!important;height:48px!important;border-radius:15px!important;
+    background:rgba(14,165,233,.2)!important;color:#7dd3fc!important;font-weight:950!important;
+  }
+  #sm-mobile-pc-continue-card strong {display:block!important;margin:1px 0 7px!important;color:#f8fafc!important;font-size:16px!important;font-weight:900!important;line-height:1.4!important}
+  #sm-mobile-pc-continue-card p {margin:0!important;color:#bae6fd!important;font-size:13px!important;font-weight:700!important;line-height:1.65!important;word-break:keep-all!important}
+}
