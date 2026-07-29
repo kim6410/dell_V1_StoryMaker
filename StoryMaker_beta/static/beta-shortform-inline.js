@@ -367,8 +367,22 @@
     };
   }
 
-  function scrollToPreview(behavior = 'smooth') {
-    const target = fields.finalVideo?.closest('.sf-preview-shell') || root.querySelector('.sf-preview-shell');
+  function isPcFocusLayout() {
+    return window.matchMedia('(min-width: 1051px)').matches;
+  }
+
+  function getMp4ProgressFocusTarget() {
+    // PC에서 영상 만들기를 누르면 오른쪽 미리보기 하단의
+    // Play · 썸네일 제작 · 보관함 바로가기 버튼 줄을 화면 상단에 고정한다.
+    return fields.play?.closest('.sf-preview-actions')
+      || fields.finalVideo?.closest('.sf-preview-shell')
+      || fields.progress?.closest('.sf-progress')
+      || null;
+  }
+
+  function scrollToMp4Progress(behavior = 'smooth') {
+    if (!isPcFocusLayout()) return;
+    const target = getMp4ProgressFocusTarget();
     if (!target) return;
     try {
       let targetWindow = window;
@@ -384,20 +398,23 @@
       target.scrollIntoView({ behavior, block: 'start' });
     }
   }
+
   function startPreviewFocusLock() {
     if (state.previewFocusTimer) clearInterval(state.previewFocusTimer);
-    scrollToPreview('smooth');
+    if (!isPcFocusLayout()) return;
+    scrollToMp4Progress('smooth');
     state.previewFocusTimer = setInterval(() => {
-      const target = fields.finalVideo?.closest('.sf-preview-shell') || root.querySelector('.sf-preview-shell');
+      const target = getMp4ProgressFocusTarget();
       if (!target) return;
       const rect = target.getBoundingClientRect();
-      if (rect.top < -20 || rect.top > 42) scrollToPreview('auto');
+      if (rect.top < -20 || rect.top > 42) scrollToMp4Progress('auto');
     }, 800);
   }
-  function stopPreviewFocusLock({ keepPosition = true } = {}) {
+
+  function stopPreviewFocusLock({ keepPosition = false } = {}) {
     if (state.previewFocusTimer) clearInterval(state.previewFocusTimer);
     state.previewFocusTimer = null;
-    if (keepPosition) scrollToPreview('smooth');
+    if (keepPosition) scrollToMp4Progress('smooth');
   }
 
   async function makeVideo() {
@@ -430,7 +447,6 @@
       currentValues.one_time_music_file = fields.bgmMode.value === 'one_time' ? fields.bgmUpload.files?.[0] || null : null;
       stopHeartbeat = startWorkingHeartbeat('TTS·SRT·MP3 준비', 12, 36);
       let lastProgressLog = '';
-      let mp3FocusFixed = false;
       const result = await renderer.createVideoOnly(state.jobId, currentValues, (percent, message, detail) => {
         const cleanMessage = String(message || '제작 진행 중');
         setProgress(percent, cleanMessage);
@@ -441,10 +457,6 @@
         if (Number(percent || 0) >= 36 && stopHeartbeat) {
           stopHeartbeat();
           stopHeartbeat = null;
-        }
-        if (Number(percent || 0) >= 36 && !mp3FocusFixed) {
-          mp3FocusFixed = true;
-          scrollToPreview('auto');
         }
         if (detail?.type === 'frame') showRenderedFrame(detail.canvas);
         else if (detail) detailLog(detail);
@@ -467,7 +479,6 @@
       if (!state.savedToArchive) await saveCurrentToArchive();
       if (!state.savedToArchive) throw new Error('MP4 보관함 자동 저장에 실패했습니다.');
       setProgress(100, 'MP4 제작 및 보관함 자동 저장 완료');
-      scrollToPreview('smooth');
       if (fields.sceneBadge) fields.sceneBadge.textContent = '제작 완료 · Play로 확인하세요';
       // MP4 완료 시 현재 작업 데이터와 사용자가 선택한 이미지 목록을 16종 썸네일 영역에 전달합니다.
       window.dispatchEvent(new CustomEvent('storymaker:shortform-complete', {
@@ -512,7 +523,6 @@
         state.savedToArchive = true;
         stopScenePreview();
         setProgress(100, '서버 MP4 폴백 완료 · 보관함 자동 저장 완료');
-        scrollToPreview('smooth');
         appendLog('Dell 서버 MP4 폴백 완료 · 저사양 PC에서도 최종 영상 생성 성공');
         if (fields.sceneBadge) fields.sceneBadge.textContent = '서버 폴백 완료 · Play로 확인하세요';
         window.dispatchEvent(new CustomEvent('storymaker:shortform-complete', {
@@ -538,7 +548,7 @@
         stopHeartbeat();
         stopHeartbeat = null;
       }
-      stopPreviewFocusLock({ keepPosition: true });
+      stopPreviewFocusLock({ keepPosition: false });
       fields.make.disabled = false;
       fields.make.classList.toggle('beta-action-breathe', !state.readyToSave);
     }
