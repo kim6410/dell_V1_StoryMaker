@@ -485,12 +485,14 @@ def list_content_board_items(
             continue
         data = _sync_worker_result(data, result_file)
         data = _reapply_staged_edited_contents(data, result_file)
-        data = _start_podcast_job(data, result_file)
-        data = _sync_podcast_result(data, result_file)
-        data = _start_thumbnail_job(data, result_file)
-        data = _sync_thumbnail_result(data, result_file)
-        data = _start_shortform_job(data, result_file)
-        data = _sync_shortform_result(data, result_file)
+        mobile_pc_continue = bool((data.get("pipeline") or {}).get("defer_media_to_pc"))
+        if not mobile_pc_continue:
+            data = _start_podcast_job(data, result_file)
+            data = _sync_podcast_result(data, result_file)
+            data = _start_thumbnail_job(data, result_file)
+            data = _sync_thumbnail_result(data, result_file)
+            data = _start_shortform_job(data, result_file)
+            data = _sync_shortform_result(data, result_file)
         if not _mobile_archive_has_content(data):
             continue
         items.append(_summary_item(record, result_file, data))
@@ -624,10 +626,12 @@ def get_content_board_item(
     result_file, data = _read_owned_result(record)
     data = _sync_worker_result(data, result_file)
     data = _reapply_staged_edited_contents(data, result_file)
-    data = _start_podcast_job(data, result_file)
-    data = _sync_podcast_result(data, result_file)
-    data = _sync_thumbnail_result(data, result_file)
-    data = _sync_shortform_result(data, result_file)
+    mobile_pc_continue = bool((data.get("pipeline") or {}).get("defer_media_to_pc"))
+    if not mobile_pc_continue:
+        data = _start_podcast_job(data, result_file)
+        data = _sync_podcast_result(data, result_file)
+        data = _sync_thumbnail_result(data, result_file)
+        data = _sync_shortform_result(data, result_file)
     data = _normalize_outputs(data)
     db_documents = load_documents(content_id, current_user.id)
     if db_documents:

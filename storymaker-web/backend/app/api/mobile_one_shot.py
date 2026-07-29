@@ -26,6 +26,7 @@ import zipfile
 import shutil
 import subprocess
 import random
+import sqlite3
 import httpx
 from datetime import datetime
 from pathlib import Path
@@ -86,6 +87,108 @@ def _job_dir(job_id: str, created_date: Optional[str] = None) -> Path:
 def _job_url_path(job_dir: Path, file_path: Path) -> str:
     rel = file_path.relative_to(_output_root())
     return "/data/output_results/" + "/".join(rel.parts)
+
+
+def _sync_mobile_result_to_beta_archive(result: dict[str, Any], result_file: Path, user_id: int) -> str | None:
+    if str(result.get("status") or "") != "gemini_completed":
+        return None
+    beta_data_root = Path("/beta_data") if Path("/beta_data").exists() else Path("/home/bourne/StoryMaker_1/StoryMaker_beta/data")
+    beta_db = beta_data_root / "storymaker_beta.db"
+    beta_jobs_root = beta_data_root / "jobs"
+    beta_host_jobs_root = Path("/home/bourne/StoryMaker_1/StoryMaker_beta/data/jobs")
+    if not beta_db.exists():
+        return None
+
+    mobile_job_id = str(result.get("job_id") or "").strip()
+    match = re.fullmatch(r"mob-(\d{8})(\d{6})-([a-f0-9]{8})", mobile_job_id)
+    if not match:
+        return None
+    beta_job_id = f"beta_{match.group(1)}_{match.group(2)}_{match.group(3)}"
+    beta_job_dir = beta_jobs_root / beta_job_id
+    beta_job_dir.mkdir(parents=True, exist_ok=True)
+    (beta_job_dir / "output").mkdir(parents=True, exist_ok=True)
+
+    outputs = result.get("outputs") or {}
+    persona = result.get("persona") or {}
+    title = _mobile_job_title(result)
+    source_blocks = {
+        "BLOG_TITLES": str(outputs.get("blog_titles") or ""),
+        "BLOG_POST": str(outputs.get("blog_post") or outputs.get("blog") or ""),
+        "BLOG_HASHTAGS": str(outputs.get("blog_hashtags") or ""),
+        "NAVER_PLACE_NEWS": str(outputs.get("place") or ""),
+        "GOOGLE_BUSINESS_POST": str(outputs.get("google_business") or ""),
+        "INSTAGRAM_POST": str(outputs.get("instagram") or ""),
+        "CARROT_POST": str(outputs.get("carrot") or ""),
+        "PODCAST_50": str(outputs.get("podcast50") or ""),
+        "PODCAST_80": str(outputs.get("podcast80") or ""),
+    }
+    channel_map = [
+        ("BLOG", "블로그", "\n\n".join(v for v in [source_blocks["BLOG_TITLES"], source_blocks["BLOG_POST"], source_blocks["BLOG_HASHTAGS"]] if v)),
+        ("NAVER_PLACE", "네이버 플레이스", source_blocks["NAVER_PLACE_NEWS"]),
+        ("GOOGLE_BUSINESS", "구글 비즈니스", source_blocks["GOOGLE_BUSINESS_POST"]),
+        ("INSTAGRAM", "인스타그램", source_blocks["INSTAGRAM_POST"]),
+        ("CARROT", "당근", source_blocks["CARROT_POST"]),
+        ("PODCAST_50", "팟캐스트 50초", source_blocks["PODCAST_50"]),
+        ("PODCAST_80", "팟캐스트 80초", source_blocks["PODCAST_80"]),
+    ]
+    channels = {key: {"key": key, "label": label, "content": content, "html": ""} for key, label, content in channel_map if content}
+
+    image_paths: list[str] = []
+    image_dir = result_file.parent / "images"
+    for item in result.get("images") or []:
+        stored_name = str(item.get("stored_name") or "").strip() if isinstance(item, dict) else ""
+        if stored_name:
+            candidate = (image_dir / stored_name).resolve()
+            if candidate.exists():
+                image_paths.append(str(candidate))
+
+    beta_result = {
+        "beta_job_id": beta_job_id,
+        "title": title,
+        "status": "gemini_completed",
+        "progress": 100,
+        "created_at": str(result.get("created_at") or _now().isoformat()),
+        "owner_user_id": int(user_id),
+        "schema_version": "beta-2.0",
+        "source": "mobile-one-shot",
+        "source_job_id": mobile_job_id,
+        "business": {
+            "name": str(persona.get("company_name") or ""),
+            "region": str(persona.get("region") or ""),
+            "service": str(persona.get("industry_key") or ""),
+            "phone": str(persona.get("phone_number") or ""),
+        },
+        "topic": title,
+        "content": {
+            "title": title,
+            "description": str(outputs.get("blog_post") or outputs.get("blog") or "")[:500],
+            "channels": channels,
+            "channel_order": list(channels.keys()),
+            "source_blocks": source_blocks,
+            "podcast_50": source_blocks["PODCAST_50"],
+            "podcast_80": source_blocks["PODCAST_80"],
+            "podcast_script": source_blocks["PODCAST_50"] or source_blocks["PODCAST_80"],
+            "script": source_blocks["PODCAST_50"] or source_blocks["PODCAST_80"],
+            "provider": "gemini-api",
+        },
+        "assets": {"images": image_paths, "videos": [], "music": None},
+        "gemini": {"provider": "gemini-api", "applied": True, "source": "mobile-one-shot"},
+        "shortform": {},
+        "browser_render": {"saved": False},
+    }
+    beta_result_file = beta_job_dir / "result.json"
+    _write_json_atomic(beta_result_file, beta_result)
+    with sqlite3.connect(beta_db, timeout=10) as connection:
+        connection.execute(
+            """INSERT INTO beta_jobs(beta_job_id,title,status,created_at,progress,completed_at,result_json,owner_user_id)
+               VALUES(?,?,?,?,?,?,?,?)
+               ON CONFLICT(beta_job_id) DO UPDATE SET
+                 title=excluded.title,status=excluded.status,progress=excluded.progress,
+                 result_json=excluded.result_json,owner_user_id=excluded.owner_user_id""",
+            (beta_job_id, title, "gemini_completed", beta_result["created_at"], 100, None, str(beta_host_jobs_root / beta_job_id / "result.json"), int(user_id)),
+        )
+        connection.commit()
+    return beta_job_id
 
 
 def _write_json_atomic(path: Path, data: dict[str, Any]) -> None:
@@ -845,7 +948,12 @@ def _mobile_progress_payload(data: dict[str, Any], job_id: str, user_id: int) ->
     has_thumbnail = bool(media.get("thumbnail_url") or media.get("thumbnail_path"))
 
     # 콘텐츠 완료보다 실제 미디어 제작 단계를 우선합니다.
-    if has_mp4 or shortform_status in {"shortform_completed", "completed", "done"}:
+    if shortform_status == "pc_continue_waiting":
+        current_phase = "completed"
+        status = "gemini_completed"
+        percent = 100
+        stage = str(media.get("message") or "Gemini 글과 사진이 저장되었습니다. PC에서 후속 제작을 이어서 진행해 주세요.")
+    elif has_mp4 or shortform_status in {"shortform_completed", "completed", "done"}:
         current_phase = "completed"
         status = "completed"
         percent = 100
@@ -915,6 +1023,73 @@ def _mobile_progress_payload(data: dict[str, Any], job_id: str, user_id: int) ->
         "can_cancel": status in {"queued", "gemini_worker_waiting", "worker_queued", "podcast_waiting"},
         "updated_at": _now().isoformat(timespec="seconds"),
     }
+
+async def _call_mobile_gemini_api(prompt_text: str) -> tuple[str, dict[str, Any]]:
+    api_key = (os.getenv("GEMINI_API_KEY") or "").strip()
+    model = (os.getenv("GEMINI_MODEL") or "gemini-2.5-flash").strip()
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY is missing")
+    if not prompt_text.strip():
+        raise RuntimeError("Gemini prompt is empty")
+
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{quote(model, safe='')}:generateContent"
+    payload = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": prompt_text}],
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.7,
+        },
+    }
+    started_at = time.monotonic()
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=15.0)) as client:
+            response = await client.post(
+                endpoint,
+                headers={
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": api_key,
+                },
+                json=payload,
+            )
+        response.raise_for_status()
+        response_data = response.json()
+    except httpx.HTTPStatusError as exc:
+        raise RuntimeError(f"Gemini API HTTP {exc.response.status_code}") from exc
+    except httpx.HTTPError as exc:
+        raise RuntimeError(f"Gemini API network error: {type(exc).__name__}") from exc
+    except ValueError as exc:
+        raise RuntimeError("Gemini API returned invalid JSON") from exc
+
+    text_parts: list[str] = []
+    candidates = response_data.get("candidates") if isinstance(response_data, dict) else None
+    for candidate in candidates if isinstance(candidates, list) else []:
+        content = candidate.get("content") if isinstance(candidate, dict) else None
+        parts = content.get("parts") if isinstance(content, dict) else None
+        for part in parts if isinstance(parts, list) else []:
+            text_value = part.get("text") if isinstance(part, dict) else None
+            if isinstance(text_value, str) and text_value.strip():
+                text_parts.append(text_value.strip())
+
+    result_text = "\n\n".join(text_parts).strip()
+    if not result_text:
+        raise RuntimeError("Gemini API returned an empty result")
+
+    usage = response_data.get("usageMetadata") if isinstance(response_data, dict) else {}
+    provider_meta = {
+        "provider": "gemini_api",
+        "model": model,
+        "elapsed_ms": int((time.monotonic() - started_at) * 1000),
+        "response_length": len(result_text),
+        "prompt_token_count": int((usage or {}).get("promptTokenCount") or 0),
+        "candidates_token_count": int((usage or {}).get("candidatesTokenCount") or 0),
+        "total_token_count": int((usage or {}).get("totalTokenCount") or 0),
+    }
+    return result_text, provider_meta
+
 
 def _queue_worker_job(job_id: str, project_title: str, prompt_text: str, job_dir: Path) -> dict[str, Any]:
     output_root = _output_root()
@@ -2058,49 +2233,145 @@ async def create_mobile_one_shot_job(
     timing["prompt_ready_at"] = _now().isoformat(timespec="milliseconds")
     timing["prompt_length"] = len(prompt_text)
     project_title = f"{(selected_persona.company_name if selected_persona else '모바일 원샷')} {created_at.strftime('%m/%d %H:%M')}"
-    worker_meta = _queue_worker_job(job_id, project_title, prompt_text, job_dir)
-    timing["worker_handoff_at"] = _now().isoformat(timespec="milliseconds")
     user_bucket = str(current_user.id)
-    result = {
-        "job_id": job_id,
-        "status": "gemini_worker_waiting",
-        "created_at": created_at.strftime("%Y-%m-%d %H:%M:%S"),
-        "user_bucket": user_bucket,
-        "memo_length": len(memo_text),
-        "persona": selected_persona_payload,
-        "keywords": keywords,
-        "image_count": len(saved_images),
-        "images": saved_images,
-        "outputs": {},
-        "pipeline": {
-            "prompt_status": "built",
-            "browser_podcast": bool(browser_podcast),
-            "prompt_length": len(prompt_text),
-            "prompt_preview": prompt_text[:500],
-            "ai_worker_status": "queued",
-            "timing": timing,
-            "prompt_path": worker_meta.get("prompt_path"),
-            "trigger": worker_meta.get("trigger"),
-        },
-        "media": {
-            "mp3_url": None,
-            "mp4_url": None,
-            "status": "waiting_gemini_result",
-            "message": "프롬프트 생성기를 거쳐 Gemini Worker 대기열에 등록되었습니다. Gemini 결과가 도착하면 팟캐스트 단계로 이어갑니다.",
-        },
-        "steps": [
-            {"label": "업체 정보 적용", "status": "done" if selected_persona else "waiting"},
-            {"label": "메모·이미지 수신", "status": "done"},
-            {"label": "프롬프트 생성기 통과", "status": "done"},
-            {"label": "Gemini Worker 대기열 등록", "status": "done"},
-            {"label": "Gemini 결과 대기", "status": "active"},
-            {"label": "팟캐스트 생성", "status": "waiting"},
-            {"label": "MP4 워커 연결", "status": "waiting"},
-        ],
-    }
+
+    api_error = ""
+    worker_meta: dict[str, Any] = {}
+    try:
+        timing["gemini_api_start_at"] = _now().isoformat(timespec="milliseconds")
+        result_text, provider_meta = await _call_mobile_gemini_api(prompt_text)
+        timing["gemini_api_completed_at"] = _now().isoformat(timespec="milliseconds")
+        parsed = StoryMakerService.parse_result(ResultParseRequest(raw_result=result_text))
+        blocks = parsed.get("blocks", {}) or {}
+        blog_titles = _extract_block(blocks, "BLOG_TITLES")
+        blog_post = _extract_block(blocks, "BLOG_POST")
+        blog_hashtags = _extract_block(blocks, "BLOG_HASHTAGS")
+        blog_preview = "\n\n".join(
+            part for part in [blog_titles, blog_post, blog_hashtags]
+            if str(part or "").strip()
+        ).strip()
+        outputs = {
+            "blog": blog_preview or blog_post,
+            "blog_titles": blog_titles,
+            "blog_post": blog_post,
+            "blog_hashtags": blog_hashtags,
+            "instagram": _extract_block(blocks, "INSTAGRAM_POST"),
+            "place": _extract_block(blocks, "NAVER_PLACE_NEWS"),
+            "google_business": _extract_block(blocks, "GOOGLE_BUSINESS_POST"),
+            "carrot": _extract_block(blocks, "CARROT_POST", "DAANGN_POST"),
+            "podcast50": _extract_block(blocks, "PODCAST_50"),
+            "podcast80": _extract_block(blocks, "PODCAST_80"),
+        }
+        result = {
+            "job_id": job_id,
+            "status": "gemini_completed",
+            "created_at": created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "user_bucket": user_bucket,
+            "memo_length": len(memo_text),
+            "persona": selected_persona_payload,
+            "keywords": keywords,
+            "image_count": len(saved_images),
+            "images": saved_images,
+            "raw_result": result_text,
+            "outputs": outputs,
+            "pipeline": {
+                "prompt_status": "built",
+                "browser_podcast": bool(browser_podcast),
+                "prompt_length": len(prompt_text),
+                "prompt_preview": prompt_text[:500],
+                "ai_worker_status": "completed",
+                "provider": "gemini_api",
+                "provider_meta": provider_meta,
+                "blocks": list(blocks.keys()),
+                "defer_media_to_pc": True,
+                "timing": timing,
+            },
+            "media": {
+                "mp3_url": None,
+                "mp4_url": None,
+                "status": "pc_continue_waiting",
+                "message": "Gemini 글과 사진이 저장되었습니다. PC 보관함에서 팟캐스트, 숏폼, 썸네일 제작을 이어서 진행해 주세요.",
+            },
+            "steps": [
+                {"label": "업체 정보 적용", "status": "done" if selected_persona else "waiting"},
+                {"label": "메모·이미지 수신", "status": "done"},
+                {"label": "프롬프트 생성기 통과", "status": "done"},
+                {"label": "Gemini API 글 생성", "status": "done"},
+                {"label": "결과 블록 파싱", "status": "done"},
+                {"label": "서버 보관함 저장", "status": "done"},
+                {"label": "PC에서 후속 제작", "status": "waiting"},
+            ],
+        }
+    except Exception as exc:
+        api_error = f"Gemini API 호출 실패: {type(exc).__name__}"
+        logger.warning("mobile one-shot Gemini API failed; worker fallback job_id=%s error_type=%s", job_id, type(exc).__name__)
+        worker_meta = _queue_worker_job(job_id, project_title, prompt_text, job_dir)
+        timing["worker_handoff_at"] = _now().isoformat(timespec="milliseconds")
+        result = {
+            "job_id": job_id,
+            "status": "gemini_worker_waiting",
+            "created_at": created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "user_bucket": user_bucket,
+            "memo_length": len(memo_text),
+            "persona": selected_persona_payload,
+            "keywords": keywords,
+            "image_count": len(saved_images),
+            "images": saved_images,
+            "outputs": {},
+            "pipeline": {
+                "prompt_status": "built",
+                "browser_podcast": bool(browser_podcast),
+                "prompt_length": len(prompt_text),
+                "prompt_preview": prompt_text[:500],
+                "ai_worker_status": "queued",
+                "provider": "firefox_gemini_worker",
+                "api_error": api_error,
+                "timing": timing,
+                "prompt_path": worker_meta.get("prompt_path"),
+                "trigger": worker_meta.get("trigger"),
+            },
+            "media": {
+                "mp3_url": None,
+                "mp4_url": None,
+                "status": "waiting_gemini_result",
+                "message": "Gemini API 연결이 원활하지 않아 기존 Gemini Worker 대기열로 전환했습니다.",
+            },
+            "steps": [
+                {"label": "업체 정보 적용", "status": "done" if selected_persona else "waiting"},
+                {"label": "메모·이미지 수신", "status": "done"},
+                {"label": "프롬프트 생성기 통과", "status": "done"},
+                {"label": "Gemini API 직접 호출", "status": "failed"},
+                {"label": "Gemini Worker 대기열 등록", "status": "done"},
+                {"label": "Gemini 결과 대기", "status": "active"},
+                {"label": "PC에서 후속 제작", "status": "waiting"},
+            ],
+        }
 
     result_file = job_dir / "result.json"
     _write_json_atomic(result_file, result)
+    try:
+        sync_mobile_one_shot_job_from_result(
+            result,
+            str(result_file),
+            _now().isoformat(timespec="seconds"),
+        )
+    except Exception as exc:
+        logger.warning(
+            "mobile one-shot archive sync failed job_id=%s error_type=%s",
+            job_id,
+            type(exc).__name__,
+        )
+    try:
+        beta_job_id = _sync_mobile_result_to_beta_archive(result, result_file, current_user.id)
+        if beta_job_id:
+            result.setdefault("pipeline", {})["beta_archive_job_id"] = beta_job_id
+            _write_json_atomic(result_file, result)
+    except Exception as exc:
+        logger.warning(
+            "mobile one-shot beta archive sync failed job_id=%s error_type=%s",
+            job_id,
+            type(exc).__name__,
+        )
     try:
         upsert_mobile_one_shot_job(
             job_id=job_id,
@@ -2111,32 +2382,46 @@ async def create_mobile_one_shot_job(
             created_date=created_at.strftime(KST_DATE_FORMAT),
             result_path=str(result_file),
             image_count=len(saved_images),
+            has_text=bool(result.get("raw_result") or result.get("outputs")),
+            has_mp3=bool((result.get("media") or {}).get("mp3_url") or (result.get("media") or {}).get("mp3_path")),
+            has_mp4=bool((result.get("media") or {}).get("mp4_url") or (result.get("media") or {}).get("mp4_path")),
+            has_thumbnail=bool((result.get("media") or {}).get("thumbnail_url") or (result.get("media") or {}).get("thumbnail_path")),
             created_at=result["created_at"],
             updated_at=_now().isoformat(timespec="seconds"),
         )
     except Exception:
         pass
+    api_completed = result["status"] == "gemini_completed"
     try:
         update_mobile_one_shot_progress(
             job_id=job_id,
             user_id=current_user.id,
             status=result["status"],
-            stage="Gemini Worker 대기열에 등록되었습니다.",
-            percent=10,
+            stage="Gemini 글과 사진 저장 완료" if api_completed else "Gemini Worker 대기열에 등록되었습니다.",
+            percent=100 if api_completed else 10,
             queue_position=0,
             ahead_count=0,
-            worker_status="queued",
-            progress_message="콘텐츠 생성을 위해 AI Worker가 작업을 기다리고 있습니다.",
+            worker_status="completed" if api_completed else "queued",
+            progress_message=(
+                "PC 보관함에서 팟캐스트, 숏폼, 썸네일 제작을 이어서 진행해 주세요."
+                if api_completed
+                else "Gemini API 실패 후 기존 AI Worker가 작업을 기다리고 있습니다."
+            ),
             updated_at=_now().isoformat(timespec="seconds"),
         )
     except Exception:
         pass
-    _start_mobile_one_shot_post_handoff(result_file)
+    if not api_completed:
+        _start_mobile_one_shot_post_handoff(result_file)
     return MobileOneShotJobResponse(
         ok=True,
         job_id=job_id,
         status=result["status"],
-        message="모바일 원샷 작업이 프롬프트 생성기와 Gemini Worker 대기열에 등록되었습니다.",
+        message=(
+            "Gemini 글과 사진을 저장했습니다. PC 보관함에서 후속 제작을 이어서 진행해 주세요."
+            if api_completed
+            else "Gemini API 연결 실패로 기존 Gemini Worker 대기열에 등록했습니다."
+        ),
         data=result,
     )
 
@@ -2177,12 +2462,14 @@ def get_mobile_one_shot_job(
         pass
     data = _sync_worker_result(data, result_file)
     data = _reapply_staged_edited_contents(data, result_file)
-    data = _start_podcast_job(data, result_file)
-    data = _sync_podcast_result(data, result_file)
-    data = _start_thumbnail_job(data, result_file)
-    data = _sync_thumbnail_result(data, result_file)
-    data = _start_shortform_job(data, result_file)
-    data = _sync_shortform_result(data, result_file)
+    defer_media_to_pc = bool((data.get("pipeline") or {}).get("defer_media_to_pc"))
+    if not defer_media_to_pc:
+        data = _start_podcast_job(data, result_file)
+        data = _sync_podcast_result(data, result_file)
+        data = _start_thumbnail_job(data, result_file)
+        data = _sync_thumbnail_result(data, result_file)
+        data = _start_shortform_job(data, result_file)
+        data = _sync_shortform_result(data, result_file)
     try:
         sync_mobile_one_shot_job_from_result(data, str(result_file), _now().isoformat(timespec="seconds"))
     except Exception:
@@ -2390,9 +2677,9 @@ def get_mobile_one_shot_job_progress(
                             str(result_file),
                             _now().isoformat(timespec="seconds"),
                         )
-                # V1 Windows: the progress screen polls only this endpoint.
-                # Start the podcast pipeline here as well as in the detail endpoint.
-                data = _start_podcast_job(data, result_file)
+                # 모바일 완료 작업은 글과 사진만 보관함에 저장하고 미디어 제작은 PC에서 직접 시작합니다.
+                if not bool((data.get("pipeline") or {}).get("defer_media_to_pc")):
+                    data = _start_podcast_job(data, result_file)
                 payload = _mobile_progress_payload(data, job_id, current_user.id)
                 db_queue_position = int(progress.get("queue_position") or 0) if progress else 0
                 db_ahead_count = int(progress.get("ahead_count") or 0) if progress else 0
