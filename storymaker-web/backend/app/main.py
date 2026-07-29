@@ -438,24 +438,23 @@ def read_weather_admin_page():
 
 @app.get("/api/beta/profile")
 def read_beta_v1_profile(current_user: Optional[User] = Depends(get_optional_current_user)):
-    """Return the signed-in V1 user's default business profile for isolated Beta UI."""
+    """Return the signed-in V1 user's business profiles for isolated Beta UI."""
     if current_user is None:
-        return {"ok": True, "authenticated": False, "profile": None}
+        return {"ok": True, "authenticated": False, "profile": None, "profiles": []}
 
     db = SessionLocal()
     try:
-        row = db.execute(
+        rows = db.execute(
             text("""
-                SELECT company_name, phone_number, region, industry_key, content
+                SELECT id, company_name, phone_number, region, industry_key, content, is_default
                 FROM user_personas
                 WHERE user_id = :user_id
                 ORDER BY is_default DESC, updated_at DESC, id DESC
-                LIMIT 1
             """),
             {"user_id": current_user.id},
-        ).mappings().first()
-        if not row:
-            return {"ok": True, "authenticated": True, "profile": None}
+        ).mappings().all()
+        if not rows:
+            return {"ok": True, "authenticated": True, "profile": None, "profiles": []}
 
         industry_labels = {
             "general": "일반 서비스업",
@@ -470,17 +469,26 @@ def read_beta_v1_profile(current_user: Optional[User] = Depends(get_optional_cur
             "restaurant": "음식점",
             "logistics": "물류·3PL",
         }
-        industry_key = str(row.get("industry_key") or "general").strip()
-        return {
-            "ok": True,
-            "authenticated": True,
-            "role": str(current_user.role or "user").strip().lower(),
-            "profile": {
+
+        profiles = []
+        for row in rows:
+            industry_key = str(row.get("industry_key") or "general").strip()
+            profiles.append({
+                "id": int(row.get("id") or 0),
                 "name": str(row.get("company_name") or "").strip(),
                 "region": str(row.get("region") or "").strip(),
                 "service": industry_labels.get(industry_key, industry_key if industry_key != "general" else "일반 서비스업"),
                 "phone": str(row.get("phone_number") or "").strip(),
-            },
+                "is_default": bool(row.get("is_default")),
+            })
+
+        profile = next((item for item in profiles if item["is_default"]), profiles[0])
+        return {
+            "ok": True,
+            "authenticated": True,
+            "role": str(current_user.role or "user").strip().lower(),
+            "profile": profile,
+            "profiles": profiles,
         }
     finally:
         db.close()

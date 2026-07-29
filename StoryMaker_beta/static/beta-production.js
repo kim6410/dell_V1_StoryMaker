@@ -4,6 +4,7 @@
   const betaUi = {
     form: document.getElementById('beta-create-form'),
     businessName: document.getElementById('beta-business-name'),
+    businessProfileSelect: document.getElementById('beta-business-profile-select'),
     businessRegion: document.getElementById('beta-business-region'),
     businessService: document.getElementById('beta-business-service'),
     businessPhone: document.getElementById('beta-business-phone'),
@@ -775,25 +776,51 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
 
   betaRestoreCurrentJob();
 
+  function applyV1BusinessProfile(profile, { force = false } = {}) {
+    if (!profile) return;
+    const pairs = [
+      [betaUi.businessName, profile.name],
+      [betaUi.businessRegion, profile.region],
+      [betaUi.businessService, profile.service],
+      [betaUi.businessPhone, profile.phone],
+    ];
+    for (const [input, value] of pairs) {
+      if (!input) continue;
+      const nextValue = String(value || '').trim();
+      if (force || !input.value.trim()) input.value = nextValue;
+    }
+  }
+
   async function fillFromV1Profile() {
     try {
       const response = await fetch('/v1-api/beta/profile', { cache: 'no-store', credentials: 'include' });
       const data = await response.json();
       betaEnablePromptAdminTools(data?.role);
       const profile = data?.profile;
+      const profiles = Array.isArray(data?.profiles) ? data.profiles.filter(item => item?.name) : [];
       if (!response.ok || !profile) return;
-      const pairs = [
-        [betaUi.businessName, profile.name],
-        [betaUi.businessRegion, profile.region],
-        [betaUi.businessService, profile.service],
-        [betaUi.businessPhone, profile.phone],
-      ];
-      for (const [input, value] of pairs) {
-        if (input && !input.value.trim() && String(value || '').trim()) input.value = String(value).trim();
+
+      applyV1BusinessProfile(profile);
+
+      if (profiles.length > 1 && betaUi.businessProfileSelect) {
+        betaUi.businessProfileSelect.innerHTML = profiles.map(item => {
+          const selected = String(item.id) === String(profile.id) ? ' selected' : '';
+          const label = item.is_default ? `★ ${item.name}` : item.name;
+          return `<option value="${String(item.id).replace(/"/g, '&quot;')}"${selected}>${label.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</option>`;
+        }).join('');
+        betaUi.businessProfileSelect.hidden = false;
+        betaUi.businessName.hidden = true;
+        betaUi.businessProfileSelect.addEventListener('change', () => {
+          const selectedProfile = profiles.find(item => String(item.id) === betaUi.businessProfileSelect.value);
+          if (!selectedProfile) return;
+          applyV1BusinessProfile(selectedProfile, { force: true });
+          betaUi.status.textContent = `${selectedProfile.name} 업체 정보로 변경했습니다.`;
+        });
       }
-      if (pairs.some(([input]) => input?.value?.trim())) {
-        betaUi.status.textContent = '업체정보를 불러왔습니다. 수정 후 반영 가능!';
-      }
+
+      betaUi.status.textContent = profiles.length > 1
+        ? '등록된 업체를 선택해 현재 제작 업체를 변경할 수 있습니다.'
+        : '업체정보를 불러왔습니다. 수정 후 반영 가능!';
     } catch (_) {
       // V1 로그인이 없거나 연결되지 않으면 기존 수동 입력을 유지합니다.
     }
