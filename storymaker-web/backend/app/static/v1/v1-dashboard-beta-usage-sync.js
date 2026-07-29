@@ -140,14 +140,13 @@
         <div>
           <div class="v1d-kicker">사용량 · 보관 현황</div>
           <h2>콘텐츠 제작 현황</h2>
-          <p class="v1d-sub">검증 완료 MP4 사용량과 Beta 보관 상태를 한눈에 확인합니다.</p>
         </div>
       </div>
       <div class="v1d-grid">
         <div class="v1d-card">
           <div class="v1d-label">전체 작업</div>
           <div class="v1d-value">${payload.totalJobs}건</div>
-          <div class="v1d-note">가입 후 생성·검증 완료 MP4</div>
+          <div class="v1d-note">가입 후 생성·검증 완료 동영상</div>
         </div>
         <button type="button" class="v1d-card" data-v1d-usage>
           <div class="v1d-label">이번달 사용량</div>
@@ -162,19 +161,19 @@
         <div class="v1d-card">
           <div class="v1d-label">현재 보관 중</div>
           <div class="v1d-value">${payload.retained}개 / ${payload.totalJobs}개</div>
-          <div class="v1d-note">현재 보관 / 가입 후 전체 MP4</div>
+          <div class="v1d-note">현재 보관 / 가입 후 전체 동영상</div>
         </div>
       </div>
       <section class="v1d-detail" data-v1d-detail hidden>
         <div class="v1d-detail-grid">
           <div class="v1d-row"><div class="v1d-label">이번달 사용기간</div><b>${formatPeriod(payload.periodStart, payload.periodEnd)}</b></div>
           <div class="v1d-row"><div class="v1d-label">다음 사용량 초기화</div><b>${formatDate(payload.periodEnd)}</b></div>
-          <div class="v1d-row"><div class="v1d-label">사용량 집계 기준</div><b>생성·검증 완료 MP4</b></div>
+          <div class="v1d-row"><div class="v1d-label">사용량 집계 기준</div><b>생성·검증 완료 동영상</b></div>
           <div class="v1d-row"><div class="v1d-label">현재 요금제</div><b>${payload.planCode === 'free' ? '무료회원' : '유료회원'}</b></div>
         </div>
         <div class="v1d-policy">
           무료회원은 최신 콘텐츠 10개, 유료회원은 최신 콘텐츠 20개까지 보관합니다.<br>
-          보관 한도를 넘으면 오래된 미디어가 자동 정리되지만 MP4 사용 이력은 유지됩니다.<br>
+          보관 한도를 넘으면 오래된 미디어가 자동 정리되지만 동영상 사용 이력은 유지됩니다.<br>
           새 이용기간이 시작되면 해당 기간 사용량은 0회부터 다시 계산됩니다.
         </div>
         <div class="v1d-actions">
