@@ -25,8 +25,9 @@
       };
     }
     return {
-      title: '무료 제작 한도를 모두 사용했습니다',
+      title: '월간 무료 한도를 모두 사용하셨어요.',
       body: '가입일 기준 현재 30일 이용기간의 무료 제작 한도 20건을 모두 사용했습니다. 새로운 AI 원고 생성과 MP4 제작만 중단되며, 기존 콘텐츠와 보관함은 계속 이용할 수 있습니다.',
+      showRequestButton: true,
     };
   }
 
@@ -42,7 +43,15 @@
         <div class="balm-icon" aria-hidden="true">!</div>
         <p class="balm-kicker">제작 이용 안내</p>
         <h2 id="balm-title"></h2>
-        <p class="balm-body" data-balm-body></p>
+        <div class="balm-body">
+          <span data-balm-body></span>
+          <button type="button" class="balm-request" data-balm-request aria-label="요청사항 작성" title="요청사항 작성">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path>
+              <path d="M8 9h.01M12 9h.01M16 9h.01"></path>
+            </svg>
+          </button>
+        </div>
         <div class="balm-note">
           <strong>계속 이용 가능한 기능</strong>
           <span>기존 콘텐츠 확인 · 복사 · 다운로드 · 보관함 · 업체 정보</span>
@@ -64,6 +73,9 @@
       #beta-access-limit-modal .balm-kicker{margin:20px 0 8px;color:#67e8f9;font-size:14px;font-weight:800;letter-spacing:.08em}
       #beta-access-limit-modal h2{margin:0;font-size:27px;line-height:1.35}
       #beta-access-limit-modal .balm-body{margin:16px 0 0;color:#cbd5e1;font-size:16px;line-height:1.75;word-break:keep-all}
+      #beta-access-limit-modal .balm-request{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;min-height:38px;margin-left:10px;padding:0;border:1px solid #385273;border-radius:12px;background:#14233b;color:#67e8f9;vertical-align:middle;cursor:pointer;transition:.18s ease}
+      #beta-access-limit-modal .balm-request:hover{border-color:#67e8f9;background:#17314d;transform:translateY(-1px)}
+      #beta-access-limit-modal .balm-request[hidden]{display:none!important}
       #beta-access-limit-modal .balm-note{margin-top:20px;padding:16px 18px;border-radius:16px;background:#111f36;border:1px solid #263b5c;display:grid;gap:7px}
       #beta-access-limit-modal .balm-note strong{color:#f8fafc;font-size:14px}
       #beta-access-limit-modal .balm-note span{color:#93a8c6;font-size:14px;line-height:1.6}
@@ -78,6 +90,22 @@
 
     modal.querySelector('[data-balm-upgrade]').addEventListener('click', () => {
       window.open(UPGRADE_URL, '_blank', 'noopener,noreferrer');
+    });
+    modal.querySelector('[data-balm-request]').addEventListener('click', () => {
+      const message = {
+        type: 'storymaker:open-feature-request',
+        prefill: {
+          title: '무료 제작 한도 관련 요청',
+          content: '월간 무료 제작 한도를 모두 사용한 뒤 추가 이용 또는 이용 정책에 관해 문의드립니다.',
+        },
+      };
+      if (window.parent && window.parent !== window) {
+        try {
+          window.parent.postMessage(message, window.location.origin);
+          return;
+        } catch (_) {}
+      }
+      window.postMessage(message, window.location.origin);
     });
     modal.querySelector('[data-balm-confirm]').addEventListener('click', () => {
       modal.hidden = true;
@@ -97,6 +125,8 @@
     const content = buildDescription(message);
     target.querySelector('#balm-title').textContent = content.title;
     target.querySelector('[data-balm-body]').textContent = content.body;
+    const requestButton = target.querySelector('[data-balm-request]');
+    if (requestButton) requestButton.hidden = content.showRequestButton !== true;
     target.hidden = false;
     target.querySelector('[data-balm-upgrade]').focus();
   }
