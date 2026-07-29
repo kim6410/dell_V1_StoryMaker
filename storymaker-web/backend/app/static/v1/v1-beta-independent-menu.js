@@ -37,15 +37,31 @@
 
     const label = String(button.textContent || '').trim() || '업체 정보';
     const row = document.createElement('span');
-    row.className = 'storymaker-company-info-menu-row inline-flex w-full items-center gap-3 whitespace-nowrap';
+    row.className = 'storymaker-company-info-menu-row';
+    row.style.setProperty('display', 'flex', 'important');
+    row.style.setProperty('flex-direction', 'row', 'important');
+    row.style.setProperty('align-items', 'center', 'important');
+    row.style.setProperty('gap', '12px', 'important');
+    row.style.setProperty('width', '100%', 'important');
+    row.style.setProperty('white-space', 'nowrap', 'important');
 
     const icon = document.createElement('span');
-    icon.className = 'storymaker-company-info-menu-icon inline-flex h-5 w-5 shrink-0 items-center justify-center text-cyan-300';
+    icon.className = 'storymaker-company-info-menu-icon';
+    icon.style.setProperty('display', 'inline-flex', 'important');
+    icon.style.setProperty('align-items', 'center', 'important');
+    icon.style.setProperty('justify-content', 'center', 'important');
+    icon.style.setProperty('width', '20px', 'important');
+    icon.style.setProperty('height', '20px', 'important');
+    icon.style.setProperty('flex', '0 0 20px', 'important');
+    icon.style.setProperty('color', '#22d3ee', 'important');
     icon.setAttribute('aria-hidden', 'true');
     icon.innerHTML = COMPANY_INFO_ICON;
 
     const text = document.createElement('span');
-    text.className = 'storymaker-company-info-menu-label whitespace-nowrap';
+    text.className = 'storymaker-company-info-menu-label';
+    text.style.setProperty('display', 'inline-block', 'important');
+    text.style.setProperty('white-space', 'nowrap', 'important');
+    text.style.setProperty('line-height', '1.25', 'important');
     text.textContent = label;
 
     row.append(icon, text);
