@@ -87,6 +87,7 @@ def _account_profile(user_id: int) -> dict[str, Any]:
     default = {
         "plan_code": "free",
         "subscription_status": "inactive",
+        "account_role": "user",
         "signup_at": None,
         "billing_period_end": None,
     }
@@ -95,7 +96,7 @@ def _account_profile(user_id: int) -> dict[str, Any]:
     with sqlite3.connect(f"file:{V1_DB}?mode=ro", uri=True, timeout=3) as connection:
         connection.row_factory = sqlite3.Row
         user = connection.execute(
-            "SELECT created_at,tier FROM users WHERE id=?",
+            "SELECT created_at,tier,role FROM users WHERE id=?",
             (user_id,),
         ).fetchone()
         billing = connection.execute(
@@ -111,6 +112,7 @@ def _account_profile(user_id: int) -> dict[str, Any]:
     return {
         "plan_code": plan_code,
         "subscription_status": str(billing["subscription_status"] if billing else "inactive").strip().lower(),
+        "account_role": str(user["role"] if user else "user").strip().lower(),
         "signup_at": user["created_at"] if user else None,
         "billing_period_end": billing["current_period_ends_at"] if billing else None,
     }
@@ -131,34 +133,30 @@ def monthly_usage_summary(user_id: int, role: str = "user", now: datetime | None
         now_dt = now_dt.replace(tzinfo=timezone.utc)
     else:
         now_dt = now_dt.astimezone(timezone.utc)
-    if str(role or "").lower() == "admin":
+    profile = _account_profile(user_id)
+    if str(role or "").lower() == "admin" or str(profile.get("account_role") or "").lower() == "admin":
         return {
             "unlimited": True, "access_allowed": True, "plan_code": "admin",
             "used": 0, "remaining": None, "limit": None,
             "period_start": None, "period_end": None,
         }
 
-    profile = _account_profile(user_id)
     signup_at = _parse_account_datetime(profile.get("signup_at"))
     if not signup_at:
         raise RuntimeError("사용자 가입일을 확인할 수 없습니다.")
     plan_code = str(profile.get("plan_code") or "free").lower()
 
     if plan_code != "free":
-        initial_end = signup_at + timedelta(days=30)
-        billing_end = _parse_account_datetime(profile.get("billing_period_end"))
-        access_end = max(initial_end, billing_end) if billing_end else initial_end
-        access_allowed = now_dt < access_end
         return {
-            "unlimited": access_allowed,
-            "access_allowed": access_allowed,
-            "expired": not access_allowed,
+            "unlimited": True,
+            "access_allowed": True,
+            "expired": False,
             "plan_code": plan_code,
             "used": 0,
             "remaining": None,
             "limit": None,
             "period_start": signup_at.isoformat(),
-            "period_end": access_end.isoformat(),
+            "period_end": None,
         }
 
     period_start, period_end = _signup_period(signup_at, now_dt)

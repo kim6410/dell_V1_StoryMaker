@@ -172,7 +172,7 @@
     event.stopImmediatePropagation();
     button.disabled = true;
     try {
-      const response = await fetch('/beta-api/jobs/usage-summary', { cache: 'no-store', credentials: 'include' });
+      const response = await fetch('/beta-api/usage-summary', { cache: 'no-store', credentials: 'include' });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.detail || `HTTP ${response.status}`);
       const usage = payload.usage || {};
