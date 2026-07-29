@@ -298,13 +298,23 @@
     return `약 ${Math.max(1, Math.ceil(safeSeconds / 60))}분`;
   }
 
+  function removeLegacyQueueCards() {
+    const aside = document.querySelector('aside');
+    if (!aside) return;
+
+    Array.from(aside.querySelectorAll('section')).forEach((section) => {
+      if (section.id === 'storymaker-live-queue-summary') return;
+      const text = String(section.textContent || '');
+      if (text.includes('QUEUE') && text.includes('작업 현황')) section.remove();
+    });
+  }
+
   function findQueueSummaryHost() {
     const aside = document.querySelector('aside');
     if (!aside) return null;
-    const existing = Array.from(aside.querySelectorAll('section')).find((section) =>
-      String(section.textContent || '').includes('QUEUE')
-      && (String(section.textContent || '').includes('작업 현황') || section.id === 'storymaker-live-queue-summary')
-    );
+
+    removeLegacyQueueCards();
+    const existing = aside.querySelector('#storymaker-live-queue-summary');
     if (existing) return existing;
 
     const nav = aside.querySelector('nav');
@@ -346,7 +356,7 @@
       <dl class="mt-4 space-y-2.5 text-sm font-bold">
         <div class="flex items-center justify-between gap-3"><dt class="text-slate-400">현재 처리 작업</dt><dd class="shrink-0 text-white">${processingCount}건</dd></div>
         <div class="flex items-center justify-between gap-3"><dt class="text-slate-400">내 작업 순번</dt><dd class="shrink-0 text-cyan-100">${positionLabel}</dd></div>
-        <div class="flex items-center justify-between gap-3"><dt class="text-slate-400">예상 대기 시간</dt><dd class="shrink-0 text-cyan-100">${waitLabel}</dd></div>
+        <div class="flex items-center justify-between gap-3"><dt class="text-slate-400">대기시간</dt><dd class="shrink-0 text-cyan-100">${waitLabel}</dd></div>
       </dl>
     `;
   }
@@ -389,8 +399,13 @@
     focusDashboardUsagePanel();
   });
 
-  const observer = new MutationObserver(installMenu);
+  const observer = new MutationObserver(() => {
+    installMenu();
+    removeLegacyQueueCards();
+    if (!document.getElementById('storymaker-live-queue-summary')) refreshQueueSummary();
+  });
   observer.observe(document.documentElement, { childList: true, subtree: true });
   installMenu();
+  removeLegacyQueueCards();
   startQueueSummary();
 })();
