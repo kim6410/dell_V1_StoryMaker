@@ -80,16 +80,14 @@
       window.open(UPGRADE_URL, '_blank', 'noopener,noreferrer');
     });
     modal.querySelector('[data-balm-confirm]').addEventListener('click', () => {
-      try {
-        window.parent.postMessage({ type: 'storymaker:navigate-dashboard' }, window.location.origin);
-      } catch (_) {}
-      window.setTimeout(() => {
+      modal.hidden = true;
+      if (window.parent && window.parent !== window) {
         try {
-          window.top.location.assign(DASHBOARD_URL);
-        } catch (_) {
-          window.location.assign(DASHBOARD_URL);
-        }
-      }, 120);
+          window.parent.postMessage({ type: 'storymaker:navigate-dashboard', focus: 'usage-panel' }, window.location.origin);
+          return;
+        } catch (_) {}
+      }
+      window.location.assign(`${DASHBOARD_URL}#v1-dashboard-usage-panel`);
     });
     return modal;
   }

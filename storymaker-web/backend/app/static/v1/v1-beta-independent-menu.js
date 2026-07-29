@@ -256,14 +256,44 @@
     if (item) setTimeout(() => openBeta(item, false), 100);
   }
 
+  function focusDashboardUsagePanel() {
+    let attempts = 0;
+    const focus = () => {
+      attempts += 1;
+      const panel = document.getElementById('v1-dashboard-usage-panel');
+      if (panel) {
+        const usageButton = panel.querySelector('[data-v1d-usage]');
+        const detail = panel.querySelector('[data-v1d-detail]');
+        if (detail?.hidden && usageButton instanceof HTMLElement) usageButton.click();
+        window.setTimeout(() => {
+          const focusTarget = panel.querySelector('[data-v1d-detail]:not([hidden])') || panel;
+          focusTarget.setAttribute('tabindex', '-1');
+          focusTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          focusTarget.focus({ preventScroll: true });
+          focusTarget.animate(
+            [
+              { boxShadow: '0 0 0 0 rgba(34,211,238,0)' },
+              { boxShadow: '0 0 0 5px rgba(34,211,238,.42)' },
+              { boxShadow: '0 0 0 0 rgba(34,211,238,0)' },
+            ],
+            { duration: 2200, easing: 'ease-out' }
+          );
+        }, 180);
+        return;
+      }
+      if (attempts < 40) window.setTimeout(focus, 100);
+    };
+    focus();
+  }
+
   window.addEventListener('message', (event) => {
     if (event.origin !== window.location.origin) return;
     if (event.data?.type !== 'storymaker:navigate-dashboard') return;
     restoreNormalContent();
     syncBetaMenuSelection('');
-    history.pushState({}, '', '/v1/');
+    history.pushState({}, '', '/v1/#v1-dashboard-usage-panel');
     window.dispatchEvent(new PopStateEvent('popstate'));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    focusDashboardUsagePanel();
   });
 
   const observer = new MutationObserver(installMenu);
