@@ -98,6 +98,73 @@
     target.querySelector('[data-balm-upgrade]').focus();
   }
 
+  function renderInlineLimitNotice(target, message) {
+    if (!target || !isAccessLimitMessage(message)) return;
+    const content = buildDescription(message);
+    target.innerHTML = '';
+    const title = document.createElement('strong');
+    title.textContent = content.title;
+    const detail = document.createElement('span');
+    detail.textContent = ` · ${content.body}`;
+    const link = document.createElement('a');
+    link.href = UPGRADE_URL;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = ' 유료회원 가입';
+    link.style.cssText = 'margin-left:10px;color:#67e8f9;text-decoration:underline;text-underline-offset:3px;font-weight:900';
+    target.append(title, detail, link);
+  }
+
+  function inspectInlineLimitNotices() {
+    const selectors = ['#beta-status', '#sf-status'];
+    for (const selector of selectors) {
+      const target = document.querySelector(selector);
+      if (!target) continue;
+      const message = target.textContent || '';
+      if (isAccessLimitMessage(message) && !target.querySelector('a[href="https://www.latpeed.com/"]')) {
+        renderInlineLimitNotice(target, message);
+        showAccessLimitModal(message);
+      }
+    }
+  }
+
+  let allowVideoClickOnce = false;
+  document.addEventListener('click', async (event) => {
+    const button = event.target?.closest?.('#sf-make');
+    if (!button || allowVideoClickOnce) {
+      allowVideoClickOnce = false;
+      return;
+    }
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    button.disabled = true;
+    try {
+      const response = await fetch('/beta-api/jobs/usage-summary', { cache: 'no-store', credentials: 'include' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.detail || `HTTP ${response.status}`);
+      const usage = payload.usage || {};
+      if (usage.access_allowed === false) {
+        const message = usage.expired
+          ? '유료 이용기간 30일이 종료되었습니다. 이용기간을 갱신해 주세요.'
+          : '무료 30일 20회 제작 한도를 모두 사용했습니다.';
+        renderInlineLimitNotice(document.querySelector('#sf-status'), message);
+        showAccessLimitModal(message);
+        return;
+      }
+      allowVideoClickOnce = true;
+      button.disabled = false;
+      button.click();
+    } catch (error) {
+      nativeAlert(`영상 제작 가능 여부를 확인하지 못했습니다. ${error.message || error}`);
+    } finally {
+      if (!allowVideoClickOnce) button.disabled = false;
+    }
+  }, true);
+
+  const inlineObserver = new MutationObserver(inspectInlineLimitNotices);
+  inlineObserver.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+  window.setTimeout(inspectInlineLimitNotices, 0);
+
   window.alert = function storymakerLimitAwareAlert(message) {
     if (isAccessLimitMessage(message)) {
       showAccessLimitModal(message);
