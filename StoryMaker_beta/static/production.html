@@ -147,7 +147,7 @@
   function openThumbnailStudio(detail = {}) {
     const data = typeof detail === 'string' ? { jobId: detail } : (detail || {});
     const safeJobId = String(data.jobId || pendingThumbnailData?.jobId || '').trim();
-    const query = safeJobId ? `?embed=1&job_id=${encodeURIComponent(safeJobId)}&v=20260727-thumbnail-ui-6` : '?embed=1&v=20260727-thumbnail-ui-6';
+    const query = safeJobId ? `?embed=1&job_id=${encodeURIComponent(safeJobId)}&v=20260729-thumbnail-auto-default-1` : '?embed=1&v=20260729-thumbnail-auto-default-1';
     pendingThumbnailData = { ...(pendingThumbnailData || {}), ...data, jobId: safeJobId };
     if (openedJobId !== safeJobId || frame.src === 'about:blank') frame.src = `/static/v1/four-thumbnail/index.html${query}`;
     openedJobId = safeJobId;
@@ -241,7 +241,11 @@
     }
     return true;
   }
-  window.addEventListener('storymaker:shortform-complete', event => setPendingThumbnailData(event.detail || {}));
+  window.addEventListener('storymaker:shortform-complete', event => {
+    const detail = { ...(event.detail || {}), autoSaveDefault: true };
+    setPendingThumbnailData(detail);
+    openThumbnailStudio(detail);
+  });
   window.addEventListener('message', event => {
     if (event.data?.type === 'storymaker:thumbnail-save-request') {
       saveThumbnailFromFrame(event);
