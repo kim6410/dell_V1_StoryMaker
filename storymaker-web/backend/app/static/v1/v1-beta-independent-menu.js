@@ -256,6 +256,16 @@
     if (item) setTimeout(() => openBeta(item, false), 100);
   }
 
+  window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin) return;
+    if (event.data?.type !== 'storymaker:navigate-dashboard') return;
+    restoreNormalContent();
+    syncBetaMenuSelection('');
+    history.pushState({}, '', '/v1/');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
   const observer = new MutationObserver(installMenu);
   observer.observe(document.documentElement, { childList: true, subtree: true });
   installMenu();

@@ -81,10 +81,15 @@
     });
     modal.querySelector('[data-balm-confirm]').addEventListener('click', () => {
       try {
-        window.top.location.href = DASHBOARD_URL;
-      } catch (_) {
-        window.location.href = DASHBOARD_URL;
-      }
+        window.parent.postMessage({ type: 'storymaker:navigate-dashboard' }, window.location.origin);
+      } catch (_) {}
+      window.setTimeout(() => {
+        try {
+          window.top.location.assign(DASHBOARD_URL);
+        } catch (_) {
+          window.location.assign(DASHBOARD_URL);
+        }
+      }, 120);
     });
     return modal;
   }
