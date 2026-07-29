@@ -148,7 +148,7 @@ def beta_build_default_prompt(payload: BetaGeminiRequest) -> str:
 - 현재 요일: {weather.get('weekday_text', '')}
 - 현재 시각: {weather.get('time_text', '')}
 - 현재 계절: {weather.get('season', '')}
-- 기상 기준 지역: {weather.get('region', region)}
+- 기상 기준 지역: {_prompt_region(weather.get('region') or region)}
 - 현재 날씨: {weather.get('condition', '')}
 - 현재 기온: {weather.get('temperature_c', '')}℃
 - 현재 습도: {weather.get('humidity_percent', '')}%
@@ -162,7 +162,7 @@ def beta_build_default_prompt(payload: BetaGeminiRequest) -> str:
 - 현재 요일: {weather.get('weekday_text', '')}
 - 현재 시각: {weather.get('time_text', '')}
 - 현재 계절: {weather.get('season', '')}
-- 기상 기준 지역: {weather.get('region', region)}
+- 기상 기준 지역: {_prompt_region(weather.get('region') or region)}
 - 기상 정보: 기상 서버 정보를 불러오지 못함 (날씨 항목 추정 금지)"""
 
     gemini_rule_block = """## Gemini 날짜·기상 절대 준수 규칙 (최우선 강제 적용)
