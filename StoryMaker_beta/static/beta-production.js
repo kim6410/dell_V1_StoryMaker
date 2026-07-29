@@ -108,7 +108,7 @@
         .filter(Boolean);
       if (!lines.length) return;
       let index = 0;
-      const interval = 50; // 50ms 간격으로 한줄씩
+      const interval = 150; // 150ms 간격으로 한줄씩
       betaSetStatus(`AI 프롬프트 전송 시작 · ${lines[index]}`, 19);
       
       betaPromptAnimation = setInterval(() => {
