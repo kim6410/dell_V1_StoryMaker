@@ -2,8 +2,18 @@
   'use strict';
 
   const MENU_ITEMS = [
-    { key: 'betaProduction', label: '딸깍 제작', src: '/v1/beta/production' },
-    { key: 'betaArchive', label: '보관함', src: '/v1/beta/archive' },
+    {
+      key: 'betaProduction',
+      label: '새 콘텐츠 제작',
+      src: '/v1/beta/production',
+      icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+    },
+    {
+      key: 'betaArchive',
+      label: '보관함',
+      src: '/v1/beta/archive',
+      icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5h6l2 2h10v9.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7.5V6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1.5"/></svg>',
+    },
   ];
 
   function findNav() {
@@ -134,7 +144,7 @@
         <div class="grid min-w-0 gap-3 sm:grid-cols-2 lg:min-w-[430px]">
           <button type="button" data-beta-dashboard-key="betaProduction" class="group rounded-2xl border border-cyan-300/35 bg-cyan-300/10 px-5 py-4 text-left shadow-lg shadow-cyan-950/20 transition hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-cyan-300/20">
             <span class="block text-xs font-black tracking-[0.14em] text-cyan-300">BETA PRODUCTION</span>
-            <span class="mt-1 block text-lg font-black text-white">딸깍 제작</span>
+            <span class="mt-1 block text-lg font-black text-white">새 콘텐츠 제작</span>
             <span class="mt-1 block text-xs font-bold text-slate-400">콘텐츠·음성·숏폼 자동 제작</span>
           </button>
           <button type="button" data-beta-dashboard-key="betaArchive" class="group rounded-2xl border border-violet-300/35 bg-violet-300/10 px-5 py-4 text-left shadow-lg shadow-violet-950/20 transition hover:-translate-y-0.5 hover:border-violet-200 hover:bg-violet-300/20">
@@ -181,7 +191,7 @@
       button.dataset.storymakerBetaMenu = '1';
       button.dataset.storymakerBetaKey = item.key;
       button.className = template?.className || 'rounded-lg px-4 py-3.5 text-left text-lg font-black text-slate-100 hover:bg-slate-900';
-      button.innerHTML = `<span class="flex w-full items-center justify-between gap-3"><span>${item.label}</span><span class="rounded-full border border-cyan-300/40 bg-cyan-300/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">BETA</span></span>`;
+      button.innerHTML = `<span class="flex w-full items-center justify-between gap-3"><span class="flex min-w-0 items-center gap-3"><span class="storymaker-beta-menu-icon inline-flex h-5 w-5 shrink-0 items-center justify-center text-cyan-300" aria-hidden="true">${item.icon || ''}</span><span class="truncate">${item.label}</span></span><span class="shrink-0 rounded-full border border-cyan-300/40 bg-cyan-300/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">BETA</span></span>`;
       button.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();

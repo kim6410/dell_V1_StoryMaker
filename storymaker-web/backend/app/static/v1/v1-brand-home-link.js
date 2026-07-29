@@ -228,7 +228,6 @@
   function install() {
     installBrand();
     installHardcodedButtons();
-    removeExistingMenuIcons();
   }
 
   document.addEventListener('click', (event) => {
