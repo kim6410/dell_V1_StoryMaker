@@ -371,18 +371,14 @@
     return window.matchMedia('(min-width: 1051px)').matches;
   }
 
-  function getMp4ProgressFocusTarget() {
-    // PC에서 영상 만들기를 누르면 오른쪽 미리보기 하단의
-    // Play · 썸네일 제작 · 보관함 바로가기 버튼 줄을 화면 상단에 고정한다.
-    return fields.play?.closest('.sf-preview-actions')
-      || fields.finalVideo?.closest('.sf-preview-shell')
-      || fields.progress?.closest('.sf-progress')
-      || null;
+  function getProductionFocusTarget() {
+    // PC에서 영상 만들기를 누르면 숏폼 제작 화면 전체의 시작점이 보이도록 고정한다.
+    return root.closest('.shortform-integrated') || root;
   }
 
-  function scrollToMp4Progress(behavior = 'smooth') {
+  function scrollToProductionScreen(behavior = 'smooth') {
     if (!isPcFocusLayout()) return;
-    const target = getMp4ProgressFocusTarget();
+    const target = getProductionFocusTarget();
     if (!target) return;
     try {
       let targetWindow = window;
@@ -393,7 +389,7 @@
         top += ownerFrame.getBoundingClientRect().top;
         targetWindow = targetWindow.parent;
       }
-      targetWindow.scrollTo({ top: Math.max(0, targetWindow.scrollY + top - 16), behavior });
+      targetWindow.scrollTo({ top: Math.max(0, targetWindow.scrollY + top - 8), behavior });
     } catch (_) {
       target.scrollIntoView({ behavior, block: 'start' });
     }
@@ -402,19 +398,19 @@
   function startPreviewFocusLock() {
     if (state.previewFocusTimer) clearInterval(state.previewFocusTimer);
     if (!isPcFocusLayout()) return;
-    scrollToMp4Progress('smooth');
+    scrollToProductionScreen('smooth');
     state.previewFocusTimer = setInterval(() => {
-      const target = getMp4ProgressFocusTarget();
+      const target = getProductionFocusTarget();
       if (!target) return;
       const rect = target.getBoundingClientRect();
-      if (rect.top < -20 || rect.top > 42) scrollToMp4Progress('auto');
+      if (rect.top < -12 || rect.top > 24) scrollToProductionScreen('auto');
     }, 800);
   }
 
   function stopPreviewFocusLock({ keepPosition = false } = {}) {
     if (state.previewFocusTimer) clearInterval(state.previewFocusTimer);
     state.previewFocusTimer = null;
-    if (keepPosition) scrollToMp4Progress('smooth');
+    if (keepPosition) scrollToProductionScreen('smooth');
   }
 
   async function makeVideo() {
