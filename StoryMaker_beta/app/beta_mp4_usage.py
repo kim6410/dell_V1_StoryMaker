@@ -50,6 +50,9 @@ def ensure_mp4_usage_table(connection: sqlite3.Connection | None = None) -> None
             )
             """
         )
+        columns = {str(row[1]) for row in db.execute("PRAGMA table_info(beta_mp4_usage)").fetchall()}
+        if "credit_wallet_id" not in columns:
+            db.execute("ALTER TABLE beta_mp4_usage ADD COLUMN credit_wallet_id INTEGER")
         db.execute(
             "CREATE INDEX IF NOT EXISTS idx_beta_mp4_usage_owner_created ON beta_mp4_usage(owner_user_id, mp4_created_at)"
         )
@@ -171,13 +174,28 @@ def monthly_usage_summary(user_id: int, role: str = "user", now: datetime | None
         1 for row in rows
         if (created := _parse_datetime(row[0])) and period_start <= created < period_end
     )
+    bonus_remaining = 0
+    if V1_DB.exists():
+        now_text = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d %H:%M:%S")
+        with sqlite3.connect(f"file:{V1_DB}?mode=ro", uri=True, timeout=3) as connection:
+            row = connection.execute(
+                "SELECT COALESCE(SUM(available_amount-reserved_amount),0) "
+                "FROM video_credit_wallets "
+                "WHERE user_id=? AND credit_type!='free_monthly' "
+                "AND (expires_at IS NULL OR expires_at>?)",
+                (user_id, now_text),
+            ).fetchone()
+        bonus_remaining = max(0, int((row or [0])[0] or 0))
+    monthly_remaining = max(0, FREE_MONTHLY_LIMIT - used)
     return {
         "unlimited": False,
-        "access_allowed": used < FREE_MONTHLY_LIMIT,
+        "access_allowed": monthly_remaining > 0 or bonus_remaining > 0,
         "expired": False,
         "plan_code": "free",
         "used": used,
-        "remaining": max(0, FREE_MONTHLY_LIMIT - used),
+        "remaining": monthly_remaining + bonus_remaining,
+        "monthly_remaining": monthly_remaining,
+        "bonus_remaining": bonus_remaining,
         "limit": FREE_MONTHLY_LIMIT,
         "period_start": period_start.isoformat(),
         "period_end": period_end.isoformat(),
@@ -196,24 +214,22 @@ def enforce_generation_access(user_id: int, role: str) -> dict[str, Any]:
                 detail="유료 이용기간 30일이 종료되었습니다. 이용기간을 갱신해 주세요.",
             )
         return summary
-    if int(summary.get("used") or 0) >= FREE_MONTHLY_LIMIT:
+    if not summary.get("access_allowed"):
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail=f"무료 30일 {FREE_MONTHLY_LIMIT}회 제작 한도를 모두 사용했습니다.",
+            detail=f"무료 30일 {FREE_MONTHLY_LIMIT}회와 추가 지급 횟수를 모두 사용했습니다.",
         )
     return summary
 
 
 def enforce_monthly_limit(user_id: int, role: str, beta_job_id: str, output_type: str) -> dict[str, Any]:
-    """무료 사용량을 BEGIN IMMEDIATE 트랜잭션 안에서 검사하고 출력 슬롯을 예약합니다."""
+    """기본 월 20회 소진 후에는 관리자 추가 지급 지갑을 1회 예약합니다."""
     if output_type not in {"archive", "shortform"}:
         raise ValueError("지원하지 않는 MP4 출력 유형입니다.")
 
     summary = monthly_usage_summary(user_id, role)
     if summary.get("unlimited"):
         return {**summary, "existing_usage": False, "reserved": False}
-    if summary.get("plan_code") != "free":
-        enforce_generation_access(user_id, role)
 
     period_start = _parse_datetime(summary.get("period_start"))
     period_end = _parse_datetime(summary.get("period_end"))
@@ -222,17 +238,33 @@ def enforce_monthly_limit(user_id: int, role: str, beta_job_id: str, output_type
 
     now_dt = datetime.now(timezone.utc)
     now_text = now_dt.isoformat()
+    wallet_now_text = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d %H:%M:%S")
     stale_before = (now_dt - timedelta(seconds=USAGE_RESERVATION_TTL_SECONDS)).isoformat()
     with sqlite3.connect(BETA_DB, timeout=30, isolation_level=None) as connection:
         ensure_mp4_usage_table(connection)
+        connection.execute("ATTACH DATABASE ? AS v1db", (str(V1_DB),))
         connection.execute("BEGIN IMMEDIATE")
         try:
+            stale_wallets = connection.execute(
+                "SELECT credit_wallet_id FROM beta_mp4_usage "
+                "WHERE mp4_status='reserved' AND mp4_verified=0 AND updated_at < ? "
+                "AND credit_wallet_id IS NOT NULL",
+                (stale_before,),
+            ).fetchall()
+            for (wallet_id,) in stale_wallets:
+                connection.execute(
+                    "UPDATE v1db.video_credit_wallets "
+                    "SET reserved_amount=MAX(0,reserved_amount-1),updated_at=? WHERE id=?",
+                    (wallet_now_text, int(wallet_id)),
+                )
             connection.execute(
                 "DELETE FROM beta_mp4_usage WHERE mp4_status='reserved' AND mp4_verified=0 AND updated_at < ?",
                 (stale_before,),
             )
+
             existing = connection.execute(
-                "SELECT mp4_status, mp4_verified FROM beta_mp4_usage WHERE beta_job_id=? AND output_type=? LIMIT 1",
+                "SELECT mp4_status,mp4_verified,credit_wallet_id FROM beta_mp4_usage "
+                "WHERE beta_job_id=? AND output_type=? LIMIT 1",
                 (beta_job_id, output_type),
             ).fetchone()
             if existing:
@@ -241,10 +273,11 @@ def enforce_monthly_limit(user_id: int, role: str, beta_job_id: str, output_type
                     **summary,
                     "existing_usage": bool(existing[0] == "completed" and int(existing[1] or 0) == 1),
                     "reserved": bool(existing[0] == "reserved"),
+                    "credit_wallet_id": existing[2],
                 }
 
             rows = connection.execute(
-                "SELECT mp4_created_at, mp4_status, mp4_verified FROM beta_mp4_usage "
+                "SELECT mp4_created_at,mp4_status,mp4_verified FROM beta_mp4_usage "
                 "WHERE owner_user_id=? AND (mp4_status='reserved' OR (mp4_status='completed' AND mp4_verified=1))",
                 (user_id,),
             ).fetchall()
@@ -254,35 +287,55 @@ def enforce_monthly_limit(user_id: int, role: str, beta_job_id: str, output_type
                 and period_start <= created < period_end
                 and (row_status == "reserved" or int(verified or 0) == 1)
             )
+
+            credit_wallet_id = None
             if occupied >= FREE_MONTHLY_LIMIT:
-                connection.rollback()
-                raise HTTPException(
-                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                    detail=f"무료 30일 {FREE_MONTHLY_LIMIT}회 제작 한도를 모두 사용했습니다.",
+                wallet = connection.execute(
+                    "SELECT id FROM v1db.video_credit_wallets "
+                    "WHERE user_id=? AND credit_type!='free_monthly' "
+                    "AND available_amount-reserved_amount>0 "
+                    "AND (expires_at IS NULL OR expires_at>?) "
+                    "ORDER BY CASE WHEN expires_at IS NULL THEN 1 ELSE 0 END,expires_at ASC,id ASC LIMIT 1",
+                    (user_id, wallet_now_text),
+                ).fetchone()
+                if not wallet:
+                    connection.rollback()
+                    raise HTTPException(
+                        status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                        detail=f"무료 30일 {FREE_MONTHLY_LIMIT}회와 추가 지급 횟수를 모두 사용했습니다.",
+                    )
+                credit_wallet_id = int(wallet[0])
+                connection.execute(
+                    "UPDATE v1db.video_credit_wallets "
+                    "SET reserved_amount=reserved_amount+1,updated_at=? WHERE id=?",
+                    (wallet_now_text, credit_wallet_id),
                 )
 
             connection.execute(
                 """
                 INSERT INTO beta_mp4_usage (
-                    beta_job_id, owner_user_id, output_type,
-                    mp4_status, mp4_verified, mp4_created_at,
-                    created_at, updated_at
-                ) VALUES (?, ?, ?, 'reserved', 0, ?, ?, ?)
+                    beta_job_id,owner_user_id,output_type,
+                    mp4_status,mp4_verified,mp4_created_at,
+                    created_at,updated_at,credit_wallet_id
+                ) VALUES (?, ?, ?, 'reserved', 0, ?, ?, ?, ?)
                 """,
-                (beta_job_id, user_id, output_type, now_text, now_text, now_text),
+                (beta_job_id, user_id, output_type, now_text, now_text, now_text, credit_wallet_id),
             )
             connection.commit()
         except Exception:
             if connection.in_transaction:
                 connection.rollback()
             raise
+        finally:
+            connection.execute("DETACH DATABASE v1db")
 
+    fresh = monthly_usage_summary(user_id, role)
     return {
-        **summary,
+        **fresh,
         "used": occupied,
-        "remaining": max(0, FREE_MONTHLY_LIMIT - occupied - 1),
         "existing_usage": False,
         "reserved": True,
+        "credit_wallet_id": credit_wallet_id,
     }
 
 
@@ -333,54 +386,106 @@ def record_verified_mp4(beta_job_id: str, output_type: str, path: Path) -> dict[
         raise ValueError("지원하지 않는 MP4 출력 유형입니다.")
     metadata = probe_mp4(path)
     created_at = now_iso()
+    wallet_now_text = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d %H:%M:%S")
     try:
         relative_path = str(path.resolve().relative_to(BETA_ROOT.resolve()))
     except ValueError:
         relative_path = str(path.resolve())
-    with sqlite3.connect(BETA_DB) as connection:
+    with sqlite3.connect(BETA_DB, timeout=30, isolation_level=None) as connection:
         ensure_mp4_usage_table(connection)
-        owner_row = connection.execute(
-            "SELECT owner_user_id FROM beta_jobs WHERE beta_job_id=?",
-            (beta_job_id,),
-        ).fetchone()
-        if owner_row is None:
-            raise ValueError("Beta 작업 DB 기록을 찾을 수 없습니다.")
-        owner_user_id = owner_row[0]
-        connection.execute(
-            """
-            INSERT INTO beta_mp4_usage (
-                beta_job_id, owner_user_id, output_type,
-                mp4_status, mp4_verified, mp4_size_bytes,
-                mp4_duration_seconds, mp4_width, mp4_height,
-                mp4_codec, mp4_relative_path, mp4_validation_result,
-                mp4_created_at, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(beta_job_id, output_type) DO UPDATE SET
-                owner_user_id=excluded.owner_user_id,
-                mp4_status=excluded.mp4_status,
-                mp4_verified=excluded.mp4_verified,
-                mp4_size_bytes=excluded.mp4_size_bytes,
-                mp4_duration_seconds=excluded.mp4_duration_seconds,
-                mp4_width=excluded.mp4_width,
-                mp4_height=excluded.mp4_height,
-                mp4_codec=excluded.mp4_codec,
-                mp4_relative_path=excluded.mp4_relative_path,
-                mp4_validation_result=excluded.mp4_validation_result,
-                mp4_created_at=excluded.mp4_created_at,
-                updated_at=excluded.updated_at
-            """,
-            (
-                beta_job_id, owner_user_id, output_type,
-                metadata["mp4_status"], metadata["mp4_verified"], metadata["mp4_size_bytes"],
-                metadata["mp4_duration_seconds"], metadata["mp4_width"], metadata["mp4_height"],
-                metadata["mp4_codec"], relative_path, metadata["mp4_validation_result"],
-                created_at, created_at, created_at,
-            ),
-        )
+        connection.execute("ATTACH DATABASE ? AS v1db", (str(V1_DB),))
+        connection.execute("BEGIN IMMEDIATE")
+        try:
+            owner_row = connection.execute(
+                "SELECT owner_user_id FROM beta_jobs WHERE beta_job_id=?",
+                (beta_job_id,),
+            ).fetchone()
+            if owner_row is None:
+                raise ValueError("Beta 작업 DB 기록을 찾을 수 없습니다.")
+            owner_user_id = owner_row[0]
+            existing = connection.execute(
+                "SELECT mp4_status,mp4_verified,credit_wallet_id FROM beta_mp4_usage "
+                "WHERE beta_job_id=? AND output_type=? LIMIT 1",
+                (beta_job_id, output_type),
+            ).fetchone()
+            already_completed = bool(existing and existing[0] == "completed" and int(existing[1] or 0) == 1)
+            credit_wallet_id = int(existing[2]) if existing and existing[2] is not None else None
+
+            if credit_wallet_id is not None and not already_completed:
+                changed = connection.execute(
+                    "UPDATE v1db.video_credit_wallets "
+                    "SET available_amount=available_amount-1,reserved_amount=MAX(0,reserved_amount-1),updated_at=? "
+                    "WHERE id=? AND available_amount>0 AND reserved_amount>0",
+                    (wallet_now_text, credit_wallet_id),
+                ).rowcount
+                if changed != 1:
+                    raise RuntimeError("관리자 추가 지급 횟수 차감에 실패했습니다.")
+                balance = connection.execute(
+                    "SELECT COALESCE(SUM(available_amount-reserved_amount),0) "
+                    "FROM v1db.video_credit_wallets WHERE user_id=? "
+                    "AND (expires_at IS NULL OR expires_at>?)",
+                    (owner_user_id, wallet_now_text),
+                ).fetchone()[0]
+                connection.execute(
+                    """
+                    INSERT INTO v1db.video_credit_ledger
+                    (user_id,wallet_id,entry_type,amount,balance_after,source_ref,note,created_at)
+                    VALUES (?,?,'use',-1,?,?,?,?)
+                    """,
+                    (
+                        owner_user_id,
+                        credit_wallet_id,
+                        int(balance or 0),
+                        f"beta:{output_type}:{beta_job_id}",
+                        "Beta 동영상 제작 완료 추가 지급분 차감",
+                        wallet_now_text,
+                    ),
+                )
+
+            connection.execute(
+                """
+                INSERT INTO beta_mp4_usage (
+                    beta_job_id,owner_user_id,output_type,
+                    mp4_status,mp4_verified,mp4_size_bytes,
+                    mp4_duration_seconds,mp4_width,mp4_height,
+                    mp4_codec,mp4_relative_path,mp4_validation_result,
+                    mp4_created_at,created_at,updated_at,credit_wallet_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(beta_job_id,output_type) DO UPDATE SET
+                    owner_user_id=excluded.owner_user_id,
+                    mp4_status=excluded.mp4_status,
+                    mp4_verified=excluded.mp4_verified,
+                    mp4_size_bytes=excluded.mp4_size_bytes,
+                    mp4_duration_seconds=excluded.mp4_duration_seconds,
+                    mp4_width=excluded.mp4_width,
+                    mp4_height=excluded.mp4_height,
+                    mp4_codec=excluded.mp4_codec,
+                    mp4_relative_path=excluded.mp4_relative_path,
+                    mp4_validation_result=excluded.mp4_validation_result,
+                    mp4_created_at=excluded.mp4_created_at,
+                    updated_at=excluded.updated_at,
+                    credit_wallet_id=COALESCE(beta_mp4_usage.credit_wallet_id,excluded.credit_wallet_id)
+                """,
+                (
+                    beta_job_id, owner_user_id, output_type,
+                    metadata["mp4_status"], metadata["mp4_verified"], metadata["mp4_size_bytes"],
+                    metadata["mp4_duration_seconds"], metadata["mp4_width"], metadata["mp4_height"],
+                    metadata["mp4_codec"], relative_path, metadata["mp4_validation_result"],
+                    created_at, created_at, created_at, credit_wallet_id,
+                ),
+            )
+            connection.commit()
+        except Exception:
+            if connection.in_transaction:
+                connection.rollback()
+            raise
+        finally:
+            connection.execute("DETACH DATABASE v1db")
     return {
         "beta_job_id": beta_job_id,
         "owner_user_id": owner_user_id,
         "output_type": output_type,
+        "credit_wallet_id": credit_wallet_id,
         **metadata,
         "mp4_relative_path": relative_path,
         "mp4_created_at": created_at,
