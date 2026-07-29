@@ -4,6 +4,7 @@ import os
 import base64
 import json
 import re
+import sqlite3
 import threading
 import time
 import urllib.error
@@ -21,6 +22,7 @@ from app.beta_mp4_usage import enforce_generation_access
 from app.beta_title import clean_beta_title, persist_beta_job_title
 
 ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
+DB_PATH = ROOT / "data" / "storymaker_beta.db"
 JOBS_DIR = ROOT / "data" / "jobs"
 QUEUE_DIR = ROOT / "data" / "gemini_queue"
 THUMB_STATE_PATH = ROOT / "data" / "beta_thumbnail_worker_state.json"
@@ -518,6 +520,94 @@ def worker_status(job_id: str | None = Query(default=None)) -> dict[str, Any]:
     data["required_worker_id"] = REQUIRED_WORKER_ID
     data["queue_depth"] = sum(1 for item in all_queue_states() if item.get("status") in ACTIVE_STATUSES)
     return {"ok": True, "data": data}
+
+
+def _queue_owner_map(job_ids: list[str]) -> dict[str, int]:
+    safe_ids = [job_id for job_id in job_ids if valid_job_id(job_id)]
+    if not safe_ids or not DB_PATH.exists():
+        return {}
+    placeholders = ",".join("?" for _ in safe_ids)
+    with sqlite3.connect(DB_PATH) as connection:
+        rows = connection.execute(
+            f"SELECT beta_job_id, owner_user_id FROM beta_jobs WHERE beta_job_id IN ({placeholders})",
+            safe_ids,
+        ).fetchall()
+    return {
+        str(job_id): int(owner_user_id)
+        for job_id, owner_user_id in rows
+        if owner_user_id is not None
+    }
+
+
+def _recent_average_queue_seconds(states: list[dict[str, Any]]) -> int:
+    durations: list[float] = []
+    for state in reversed(states):
+        if state.get("status") != "completed":
+            continue
+        queued_at = state.get("queued_at")
+        completed_at = state.get("completed_at") or state.get("updated_at")
+        try:
+            queued = datetime.fromisoformat(str(queued_at))
+            completed = datetime.fromisoformat(str(completed_at))
+            if queued.tzinfo is None:
+                queued = queued.replace(tzinfo=timezone.utc)
+            if completed.tzinfo is None:
+                completed = completed.replace(tzinfo=timezone.utc)
+            seconds = (completed - queued).total_seconds()
+        except Exception:
+            continue
+        if 3 <= seconds <= 300:
+            durations.append(seconds)
+        if len(durations) >= 40:
+            break
+    if not durations:
+        return 45
+    durations.sort()
+    middle = len(durations) // 2
+    median = durations[middle] if len(durations) % 2 else (durations[middle - 1] + durations[middle]) / 2
+    return max(10, min(180, int(round(median))))
+
+
+@beta_gemini_worker_router.get("/queue-summary")
+def queue_summary(request: Request) -> dict[str, Any]:
+    user_id = current_user_id(request)
+    states = all_queue_states()
+    active = [
+        state for state in states
+        if state.get("status") in ACTIVE_STATUSES
+        and valid_job_id(str(state.get("job_id") or ""))
+        and (JOBS_DIR / str(state.get("job_id")) / "result.json").exists()
+    ]
+    active.sort(key=lambda item: str(item.get("queued_at") or item.get("updated_at") or ""))
+
+    owner_map = _queue_owner_map([str(item.get("job_id") or "") for item in active])
+    processing_count = sum(1 for item in active if item.get("status") in {"claimed", "sent"})
+    my_index = next(
+        (
+            index for index, item in enumerate(active)
+            if owner_map.get(str(item.get("job_id") or "")) == user_id
+        ),
+        None,
+    )
+    my_state = active[my_index] if my_index is not None else None
+    my_status = str((my_state or {}).get("status") or "idle")
+    my_position = my_index + 1 if my_index is not None else None
+    average_seconds = _recent_average_queue_seconds(states)
+    ahead_count = my_index if my_index is not None else 0
+    estimated_wait_seconds = 0 if my_status in {"claimed", "sent"} else ahead_count * average_seconds
+
+    return {
+        "ok": True,
+        "data": {
+            "processing_count": processing_count,
+            "my_position": my_position,
+            "my_status": my_status,
+            "estimated_wait_seconds": estimated_wait_seconds,
+            "average_processing_seconds": average_seconds,
+            "active_count": len(active),
+            "updated_at": now_iso(),
+        },
+    }
 
 
 @beta_gemini_worker_router.post("/jobs/{job_id}/retry")

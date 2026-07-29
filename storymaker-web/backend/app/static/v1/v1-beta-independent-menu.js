@@ -290,11 +290,90 @@
     focus();
   }
 
-  function removeAllQueueCards() {
+  const QUEUE_SUMMARY_URL = '/v1/beta-api/gemini-worker/queue-summary';
+  let queueSummaryTimer = 0;
+  let queueSummaryLoading = false;
+
+  function formatQueueWait(seconds, status, position) {
+    if (status === 'claimed' || status === 'sent') return '처리 중';
+    if (!position) return '바로 시작 가능';
+    const safeSeconds = Math.max(0, Number(seconds || 0));
+    if (safeSeconds < 60) return safeSeconds > 0 ? '약 1분 이내' : '곧 시작';
+    return `약 ${Math.max(1, Math.ceil(safeSeconds / 60))}분`;
+  }
+
+  function removeLegacyQueueCards() {
     const aside = document.querySelector('aside');
     if (!aside) return;
     Array.from(aside.querySelectorAll('section')).forEach((section) => {
+      if (section.id === 'storymaker-live-queue-summary') return;
       if (String(section.textContent || '').includes('QUEUE')) section.remove();
+    });
+  }
+
+  function findQueueSummaryHost() {
+    const aside = document.querySelector('aside');
+    if (!aside) return null;
+    removeLegacyQueueCards();
+    const existing = aside.querySelector('#storymaker-live-queue-summary');
+    if (existing) return existing;
+    const nav = aside.querySelector('nav');
+    if (!nav) return null;
+    const section = document.createElement('section');
+    section.id = 'storymaker-live-queue-summary';
+    section.className = 'mt-[11px] rounded-[1.5rem] border border-cyan-300/20 bg-slate-900/80 p-4 shadow-xl shadow-cyan-950/20';
+    aside.insertBefore(section, nav);
+    return section;
+  }
+
+  function renderQueueSummary(data) {
+    const card = findQueueSummaryHost();
+    if (!card) return;
+    const processingCount = Math.max(0, Number(data?.processing_count || 0));
+    const position = data?.my_position == null ? null : Math.max(1, Number(data.my_position));
+    const status = String(data?.my_status || 'idle');
+    const positionLabel = status === 'claimed' || status === 'sent'
+      ? '처리 중'
+      : position
+        ? `${position}번째`
+        : '대기 없음';
+    const waitLabel = formatQueueWait(data?.estimated_wait_seconds, status, position);
+
+    card.innerHTML = `
+      <p class="text-xs font-black tracking-[0.18em] text-cyan-300 uppercase">QUE</p>
+      <dl class="mt-3 space-y-2.5 text-sm font-bold">
+        <div class="flex items-center justify-between gap-3"><dt class="text-slate-400">현재 처리 작업</dt><dd class="shrink-0 text-white">${processingCount}건</dd></div>
+        <div class="flex items-center justify-between gap-3"><dt class="text-slate-400">내 작업 순번</dt><dd class="shrink-0 text-cyan-100">${positionLabel}</dd></div>
+        <div class="flex items-center justify-between gap-3"><dt class="text-slate-400">대기시간</dt><dd class="shrink-0 text-cyan-100">${waitLabel}</dd></div>
+      </dl>
+    `;
+  }
+
+  async function refreshQueueSummary() {
+    if (queueSummaryLoading || document.hidden) return;
+    queueSummaryLoading = true;
+    try {
+      const response = await fetch(QUEUE_SUMMARY_URL, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      renderQueueSummary(payload?.data || {});
+    } catch (_) {
+      renderQueueSummary({ processing_count: 0, my_position: null, my_status: 'idle', estimated_wait_seconds: 0 });
+    } finally {
+      queueSummaryLoading = false;
+    }
+  }
+
+  function startQueueSummary() {
+    refreshQueueSummary();
+    if (queueSummaryTimer) return;
+    queueSummaryTimer = window.setInterval(refreshQueueSummary, 5000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) refreshQueueSummary();
     });
   }
 
@@ -310,9 +389,11 @@
 
   const observer = new MutationObserver(() => {
     installMenu();
-    removeAllQueueCards();
+    removeLegacyQueueCards();
+    if (!document.getElementById('storymaker-live-queue-summary')) refreshQueueSummary();
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
   installMenu();
-  removeAllQueueCards();
+  removeLegacyQueueCards();
+  startQueueSummary();
 })();
