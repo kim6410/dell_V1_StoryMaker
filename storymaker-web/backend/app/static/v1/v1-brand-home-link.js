@@ -225,10 +225,21 @@
     });
   }
 
+  function renameCreationMenu() {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let textNode;
+    while ((textNode = walker.nextNode())) {
+      if (clean(textNode.nodeValue) !== '딸깍 제작') continue;
+      textNode.nodeValue = String(textNode.nodeValue || '').replace('딸깍 제작', '새 콘텐츠 제작');
+    }
+  }
+
   function install() {
     installBrand();
     installHardcodedButtons();
+    renameCreationMenu();
     removeExistingMenuIcons();
+    installMenuIcons();
   }
 
   document.addEventListener('click', (event) => {
