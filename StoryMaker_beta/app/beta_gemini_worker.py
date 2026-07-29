@@ -12,10 +12,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
+from app.beta_auth import current_user_id, current_user_role
 from app.beta_gemini import CHANNEL_KEYS, BetaGeminiRequest, beta_build_prompt, beta_parse_content
+from app.beta_mp4_usage import enforce_generation_access
 from app.beta_title import clean_beta_title, persist_beta_job_title
 
 ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
@@ -399,7 +401,7 @@ def save_content(job_id: str, raw_text: str, source: str) -> dict[str, Any]:
 
 
 @beta_gemini_worker_router.post("/jobs/{job_id}/prepare")
-def prepare_job(job_id: str) -> dict[str, Any]:
+def prepare_job(job_id: str, request: Request) -> dict[str, Any]:
     result, prompt = build_prompt_for_job(job_id)
     with LOCK:
         current = read_job_state(job_id)
@@ -415,6 +417,7 @@ def prepare_job(job_id: str) -> dict[str, Any]:
             return {"ok": True, "state": public_state(current)}
         if current.get("status") in ACTIVE_STATUSES:
             return {"ok": True, "state": public_state(current)}
+        enforce_generation_access(current_user_id(request), current_user_role(request))
         state = {
             "job_id": job_id,
             "project_title": result.get("title") or result.get("topic") or "Beta 프로젝트",
@@ -433,7 +436,7 @@ def prepare_job(job_id: str) -> dict[str, Any]:
 
 
 @beta_gemini_worker_router.post("/jobs/{job_id}/queue")
-def queue_job(job_id: str) -> dict[str, Any]:
+def queue_job(job_id: str, request: Request) -> dict[str, Any]:
     result, prompt = build_prompt_for_job(job_id)
     with LOCK:
         current = read_job_state(job_id)
@@ -443,6 +446,7 @@ def queue_job(job_id: str) -> dict[str, Any]:
             return {"ok": True, "duplicate": True, "state": public_state(current)}
         if current.get("status") in ACTIVE_STATUSES:
             return {"ok": True, "duplicate": True, "state": public_state(current)}
+        enforce_generation_access(current_user_id(request), current_user_role(request))
         current.update({
             "job_id": job_id,
             "project_title": result.get("title") or result.get("topic") or "Beta 프로젝트",
@@ -461,7 +465,7 @@ def queue_job(job_id: str) -> dict[str, Any]:
 
 
 @beta_gemini_worker_router.post("/jobs/{job_id}/api")
-def api_job(job_id: str) -> dict[str, Any]:
+def api_job(job_id: str, request: Request) -> dict[str, Any]:
     result, prompt = build_prompt_for_job(job_id)
     with LOCK:
         current = read_job_state(job_id)
@@ -471,6 +475,7 @@ def api_job(job_id: str) -> dict[str, Any]:
             return {"ok": True, "duplicate": True, "state": public_state(current)}
         if current.get("status") in ACTIVE_STATUSES:
             return {"ok": True, "duplicate": True, "state": public_state(current)}
+        enforce_generation_access(current_user_id(request), current_user_role(request))
         current.update({
             "job_id": job_id,
             "project_title": result.get("title") or result.get("topic") or "Beta 프로젝트",

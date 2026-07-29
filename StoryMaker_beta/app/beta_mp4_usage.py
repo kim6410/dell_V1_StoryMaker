@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any
 import json
@@ -69,29 +70,98 @@ def _parse_datetime(value: Any) -> datetime | None:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
-def _billing_profile(user_id: int) -> dict[str, Any]:
+def _parse_account_datetime(value: Any) -> datetime | None:
+    """V1 DB의 시간대 없는 가입·결제 시각은 한국시간으로 해석합니다."""
+    parsed = _parse_datetime(value)
+    if not parsed:
+        return None
+    raw = str(value or "")
+    if parsed.tzinfo == timezone.utc and not ("Z" in raw or "+" in raw[10:] or raw.endswith("+00:00")):
+        naive = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        return naive.replace(tzinfo=ZoneInfo("Asia/Seoul")).astimezone(timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _account_profile(user_id: int) -> dict[str, Any]:
+    """V1 회원 가입일과 현재 요금제·갱신 만료일을 읽습니다."""
+    default = {
+        "plan_code": "free",
+        "subscription_status": "inactive",
+        "signup_at": None,
+        "billing_period_end": None,
+    }
     if not V1_DB.exists():
-        return {"plan_code": "free", "period_start": None, "period_end": None}
+        return default
     with sqlite3.connect(f"file:{V1_DB}?mode=ro", uri=True, timeout=3) as connection:
-        row = connection.execute(
-            "SELECT current_plan_code,current_period_started_at,current_period_ends_at "
+        connection.row_factory = sqlite3.Row
+        user = connection.execute(
+            "SELECT created_at,tier FROM users WHERE id=?",
+            (user_id,),
+        ).fetchone()
+        billing = connection.execute(
+            "SELECT current_plan_code,subscription_status,current_period_ends_at "
             "FROM member_billing_profiles WHERE user_id=?",
             (user_id,),
         ).fetchone()
-    if not row:
-        return {"plan_code": "free", "period_start": None, "period_end": None}
-    return {"plan_code": str(row[0] or "free").lower(), "period_start": row[1], "period_end": row[2]}
+    plan_code = str(
+        (billing["current_plan_code"] if billing else None)
+        or (user["tier"] if user else None)
+        or "free"
+    ).strip().lower()
+    return {
+        "plan_code": plan_code,
+        "subscription_status": str(billing["subscription_status"] if billing else "inactive").strip().lower(),
+        "signup_at": user["created_at"] if user else None,
+        "billing_period_end": billing["current_period_ends_at"] if billing else None,
+    }
+
+
+def _signup_period(signup_at: datetime, now_dt: datetime) -> tuple[datetime, datetime]:
+    """가입 시각을 기준으로 연속된 30일 이용기간을 계산합니다."""
+    if now_dt < signup_at:
+        return signup_at, signup_at + timedelta(days=30)
+    period_index = int((now_dt - signup_at).total_seconds() // timedelta(days=30).total_seconds())
+    period_start = signup_at + timedelta(days=period_index * 30)
+    return period_start, period_start + timedelta(days=30)
 
 
 def monthly_usage_summary(user_id: int, role: str = "user", now: datetime | None = None) -> dict[str, Any]:
     now_dt = now or datetime.now(timezone.utc)
+    if now_dt.tzinfo is None:
+        now_dt = now_dt.replace(tzinfo=timezone.utc)
+    else:
+        now_dt = now_dt.astimezone(timezone.utc)
     if str(role or "").lower() == "admin":
-        return {"unlimited": True, "plan_code": "admin", "used": 0, "remaining": None, "limit": None}
-    profile = _billing_profile(user_id)
-    if profile["plan_code"] != "free":
-        return {"unlimited": True, "plan_code": profile["plan_code"], "used": 0, "remaining": None, "limit": None}
-    period_start = _parse_datetime(profile.get("period_start")) or now_dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    period_end = _parse_datetime(profile.get("period_end")) or (period_start + timedelta(days=32)).replace(day=1)
+        return {
+            "unlimited": True, "access_allowed": True, "plan_code": "admin",
+            "used": 0, "remaining": None, "limit": None,
+            "period_start": None, "period_end": None,
+        }
+
+    profile = _account_profile(user_id)
+    signup_at = _parse_account_datetime(profile.get("signup_at"))
+    if not signup_at:
+        raise RuntimeError("사용자 가입일을 확인할 수 없습니다.")
+    plan_code = str(profile.get("plan_code") or "free").lower()
+
+    if plan_code != "free":
+        initial_end = signup_at + timedelta(days=30)
+        billing_end = _parse_account_datetime(profile.get("billing_period_end"))
+        access_end = max(initial_end, billing_end) if billing_end else initial_end
+        access_allowed = now_dt < access_end
+        return {
+            "unlimited": access_allowed,
+            "access_allowed": access_allowed,
+            "expired": not access_allowed,
+            "plan_code": plan_code,
+            "used": 0,
+            "remaining": None,
+            "limit": None,
+            "period_start": signup_at.isoformat(),
+            "period_end": access_end.isoformat(),
+        }
+
+    period_start, period_end = _signup_period(signup_at, now_dt)
     with sqlite3.connect(BETA_DB) as connection:
         ensure_mp4_usage_table(connection)
         rows = connection.execute(
@@ -99,9 +169,14 @@ def monthly_usage_summary(user_id: int, role: str = "user", now: datetime | None
             "WHERE owner_user_id=? AND mp4_status='completed' AND mp4_verified=1",
             (user_id,),
         ).fetchall()
-    used = sum(1 for row in rows if (created := _parse_datetime(row[0])) and period_start <= created < period_end)
+    used = sum(
+        1 for row in rows
+        if (created := _parse_datetime(row[0])) and period_start <= created < period_end
+    )
     return {
         "unlimited": False,
+        "access_allowed": used < FREE_MONTHLY_LIMIT,
+        "expired": False,
         "plan_code": "free",
         "used": used,
         "remaining": max(0, FREE_MONTHLY_LIMIT - used),
@@ -109,6 +184,26 @@ def monthly_usage_summary(user_id: int, role: str = "user", now: datetime | None
         "period_start": period_start.isoformat(),
         "period_end": period_end.isoformat(),
     }
+
+
+def enforce_generation_access(user_id: int, role: str) -> dict[str, Any]:
+    """AI 원고 생성 직전에 무료 한도 또는 유료 이용기간 만료를 차단합니다."""
+    summary = monthly_usage_summary(user_id, role)
+    if summary.get("plan_code") == "admin":
+        return summary
+    if summary.get("plan_code") != "free":
+        if not summary.get("access_allowed"):
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail="유료 이용기간 30일이 종료되었습니다. 이용기간을 갱신해 주세요.",
+            )
+        return summary
+    if int(summary.get("used") or 0) >= FREE_MONTHLY_LIMIT:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail=f"무료 30일 {FREE_MONTHLY_LIMIT}회 제작 한도를 모두 사용했습니다.",
+        )
+    return summary
 
 
 def enforce_monthly_limit(user_id: int, role: str, beta_job_id: str, output_type: str) -> dict[str, Any]:
@@ -119,6 +214,8 @@ def enforce_monthly_limit(user_id: int, role: str, beta_job_id: str, output_type
     summary = monthly_usage_summary(user_id, role)
     if summary.get("unlimited"):
         return {**summary, "existing_usage": False, "reserved": False}
+    if summary.get("plan_code") != "free":
+        enforce_generation_access(user_id, role)
 
     period_start = _parse_datetime(summary.get("period_start"))
     period_end = _parse_datetime(summary.get("period_end"))
@@ -163,7 +260,7 @@ def enforce_monthly_limit(user_id: int, role: str, beta_job_id: str, output_type
                 connection.rollback()
                 raise HTTPException(
                     status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                    detail=f"무료 월 {FREE_MONTHLY_LIMIT}회 제작 한도를 모두 사용했습니다.",
+                    detail=f"무료 30일 {FREE_MONTHLY_LIMIT}회 제작 한도를 모두 사용했습니다.",
                 )
 
             connection.execute(

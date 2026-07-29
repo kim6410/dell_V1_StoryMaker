@@ -14,7 +14,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from app.beta_auth import current_user_role
+from app.beta_auth import current_user_id, current_user_role
+from app.beta_mp4_usage import enforce_generation_access
 from app.beta_title import clean_beta_title, persist_beta_job_title
 
 beta_gemini_router = APIRouter(prefix="/beta-api/gemini", tags=["beta-gemini"])
@@ -938,12 +939,14 @@ def beta_gemini_status() -> dict[str, Any]:
 
 
 @beta_gemini_router.post("/generate")
-def beta_gemini_generate(payload: BetaGeminiRequest) -> dict[str, Any]:
+def beta_gemini_generate(payload: BetaGeminiRequest, request: Request) -> dict[str, Any]:
+    enforce_generation_access(current_user_id(request), current_user_role(request))
     return {"ok": True, "content": beta_call_ai(payload)}
 
 
 @beta_gemini_router.post("/jobs/{beta_job_id}/generate")
-def beta_gemini_generate_for_job(beta_job_id: str) -> dict[str, Any]:
+def beta_gemini_generate_for_job(beta_job_id: str, request: Request) -> dict[str, Any]:
+    enforce_generation_access(current_user_id(request), current_user_role(request))
     if not beta_job_id.startswith("beta_") or any(ch not in "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-" for ch in beta_job_id):
         raise HTTPException(status_code=400, detail="잘못된 Beta 작업 ID입니다.")
     job_dir = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta")) / "data" / "jobs" / beta_job_id
