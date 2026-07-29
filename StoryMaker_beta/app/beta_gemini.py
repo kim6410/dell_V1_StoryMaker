@@ -94,10 +94,40 @@ def beta_fallback_enabled() -> bool:
 LOGGER = logging.getLogger("storymaker-beta.ai-provider")
 
 
+def _prompt_region(region: str) -> str:
+    """마이페이지 상세 지역은 보존하고 Gemini 프롬프트에는 광역 지역만 전달한다."""
+    raw = str(region or "").strip()
+    if not raw:
+        return "지역 미등록"
+
+    first = raw.split()[0]
+    aliases = {
+        "서울특별시": "서울",
+        "부산광역시": "부산",
+        "대구광역시": "대구",
+        "인천광역시": "인천",
+        "광주광역시": "광주",
+        "대전광역시": "대전",
+        "울산광역시": "울산",
+        "세종특별자치시": "세종",
+        "제주특별자치도": "제주",
+        "경기도": "경기",
+        "강원특별자치도": "강원",
+        "충청북도": "충북",
+        "충청남도": "충남",
+        "전북특별자치도": "전북",
+        "전라북도": "전북",
+        "전라남도": "전남",
+        "경상북도": "경북",
+        "경상남도": "경남",
+    }
+    return aliases.get(first, first)
+
+
 def beta_build_default_prompt(payload: BetaGeminiRequest) -> str:
     business = payload.business or {}
     company = str(business.get("name", "")).strip() or "업체명 미등록"
-    region = str(business.get("region", "")).strip() or "지역 미등록"
+    region = _prompt_region(business.get("region"))
     service = str(business.get("service", "")).strip() or "서비스 미등록"
     phone = str(business.get("phone", "")).strip() or "미등록"
     source_text = str(payload.topic or "").strip()
@@ -448,7 +478,7 @@ def beta_render_prompt_template(template: str, payload: BetaGeminiRequest) -> st
     weather = _prompt_section(default_prompt, "## 현재 날짜·기상 기준 정보", "## Gemini")
     values = {
         "{{company}}": str(business.get("name") or "업체명 미등록").strip(),
-        "{{region}}": str(business.get("region") or "지역 미등록").strip(),
+        "{{region}}": _prompt_region(business.get("region")),
         "{{service}}": str(business.get("service") or "서비스 미등록").strip(),
         "{{phone}}": str(business.get("phone") or "미등록").strip(),
         "{{source_text}}": str(payload.topic or "").strip(),
