@@ -98,6 +98,16 @@
     );
   }
 
+  function removeDashboardHeaderCard() {
+    const section = findContentSection();
+    if (!section) return;
+    Array.from(section.children).forEach((child) => {
+      if (!(child instanceof HTMLElement)) return;
+      const text = String(child.textContent || '');
+      if (text.includes('현재 화면') && text.includes('대시보드로 돌아가기')) child.remove();
+    });
+  }
+
   function restoreNormalContent() {
     const section = findContentSection();
     const panel = document.getElementById('storymaker-beta-independent-panel');
@@ -329,11 +339,13 @@
     const existing = aside.querySelector('#storymaker-live-queue-summary');
     if (existing) {
       if (existing.previousElementSibling !== nav) nav.insertAdjacentElement('afterend', existing);
+      existing.style.marginTop = '2cm';
       return existing;
     }
     const section = document.createElement('section');
     section.id = 'storymaker-live-queue-summary';
-    section.className = 'mt-[11px] rounded-[1.5rem] border border-cyan-300/20 bg-slate-900/80 p-4 shadow-xl shadow-cyan-950/20';
+    section.className = 'rounded-[1.5rem] border border-cyan-300/20 bg-slate-900/80 p-4 shadow-xl shadow-cyan-950/20';
+    section.style.marginTop = '2cm';
     nav.insertAdjacentElement('afterend', section);
     return section;
   }
@@ -401,11 +413,13 @@
 
   const observer = new MutationObserver(() => {
     installMenu();
+    removeDashboardHeaderCard();
     removeLegacyQueueCards();
     if (!document.getElementById('storymaker-live-queue-summary')) refreshQueueSummary();
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
   installMenu();
+  removeDashboardHeaderCard();
   removeLegacyQueueCards();
   startQueueSummary();
 })();
