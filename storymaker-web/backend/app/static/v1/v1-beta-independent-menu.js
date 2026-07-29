@@ -6,6 +6,7 @@
       key: 'betaProduction',
       label: '새 콘텐츠 제작',
       src: '/v1/beta/production',
+      showBetaBadge: false,
       icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
     },
     {
@@ -229,7 +230,10 @@
       button.dataset.storymakerBetaMenu = '1';
       button.dataset.storymakerBetaKey = item.key;
       button.className = template?.className || 'rounded-lg px-4 py-3.5 text-left text-lg font-black text-slate-100 hover:bg-slate-900';
-      button.innerHTML = `<span class="flex w-full items-center justify-between gap-3"><span class="flex min-w-0 items-center gap-3"><span class="storymaker-beta-menu-icon inline-flex h-5 w-5 shrink-0 items-center justify-center text-cyan-300" aria-hidden="true">${item.icon || ''}</span><span class="truncate">${item.label}</span></span><span class="shrink-0 rounded-full border border-cyan-300/40 bg-cyan-300/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">BETA</span></span>`;
+      const betaBadge = item.showBetaBadge === false
+        ? ''
+        : '<span class="shrink-0 rounded-full border border-cyan-300/40 bg-cyan-300/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">BETA</span>';
+      button.innerHTML = `<span class="flex w-full items-center justify-between gap-3"><span class="flex min-w-0 items-center gap-3"><span class="storymaker-beta-menu-icon inline-flex h-5 w-5 shrink-0 items-center justify-center text-cyan-300" aria-hidden="true">${item.icon || ''}</span><span class="truncate">${item.label}</span></span>${betaBadge}</span>`;
       button.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
