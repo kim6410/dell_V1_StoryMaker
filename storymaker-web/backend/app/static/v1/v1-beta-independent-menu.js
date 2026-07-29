@@ -33,14 +33,23 @@
   const COMPANY_INFO_ICON = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>';
 
   function ensureCompanyInfoIcon(button) {
-    if (!button || button.querySelector('.storymaker-company-info-menu-icon')) return;
+    if (!button || button.querySelector('.storymaker-company-info-menu-row')) return;
 
-    button.classList.add('flex', 'items-center', 'gap-3');
+    const label = String(button.textContent || '').trim() || '업체 정보';
+    const row = document.createElement('span');
+    row.className = 'storymaker-company-info-menu-row inline-flex w-full items-center gap-3 whitespace-nowrap';
+
     const icon = document.createElement('span');
     icon.className = 'storymaker-company-info-menu-icon inline-flex h-5 w-5 shrink-0 items-center justify-center text-cyan-300';
     icon.setAttribute('aria-hidden', 'true');
     icon.innerHTML = COMPANY_INFO_ICON;
-    button.insertBefore(icon, button.firstChild);
+
+    const text = document.createElement('span');
+    text.className = 'storymaker-company-info-menu-label whitespace-nowrap';
+    text.textContent = label;
+
+    row.append(icon, text);
+    button.replaceChildren(row);
   }
 
   function syncBetaMenuSelection(activeKey = '') {
