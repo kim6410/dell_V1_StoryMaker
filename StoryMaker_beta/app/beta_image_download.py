@@ -11,7 +11,7 @@ from typing import Any
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 
-PACKAGE_VERSION = "beta-download-package-v5-responsive-watermark"
+PACKAGE_VERSION = "beta-download-package-v6-balanced-watermark"
 
 
 def _clean_name(value: Any, fallback: str, limit: int = 70) -> str:
@@ -101,22 +101,23 @@ def _watermark_image(source: Path, target: Path, company: str, phone: str) -> Pa
     if company or phone:
         portrait = height > width
         max_text_width = max(120, round(width * (0.84 if portrait else 0.86)))
-        brand_preferred = max(34, round(short_side * (0.072 if portrait else 0.052)))
-        phone_preferred = max(38, round(short_side * (0.082 if portrait else 0.062)))
+        brand_preferred = max(24, round(short_side * (0.0504 if portrait else 0.0364)))
+        phone_preferred = max(20, round(short_side * (0.041 if portrait else 0.031)))
         brand_font = _fit_font(draw, company, brand_preferred, max_text_width) if company else None
         phone_font = _fit_font(draw, phone, phone_preferred, max_text_width) if phone else None
-        gap = max(10, round(short_side * 0.016))
-        text_stroke = max(2, round(short_side * 0.0045))
+        gap = max(8, round(short_side * 0.010))
+        text_stroke = max(2, round(short_side * 0.0035))
         brand_box = draw.textbbox((0, 0), company, font=brand_font, stroke_width=text_stroke) if company else (0, 0, 0, 0)
         phone_box = draw.textbbox((0, 0), phone, font=phone_font, stroke_width=text_stroke) if phone else (0, 0, 0, 0)
         brand_h = brand_box[3] - brand_box[1]
         phone_h = phone_box[3] - phone_box[1]
         total_h = brand_h + phone_h + (gap if company and phone else 0)
-        preferred_panel_height = round(height * (0.17 if portrait else 0.20))
-        panel_height = max(total_h + round(short_side * 0.055), preferred_panel_height)
-        panel_height = min(panel_height, round(height * 0.24))
+        vertical_padding = max(16, round(short_side * 0.022))
+        panel_height = total_h + vertical_padding * 2
+        panel_height = min(panel_height, round(height * 0.18))
         panel_top = max(inner_margin, height - inner_margin - panel_height)
-        y = panel_top + max(12, (panel_height - total_h) // 2)
+        content_top = panel_top + max(0, (panel_height - total_h) // 2)
+        y = content_top
 
         panel = Image.new("RGBA", base.size, (0, 0, 0, 0))
         panel_draw = ImageDraw.Draw(panel)
@@ -131,14 +132,16 @@ def _watermark_image(source: Path, target: Path, company: str, phone: str) -> Pa
         shadow_offset_y = max(4, round(short_side * 0.008))
         shadow_stroke = text_stroke + max(2, round(short_side * 0.0025))
         if company:
-            x = (width - (brand_box[2] - brand_box[0])) // 2
-            draw.text((x + shadow_offset_x, y + shadow_offset_y), company, font=brand_font, fill=(0, 0, 0, 235), stroke_width=shadow_stroke, stroke_fill=(0, 0, 0, 248))
-            draw.text((x, y), company, font=brand_font, fill=(255, 211, 0, 255), stroke_width=text_stroke, stroke_fill=(0, 0, 0, 245))
+            x = (width - (brand_box[2] - brand_box[0])) // 2 - brand_box[0]
+            text_y = y - brand_box[1]
+            draw.text((x + shadow_offset_x, text_y + shadow_offset_y), company, font=brand_font, fill=(0, 0, 0, 235), stroke_width=shadow_stroke, stroke_fill=(0, 0, 0, 248))
+            draw.text((x, text_y), company, font=brand_font, fill=(255, 211, 0, 255), stroke_width=text_stroke, stroke_fill=(0, 0, 0, 245))
             y += brand_h + (gap if phone else 0)
         if phone:
-            x = (width - (phone_box[2] - phone_box[0])) // 2
-            draw.text((x + shadow_offset_x, y + shadow_offset_y), phone, font=phone_font, fill=(0, 0, 0, 235), stroke_width=shadow_stroke, stroke_fill=(0, 0, 0, 248))
-            draw.text((x, y), phone, font=phone_font, fill=(255, 255, 255, 255), stroke_width=text_stroke, stroke_fill=(0, 0, 0, 245))
+            x = (width - (phone_box[2] - phone_box[0])) // 2 - phone_box[0]
+            text_y = y - phone_box[1]
+            draw.text((x + shadow_offset_x, text_y + shadow_offset_y), phone, font=phone_font, fill=(0, 0, 0, 235), stroke_width=shadow_stroke, stroke_fill=(0, 0, 0, 248))
+            draw.text((x, text_y), phone, font=phone_font, fill=(255, 255, 255, 255), stroke_width=text_stroke, stroke_fill=(0, 0, 0, 245))
 
     result = Image.alpha_composite(base, overlay).convert("RGB")
     target.parent.mkdir(parents=True, exist_ok=True)
