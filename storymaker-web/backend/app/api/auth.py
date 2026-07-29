@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Security, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import secrets
 import os
@@ -14,6 +14,9 @@ import time
 import hashlib
 import ipaddress
 import threading
+import sqlite3
+from pathlib import Path
+from zoneinfo import ZoneInfo
 from collections import defaultdict, deque
 from typing import Optional
 from pydantic import BaseModel
@@ -669,6 +672,79 @@ def get_me(current_user: User = Depends(get_current_user)):
     user_resp = UserResponse.model_validate(current_user)
     user_resp.project_count = len(current_user.projects)
     return CommonResponse(ok=True, data=user_resp.model_dump(), message="")
+
+
+@router.get("/auth/dashboard-usage", response_model=CommonResponse)
+def get_dashboard_usage(current_user: User = Depends(get_current_user)):
+    """V1 로그인 사용자 기준 Beta MP4 누적·30일 사용량·보관 현황을 반환합니다."""
+    beta_db = Path(os.getenv(
+        "STORYMAKER_BETA_DB",
+        "/beta_data/storymaker_beta.db",
+    ))
+    signup = current_user.created_at
+    if isinstance(signup, str):
+        signup_dt = datetime.fromisoformat(signup.replace("Z", "+00:00"))
+    else:
+        signup_dt = signup
+    if signup_dt is None:
+        signup_dt = datetime.now(timezone.utc)
+    if signup_dt.tzinfo is None:
+        signup_dt = signup_dt.replace(tzinfo=ZoneInfo("Asia/Seoul")).astimezone(timezone.utc)
+    else:
+        signup_dt = signup_dt.astimezone(timezone.utc)
+
+    now_dt = datetime.now(timezone.utc)
+    elapsed_days = max(0, (now_dt - signup_dt).days)
+    period_index = elapsed_days // 30
+    period_start = signup_dt + timedelta(days=period_index * 30)
+    period_end = period_start + timedelta(days=30)
+    monthly_limit = 20
+
+    total_verified = 0
+    period_used = 0
+    retained_count = 0
+    if beta_db.is_file():
+        with sqlite3.connect(beta_db, timeout=5) as connection:
+            usage_rows = connection.execute(
+                "SELECT mp4_created_at FROM beta_mp4_usage "
+                "WHERE owner_user_id=? AND mp4_status='completed' AND mp4_verified=1",
+                (int(current_user.id),),
+            ).fetchall()
+            for row in usage_rows:
+                raw = str(row[0] or "").strip()
+                if not raw:
+                    continue
+                try:
+                    created = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                except ValueError:
+                    continue
+                if created.tzinfo is None:
+                    created = created.replace(tzinfo=timezone.utc)
+                else:
+                    created = created.astimezone(timezone.utc)
+                if created >= signup_dt:
+                    total_verified += 1
+                if period_start <= created < period_end:
+                    period_used += 1
+
+            retained_count = int(connection.execute(
+                "SELECT COUNT(*) FROM beta_jobs "
+                "WHERE owner_user_id=? AND COALESCE(media_deleted_at,'')=''",
+                (int(current_user.id),),
+            ).fetchone()[0])
+
+    remaining = max(0, monthly_limit - period_used)
+    data = {
+        "total_verified_mp4": total_verified,
+        "period_used": period_used,
+        "remaining": remaining,
+        "monthly_limit": monthly_limit,
+        "retained_count": retained_count,
+        "period_start": period_start.isoformat(),
+        "period_end": period_end.isoformat(),
+        "plan_code": str(getattr(current_user, "tier", "free") or "free").lower(),
+    }
+    return CommonResponse(ok=True, data=data, message="")
 
 
 @router.post("/auth/join", response_model=CommonResponse)
