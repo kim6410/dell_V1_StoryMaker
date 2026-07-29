@@ -11,7 +11,7 @@ from typing import Any
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 
-PACKAGE_VERSION = "beta-download-package-v6-balanced-watermark"
+PACKAGE_VERSION = "beta-download-package-v7-1-soft-edge-vignette-stronger"
 
 
 def _clean_name(value: Any, fallback: str, limit: int = 70) -> str:
@@ -49,6 +49,25 @@ def _fit_font(draw: ImageDraw.ImageDraw, text: str, preferred: int, max_width: i
     return _font(16)
 
 
+def _apply_soft_edge_vignette(base: Image.Image, short_side: int) -> Image.Image:
+    width, height = base.size
+    vignette = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(vignette)
+    fade_depth = max(40, round(short_side * 0.075))
+    band_width = max(8, fade_depth // 5)
+    alpha_steps = (38, 30, 22, 14, 7)
+    for index, alpha in enumerate(alpha_steps):
+        inset = index * band_width
+        if inset * 2 >= width or inset * 2 >= height:
+            break
+        draw.rectangle(
+            (inset, inset, width - 1 - inset, height - 1 - inset),
+            outline=(0, 0, 0, alpha),
+            width=band_width,
+        )
+    return Image.alpha_composite(base, vignette)
+
+
 def _watermark_image(source: Path, target: Path, company: str, phone: str) -> Path:
     with Image.open(source) as opened:
         image = ImageOps.exif_transpose(opened).convert("RGB")
@@ -71,7 +90,7 @@ def _watermark_image(source: Path, target: Path, company: str, phone: str) -> Pa
     inner_width = max(1, round(2 * ratio))
     radius = max(12, round(32 * ratio))
 
-    base = image.convert("RGBA")
+    base = _apply_soft_edge_vignette(image.convert("RGBA"), short_side)
     glow = Image.new("RGBA", base.size, (0, 0, 0, 0))
     glow_draw = ImageDraw.Draw(glow)
     glow_draw.rounded_rectangle(
