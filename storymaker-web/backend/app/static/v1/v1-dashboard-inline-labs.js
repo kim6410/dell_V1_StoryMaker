@@ -7,6 +7,56 @@
   if (new URLSearchParams(location.search).get('inline_lab_frame') === '1') return;
 
   const normalize = value => String(value || '').replace(/\s+/g, ' ').trim();
+  let adminAccess = false;
+  let adminResolved = false;
+
+  function isAdminUser(user) {
+    if (!user || typeof user !== 'object') return false;
+    const role = normalize(user.role || user.user_role || user.type).toLowerCase();
+    return user.is_admin === true
+      || user.is_admin === 1
+      || user.admin === true
+      || user.admin === 1
+      || role === 'admin'
+      || role === 'administrator';
+  }
+
+  async function resolveAdminAccess() {
+    try {
+      const response = await fetch('/v1-api/auth/me', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+      });
+      const payload = response.ok ? await response.json().catch(() => ({})) : {};
+      const user = payload?.data?.user || payload?.user || payload?.data || null;
+      adminAccess = response.ok && isAdminUser(user);
+    } catch (_) {
+      adminAccess = false;
+    } finally {
+      adminResolved = true;
+      scheduleTagCards();
+    }
+  }
+
+  function removeNextWorkList(root) {
+    const heading = Array.from(root.querySelectorAll('h1,h2,h3,h4,p,span,div'))
+      .find(node => normalize(node.textContent) === '다음 작업 목록');
+    if (!heading) return;
+
+    let card = heading.closest('section,article');
+    if (!card) {
+      card = heading.parentElement;
+      while (card && card !== root && card.parentElement) {
+        const text = normalize(card.textContent);
+        const rect = card.getBoundingClientRect?.();
+        if (text.includes('업체 DB') && text.includes('프로젝트') && rect?.width > 500) break;
+        card = card.parentElement;
+      }
+    }
+    if (card && card !== root) card.remove();
+  }
+
   const HOST_ID = 'v1-dashboard-inline-lab-host';
   const HIDDEN_CLASS = 'v1-inline-dashboard-hidden';
 
@@ -75,19 +125,44 @@
   function tagCards() {
     tagFrame = 0;
     const root = document.getElementById('root') || document.body;
-    const nodes = Array.from(root.querySelectorAll('button,a,[role="button"],section,article,div'));
+    removeNextWorkList(root);
+
+    root.querySelectorAll('[data-v1-inline-lab]').forEach(node => {
+      node.removeAttribute('data-v1-inline-lab');
+      node.style.removeProperty('display');
+      node.style.removeProperty('cursor');
+    });
+    root.querySelectorAll('[data-v1-company-dashboard-link]').forEach(node => {
+      node.removeAttribute('data-v1-company-dashboard-link');
+      node.style.removeProperty('cursor');
+    });
+
+    const nodes = Array.from(root.querySelectorAll('button,a,[role="button"],section,article,div'))
+      .sort((a, b) => a.querySelectorAll('*').length - b.querySelectorAll('*').length);
+
     for (const node of nodes) {
       const text = normalize(node.textContent);
       if (!text || text.length > 150) continue;
+
       if (isCompanyCardText(text)) {
+        if (node.querySelector('[data-v1-company-dashboard-link="1"]')) continue;
         node.dataset.v1CompanyDashboardLink = '1';
         node.style.cursor = 'pointer';
         continue;
       }
+
       const type = cardTypeFromText(text);
-      if (!type) continue;
+      if (!type || text.includes('COMPANY')) continue;
+      if (node.querySelector(`[data-v1-inline-lab="${type}"]`)) continue;
+
       node.dataset.v1InlineLab = type;
-      node.style.cursor = 'pointer';
+      if (!adminResolved || !adminAccess) {
+        node.style.setProperty('display', 'none', 'important');
+        node.style.removeProperty('cursor');
+      } else {
+        node.style.removeProperty('display');
+        node.style.cursor = 'pointer';
+      }
     }
   }
 
@@ -344,7 +419,7 @@
     }
 
     const tagged = event.target.closest('[data-v1-inline-lab]');
-    if (!tagged) return;
+    if (!tagged || !adminResolved || !adminAccess) return;
     const type = tagged.dataset.v1InlineLab;
     if (!LABS[type]) return;
     event.preventDefault();
@@ -362,6 +437,7 @@
     const observer = new MutationObserver(scheduleTagCards);
     observer.observe(root, { childList: true, subtree: true });
     scheduleTagCards();
+    resolveAdminAccess();
   }
 
   if (document.readyState === 'loading') {

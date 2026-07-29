@@ -413,6 +413,7 @@
   }, true);
 
   function apply(){
+    ensureStyle();
     const dialog = findMyPageDialog();
     if (dialog) { installTopActions(dialog); ensurePasswordForm(dialog); }
   }

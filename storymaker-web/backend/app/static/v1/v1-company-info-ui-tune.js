@@ -9,7 +9,13 @@
   const INQUIRY_OVERLAY_ID = 'storymaker-v1-inquiry-frame-overlay';
   const INQUIRY_FRAME_URL = '/static/v1/feature-requests-frame.html';
   const KEYWORD_EDITOR_CLASS = 'storymaker-v1-keyword-slots';
-  const clean = (value = '') => String(value).replace(/\s+/g, ' ').trim();
+  const clean = (value = '') => String(value ?? '').replace(/\s+/g, ' ').trim();
+  const esc = (value = '') => String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 
   function findExact(root, selector, text) {
     return [...root.querySelectorAll(selector)].find(
@@ -41,7 +47,7 @@
         background: #22d3ee;
         padding: 10px 18px;
         color: #082f49;
-        font-size: 14px;
+        font-size: 16px;
         font-weight: 900;
         cursor: pointer;
         box-shadow: 0 8px 24px rgba(34, 211, 238, 0.18);
@@ -118,15 +124,15 @@
         pointer-events: none;
       }
       [data-v1-company-inquiry="1"] {
-        border: 1px solid rgba(250, 204, 21, .58) !important;
-        background: rgba(250, 204, 21, .14) !important;
-        color: #facc15 !important;
-        margin-left: auto !important;
+        border: 1px solid rgba(148, 163, 184, .34) !important;
+        background: #0f172a !important;
+        color: #cbd5e1 !important;
+        margin-left: 8px !important;
       }
       [data-v1-company-inquiry="1"]:hover {
-        background: #facc15 !important;
-        border-color: #fde047 !important;
-        color: #422006 !important;
+        background: #164e63 !important;
+        border-color: #67e8f9 !important;
+        color: #ffffff !important;
         transform: translateY(-1px);
       }
       [data-v1-company-delete="1"] {
@@ -158,9 +164,115 @@
         background: #22d3ee !important;
         color: #082f49 !important;
       }
+      [data-v1-company-card="1"] [data-v1-company-header="1"] > p {
+        font-size: 20px !important;
+        line-height: 1.45 !important;
+      }
+      [data-v1-company-card="1"] [data-v1-company-header="1"] span,
+      [data-v1-company-card="1"] [data-v1-company-meta="1"] {
+        font-size: 14px !important;
+        line-height: 1.55 !important;
+      }
+      [data-v1-company-persona-toggle="1"] {
+        display: flex !important;
+        width: 100% !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 12px !important;
+        margin-top: 16px !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(51, 65, 85, .82) !important;
+        background: transparent !important;
+        padding: 0 0 10px !important;
+        color: #67e8f9 !important;
+        font-size: 16px !important;
+        font-weight: 900 !important;
+        text-align: left !important;
+        cursor: pointer !important;
+      }
+      [data-v1-company-persona-toggle="1"]:hover {
+        color: #a5f3fc !important;
+      }
+      [data-v1-company-persona-arrow="1"] {
+        display: inline-block;
+        color: #cbd5e1;
+        font-size: 18px;
+        line-height: 1;
+        transition: transform .18s ease;
+      }
+      [data-v1-company-persona-toggle="1"][aria-expanded="true"] [data-v1-company-persona-arrow="1"] {
+        transform: rotate(180deg);
+      }
       [data-v1-company-persona="1"] {
         height: 264px !important;
         min-height: 264px !important;
+        margin-top: 10px !important;
+      }
+      [data-v1-company-persona="1"][hidden] {
+        display: none !important;
+      }
+      [data-v1-company-persona="1"] p {
+        font-size: 16px !important;
+        line-height: 1.78 !important;
+      }
+      [data-v1-company-summary-source="1"],
+      [data-v1-company-keyword-source-line="1"] {
+        display: none !important;
+      }
+      [data-v1-company-summary="1"] {
+        display: grid;
+        gap: 10px;
+        margin-top: 16px;
+        border: 1px solid #1e293b;
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.72);
+        padding: 15px 16px;
+      }
+      [data-v1-company-summary-row="1"] {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.55fr) minmax(0, 1fr);
+        gap: 16px;
+        align-items: start;
+      }
+      [data-v1-company-summary-row="2"],
+      [data-v1-company-summary-row="3"] {
+        display: grid;
+        grid-template-columns: 92px minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+      }
+      .sm-v1-company-summary-item {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 9px;
+        min-width: 0;
+        font-size: 16px;
+        line-height: 1.55;
+      }
+      .sm-v1-company-summary-label {
+        color: #67e8f9;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+      .sm-v1-company-summary-value {
+        min-width: 0;
+        color: #e2e8f0;
+        font-weight: 750;
+        overflow-wrap: anywhere;
+      }
+      .sm-v1-company-summary-wide-label {
+        color: #67e8f9;
+        font-size: 14px;
+        font-weight: 900;
+        line-height: 1.55;
+        white-space: nowrap;
+      }
+      .sm-v1-company-summary-wide-value {
+        color: #e2e8f0;
+        font-size: 16px;
+        font-weight: 750;
+        line-height: 1.55;
+        overflow-wrap: anywhere;
       }
       [data-v1-keyword-source="1"] {
         position: absolute !important;
@@ -205,7 +317,21 @@
       .${KEYWORD_EDITOR_CLASS}[data-theme="light"] input::placeholder {
         color: #94a3b8;
       }
+      @media (max-width: 900px) {
+        [data-v1-company-summary-row="1"] {
+          grid-template-columns: 1fr;
+          gap: 8px;
+        }
+      }
       @media (max-width: 640px) {
+        [data-v1-company-summary="1"] {
+          padding: 13px;
+        }
+        [data-v1-company-summary-row="2"],
+        [data-v1-company-summary-row="3"] {
+          grid-template-columns: 1fr;
+          gap: 3px;
+        }
         #${TOOLBAR_ID} button {
           width: 100%;
         }
@@ -215,6 +341,9 @@
         [data-v1-company-persona="1"] {
           height: 240px !important;
           min-height: 240px !important;
+        }
+        [data-v1-company-persona-toggle="1"] {
+          font-size: 16px !important;
         }
       }
     `;
@@ -452,20 +581,95 @@
     }
   }
 
+  function valueAfterLabel(root, labelText) {
+    const label = findExact(root, 'span,p,div', labelText);
+    if (!label) return '';
+    const parent = label.parentElement;
+    if (!parent) return '';
+    const values = [...parent.querySelectorAll('p,span,div')]
+      .filter((node) => node !== label && !node.contains(label))
+      .map((node) => clean(node.textContent))
+      .filter((value) => value && value !== labelText);
+    return values[0] || '';
+  }
+
+  function buildCompanySummary(article, personaLabel) {
+    const existing = article.querySelector('[data-v1-company-summary="1"]');
+    const websiteLabel = findExact(article, 'span', '웹사이트');
+    const source = websiteLabel?.parentElement?.parentElement || null;
+    if (!source || source === article || !findExact(source, 'span', '글 길이')) return;
+
+    const metaLine = [...article.querySelectorAll('p')].find((node) => clean(node.textContent).startsWith('지역:'));
+    const keywordLine = [...article.querySelectorAll('p')].find((node) => clean(node.textContent).startsWith('키워드:'));
+    const regionMatch = clean(metaLine?.textContent).match(/^지역:\s*(.*?)\s*·\s*수정일:/);
+    const region = clean(regionMatch?.[1]) || '미입력';
+    const website = valueAfterLabel(source, '웹사이트') || '미설정';
+    const length = valueAfterLabel(source, '글 길이') || '미설정';
+    const style = valueAfterLabel(source, '콘텐츠 스타일') || '미설정';
+    const tones = valueAfterLabel(source, '기본 말투') || '미설정';
+    const keywords = clean(keywordLine?.textContent).replace(/^키워드:\s*/, '') || '미설정';
+
+    source.dataset.v1CompanySummarySource = '1';
+    if (keywordLine) keywordLine.dataset.v1CompanyKeywordSourceLine = '1';
+
+    const summary = existing || document.createElement('div');
+    summary.dataset.v1CompanySummary = '1';
+    summary.innerHTML = `
+      <div data-v1-company-summary-row="1">
+        <div class="sm-v1-company-summary-item"><span class="sm-v1-company-summary-label">지역</span><span class="sm-v1-company-summary-value">${esc(region)}</span></div>
+        <div class="sm-v1-company-summary-item"><span class="sm-v1-company-summary-label">웹사이트</span><span class="sm-v1-company-summary-value">${esc(website)}</span></div>
+        <div class="sm-v1-company-summary-item"><span class="sm-v1-company-summary-label">콘텐츠</span><span class="sm-v1-company-summary-value">${esc(style)} · ${esc(length)}</span></div>
+      </div>
+      <div data-v1-company-summary-row="2"><span class="sm-v1-company-summary-wide-label">기본 말투</span><span class="sm-v1-company-summary-wide-value">${esc(tones)}</span></div>
+      <div data-v1-company-summary-row="3"><span class="sm-v1-company-summary-wide-label">키워드</span><span class="sm-v1-company-summary-wide-value">${esc(keywords)}</span></div>
+    `;
+    if (!existing) article.insertBefore(summary, personaLabel.parentElement || personaLabel);
+  }
+
   function tuneCompanyCards(listPanel) {
     if (!listPanel) return;
 
     listPanel.querySelectorAll('article').forEach((article) => {
-      const personaLabel = findExact(article, 'p,span,div', '업체 페르소나');
+      const personaLabel = [...article.querySelectorAll('p,span,div')].find(
+        (node) => clean(node.textContent) === '업체 페르소나'
+          && !node.closest('[data-v1-company-persona-toggle="1"]')
+      ) || null;
       if (!personaLabel) return;
 
+      article.dataset.v1CompanyCard = '1';
       const personaBox = personaLabel.nextElementSibling;
-      if (personaBox) personaBox.dataset.v1CompanyPersona = '1';
+      if (personaBox) {
+        personaBox.dataset.v1CompanyPersona = '1';
+        if (personaBox.dataset.v1CompanyPersonaReady !== '1') {
+          personaBox.dataset.v1CompanyPersonaReady = '1';
+          personaBox.hidden = true;
+        }
+      }
+      buildCompanySummary(article, personaLabel);
+
+      let personaToggle = article.querySelector('[data-v1-company-persona-toggle="1"]');
+      if (!personaToggle && personaBox) {
+        personaToggle = document.createElement('button');
+        personaToggle.type = 'button';
+        personaToggle.dataset.v1CompanyPersonaToggle = '1';
+        personaToggle.setAttribute('aria-expanded', 'false');
+        personaToggle.innerHTML = '<span>업체 페르소나</span><span data-v1-company-persona-arrow="1" aria-hidden="true">⌄</span>';
+        personaToggle.addEventListener('click', () => {
+          const expanded = personaToggle.getAttribute('aria-expanded') === 'true';
+          personaToggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+          personaBox.hidden = expanded;
+        });
+        personaLabel.hidden = true;
+        personaLabel.parentElement?.insertBefore(personaToggle, personaLabel);
+      }
 
       const editButton = findExact(article, 'button', '수정');
       const header = editButton?.parentElement;
       if (!editButton || !header) return;
 
+      header.dataset.v1CompanyHeader = '1';
+      const metaLine = [...article.querySelectorAll('p')].find((node) => clean(node.textContent).startsWith('지역:'));
+      if (metaLine) metaLine.dataset.v1CompanyMeta = '1';
       editButton.dataset.v1CompanyEdit = '1';
       if (header.lastElementChild !== editButton) header.appendChild(editButton);
 
@@ -489,7 +693,9 @@
         inquiryButton.setAttribute('title', '문의하기');
         inquiryButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/></svg>';
         inquiryButton.addEventListener('click', openInquiryFrame);
-        actionRow.insertBefore(inquiryButton, deleteButton);
+      }
+      if (deleteButton.nextElementSibling !== inquiryButton) {
+        deleteButton.insertAdjacentElement('afterend', inquiryButton);
       }
     });
   }

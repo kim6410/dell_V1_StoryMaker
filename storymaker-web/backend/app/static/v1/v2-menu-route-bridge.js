@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const REMOVE_LABELS = ['딸깍 제작', '단계별 제작', '팟캐스트', '릴스/숏츠', '릴스/쇼츠', '보관함', '체험 연구실'];
+  const REMOVE_LABELS = ['단계별 제작', '팟캐스트', '릴스/숏츠', '릴스/쇼츠', '체험 연구실'];
 
   const clean = (value) => String(value || '').replace(/\s+/g, ' ').trim();
 
@@ -34,7 +34,6 @@
 
     const items = Array.from(sidebar.querySelectorAll('button, a'));
     items.forEach((item) => {
-      if (item.matches('[data-storymaker-beta-menu="1"]')) return;
       const label = clean(item.textContent);
       if (REMOVE_LABELS.includes(label)) {
         item.remove();
@@ -44,7 +43,7 @@
 
   const observer = new MutationObserver(() => cleanupSidebarMenus());
   observer.observe(document.documentElement, { childList: true, subtree: true });
-  
+
   cleanupSidebarMenus();
   setTimeout(cleanupSidebarMenus, 500);
   setTimeout(cleanupSidebarMenus, 1500);
