@@ -134,16 +134,41 @@
     if (!pendingThumbnailData || !frame.contentWindow) return;
     frame.contentWindow.postMessage({ type: 'storymaker:thumbnail-current-data', data: pendingThumbnailData }, location.origin);
   }
-  function focusSavedThumbnailPreview() {
+  async function refreshSavedThumbnailPreview(detail = {}) {
     const preview = document.getElementById('sf-thumbnail-preview');
-    if (!preview) return;
-    preview.hidden = false;
-    preview.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    preview.animate([
-      { boxShadow: '0 0 0 0 rgba(53,233,255,0)' },
-      { boxShadow: '0 0 0 5px rgba(53,233,255,.42),0 0 34px rgba(53,233,255,.28)' },
-      { boxShadow: '0 0 0 0 rgba(53,233,255,0)' }
-    ], { duration: 1800, easing: 'ease-out' });
+    const image = document.getElementById('sf-thumbnail-image');
+    const link = document.getElementById('sf-thumbnail-link');
+    const statusText = document.getElementById('sf-thumbnail-status');
+    const jobId = String(detail.jobId || pendingThumbnailData?.jobId || '').trim();
+    const templateId = String(detail.templateId || '').trim();
+    if (!preview || !image || !jobId) return false;
+    const url = `/beta-api/jobs/${encodeURIComponent(jobId)}/file/thumbnail?v=${Date.now()}`;
+    if (statusText) statusText.textContent = '새 대표 썸네일을 불러오는 중...';
+    try {
+      const response = await fetch(url, { credentials: 'include', cache: 'no-store' });
+      if (!response.ok) throw new Error('대표 썸네일 조회 실패');
+      const blob = await response.blob();
+      if (!blob.size) throw new Error('대표 썸네일 파일이 비어 있습니다.');
+      const objectUrl = URL.createObjectURL(blob);
+      const previousObjectUrl = image.dataset.objectUrl || '';
+      image.src = objectUrl;
+      image.dataset.objectUrl = objectUrl;
+      if (link) link.href = url;
+      if (statusText) statusText.textContent = templateId ? `새 대표 썸네일 반영 완료 · ${templateId}` : '새 대표 썸네일 반영 완료';
+      preview.hidden = false;
+      if (previousObjectUrl) URL.revokeObjectURL(previousObjectUrl);
+      preview.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      preview.animate([
+        { boxShadow: '0 0 0 0 rgba(53,233,255,0)' },
+        { boxShadow: '0 0 0 5px rgba(53,233,255,.42),0 0 34px rgba(53,233,255,.28)' },
+        { boxShadow: '0 0 0 0 rgba(53,233,255,0)' }
+      ], { duration: 1800, easing: 'ease-out' });
+      return true;
+    } catch (error) {
+      if (statusText) statusText.textContent = `새 썸네일 반영 실패 · ${error.message}`;
+      preview.hidden = false;
+      return false;
+    }
   }
   function openThumbnailStudio(detail = {}) {
     const data = typeof detail === 'string' ? { jobId: detail } : (detail || {});
@@ -258,8 +283,9 @@
       return;
     }
     if (event.data?.type === 'storymaker:thumbnail-save-complete') {
+      if (event.source !== frame.contentWindow) return;
       thumbnailSaved = true;
-      focusSavedThumbnailPreview();
+      refreshSavedThumbnailPreview(event.data).catch(() => {});
       return;
     }
     if (event.data?.type !== 'storymaker:thumbnail-frame-height') return;
