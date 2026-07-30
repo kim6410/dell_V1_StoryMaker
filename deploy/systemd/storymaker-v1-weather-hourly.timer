@@ -1,0 +1,13 @@
+[Unit]
+Description=Run StoryMaker V1 weather collector once per hour
+
+[Timer]
+OnBootSec=2min
+OnCalendar=hourly
+Persistent=true
+AccuracySec=1min
+RandomizedDelaySec=20
+Unit=storymaker-v1-weather-hourly.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,2 @@
+ee7b851e5a6d4090121ba90023201812018d99e85e5c34469931fc315303c831  /home/bourne/StoryMaker_1/deploy/systemd/storymaker-v1-weather-hourly.service
+d7f58b4f522e380df886c75fbf9cf492f625849612d0f78bd1f82f789aafe982  /home/bourne/StoryMaker_1/deploy/systemd/storymaker-v1-weather-hourly.timer

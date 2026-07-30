@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 from app.settings import settings
 from app.core.region_display import format_region_display, format_region_text
 from app.core.phone_number import normalize_korean_phone_number
-from app.services.weather_cache_service import get_or_fetch_weather
+from app.services.weather_cache_service import get_cached_weather, get_stale_weather
 
 
 KST = ZoneInfo("Asia/Seoul")
@@ -612,11 +612,21 @@ def _fetch_weather_and_temp_uncached(region: str) -> tuple[str, str]:
 
 
 def fetch_weather_and_temp(region: str) -> tuple[str, str]:
-    """사용자 요청 지역의 최신 날씨를 요청형 캐시로 조회합니다."""
+    """회원 격자 전용 시간당 캐시에서만 날씨를 조회합니다.
+
+    외부 기상 API 호출은 scripts/v1_weather_kma_grid_collector.py만 담당합니다.
+    웹 요청·프롬프트 생성 경로에서는 외부 API를 직접 호출하지 않습니다.
+    """
     try:
-        return get_or_fetch_weather(region, _fetch_weather_and_temp_uncached)
+        cached = get_cached_weather(region)
+        if cached:
+            return cached
+        stale = get_stale_weather(region)
+        if stale:
+            return stale
     except Exception:
-        return "맑음", "20"
+        pass
+    return "날씨 확인", "20"
 
 
 def _format_temp_range(min_temp, max_temp) -> str:

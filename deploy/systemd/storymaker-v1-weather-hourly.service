@@ -1,0 +1,17 @@
+[Unit]
+Description=StoryMaker V1 hourly member-grid KMA weather collector
+Requires=docker.service
+Wants=network-online.target weather-server.service
+After=docker.service network-online.target weather-server.service
+
+[Service]
+Type=oneshot
+User=bourne
+Group=bourne
+ExecStart=/home/bourne/StoryMaker_1/scripts/run_v1_weather_hourly.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=multi-user.target
