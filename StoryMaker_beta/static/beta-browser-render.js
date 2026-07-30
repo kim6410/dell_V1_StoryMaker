@@ -526,6 +526,38 @@ async function loadBetaRenderBrowserShortform() {
   let browserPodcastWorker = null;
   let browserPodcastPreparePromise = null;
   let preparedPodcastProvider = '';
+  let browserPodcastPreparedAt = 0;
+  let browserPodcastLastUsedAt = 0;
+  let browserPodcastIdleTimer = null;
+  const BROWSER_PODCAST_IDLE_RELEASE_MS = 15 * 60 * 1000;
+
+  function dispatchPodcastEngineState(phase, extra = {}) {
+    window.dispatchEvent(new CustomEvent('storymaker-beta-podcast-engine-state', {
+      detail: { phase, provider: preparedPodcastProvider, preparedAt: browserPodcastPreparedAt, lastUsedAt: browserPodcastLastUsedAt, ...extra }
+    }));
+  }
+
+  function clearBrowserPodcastIdleTimer() {
+    if (browserPodcastIdleTimer) window.clearTimeout(browserPodcastIdleTimer);
+    browserPodcastIdleTimer = null;
+  }
+
+  function scheduleBrowserPodcastIdleRelease() {
+    clearBrowserPodcastIdleTimer();
+    if (!browserPodcastWorker || !browserPodcastPreparePromise) return;
+    browserPodcastIdleTimer = window.setTimeout(() => {
+      if (renderInProgress) {
+        scheduleBrowserPodcastIdleRelease();
+        return;
+      }
+      releaseBrowserPodcastWorker('idle-timeout');
+    }, BROWSER_PODCAST_IDLE_RELEASE_MS);
+  }
+
+  function markBrowserPodcastUsed() {
+    browserPodcastLastUsedAt = Date.now();
+    scheduleBrowserPodcastIdleRelease();
+  }
   let renderInProgress = false;
   let lastPodcastProvider = 'unknown';
   let lastPodcastSeconds = 0;
@@ -540,17 +572,24 @@ async function loadBetaRenderBrowserShortform() {
     return browserPodcastWorker;
   }
 
-  function releaseBrowserPodcastWorker() {
+  function releaseBrowserPodcastWorker(reason = 'manual') {
+    clearBrowserPodcastIdleTimer();
     if (browserPodcastWorker) {
       try { browserPodcastWorker.terminate(); } catch (_) {}
     }
     browserPodcastWorker = null;
     browserPodcastPreparePromise = null;
     preparedPodcastProvider = '';
+    browserPodcastPreparedAt = 0;
+    dispatchPodcastEngineState('released', { reason });
   }
 
   function prepareBrowserPodcast(onProgress = () => {}) {
-    if (browserPodcastPreparePromise) return browserPodcastPreparePromise;
+    if (browserPodcastPreparePromise) {
+      markBrowserPodcastUsed();
+      return browserPodcastPreparePromise;
+    }
+    dispatchPodcastEngineState('preparing');
     const worker = getBrowserPodcastWorker();
     const id = `beta-podcast-prepare-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
@@ -576,6 +615,9 @@ async function loadBetaRenderBrowserShortform() {
         cleanup();
         if (msg.type === 'prepared') {
           preparedPodcastProvider = String(msg.provider || 'wasm').toLowerCase();
+          browserPodcastPreparedAt = Date.now();
+          markBrowserPodcastUsed();
+          dispatchPodcastEngineState('ready', { perf: msg.perf || null });
           resolve(msg);
           return;
         }
@@ -585,7 +627,7 @@ async function loadBetaRenderBrowserShortform() {
       worker.addEventListener('message', onMessage);
       worker.postMessage({ id, type: 'prepare', preferredProvider: 'auto' });
     }).catch((error) => {
-      releaseBrowserPodcastWorker();
+      releaseBrowserPodcastWorker('prepare-error');
       throw error;
     });
 
@@ -705,12 +747,13 @@ async function loadBetaRenderBrowserShortform() {
 
   async function generateBrowserPodcast(script, settings = {}, onProgress = () => {}) {
     await prepareBrowserPodcast(onProgress);
+    markBrowserPodcastUsed();
     return await new Promise((resolve, reject) => {
       const worker = getBrowserPodcastWorker();
       const id = `beta-podcast-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const timeout = window.setTimeout(() => {
         worker.removeEventListener('message', onMessage);
-        releaseBrowserPodcastWorker();
+        releaseBrowserPodcastWorker('inference-timeout');
         reject(new Error('브라우저 WebGPU 음성 추론이 15초를 초과해 Dell Supertonic으로 전환합니다.'));
       }, 15000);
 
@@ -728,9 +771,11 @@ async function loadBetaRenderBrowserShortform() {
           return;
         }
         finish();
-        if (msg.type === 'result') resolve(msg.result);
-        else {
-          releaseBrowserPodcastWorker();
+        if (msg.type === 'result') {
+          markBrowserPodcastUsed();
+          resolve(msg.result);
+        } else {
+          releaseBrowserPodcastWorker('generation-error');
           reject(new Error(msg.message || '브라우저 음성 생성 실패'));
         }
       }
@@ -851,7 +896,7 @@ async function loadBetaRenderBrowserShortform() {
   window.StoryMakerBetaBrowserRenderer = {
     setJob(jobId) { ui.job.value = String(jobId || ''); },
     isRendering() { return renderInProgress; },
-    prime(jobId) {
+    async prime(jobId) {
       if (renderInProgress) return false;
       const nextJobId=String(jobId||'');
       ui.job.value=nextJobId; manifest=null; mp3Blob=null; mp4Blob=null; subtitles=[];
@@ -859,15 +904,24 @@ async function loadBetaRenderBrowserShortform() {
       ui.audio.removeAttribute('src'); ui.video.removeAttribute('src');
       ui.audio.hidden=true; ui.video.hidden=true; ui.upload.disabled=true; ui.mp4.disabled=true;
       ui.mp3.disabled=!nextJobId;
-      ui.status.textContent=nextJobId?'현재 작업의 PODCAST_50 음성을 새로 만들 준비가 됐습니다.':'작업을 준비 중입니다.';
-      if (nextJobId) {
-        prepareBrowserPodcast().then((prepared) => {
-          console.info('Beta browser podcast engine prepared', prepared?.provider, prepared?.perf || {});
-        }).catch((error) => {
-          console.warn('Beta browser podcast engine prewarm failed; generation will retry.', error);
+      ui.status.textContent=nextJobId?'브라우저 WebGPU 음성 엔진을 미리 준비하는 중...':'작업을 준비 중입니다.';
+      if (!nextJobId) return false;
+      try {
+        const prepared = await prepareBrowserPodcast((percent, detail) => {
+          dispatchPodcastEngineState('preparing', { percent, detail });
         });
+        markBrowserPodcastUsed();
+        ui.status.textContent=`브라우저 음성 엔진 준비 완료 · ${String(prepared?.provider || preparedPodcastProvider || 'browser').toUpperCase()}`;
+        console.info('Beta browser podcast engine prepared', prepared?.provider, prepared?.perf || {});
+        return true;
+      } catch (error) {
+        console.warn('Beta browser podcast engine prewarm failed; generation will retry.', error);
+        dispatchPodcastEngineState('error', { message: error?.message || String(error) });
+        return false;
       }
     },
+    isPodcastEngineReady() { return Boolean(browserPodcastWorker && browserPodcastPreparePromise && preparedPodcastProvider); },
+    waitForPodcastEngineReady() { return prepareBrowserPodcast(); },
     loadJob: () => loadJob(),
     async createVideoOnly(jobId, settings = {}, onProgress = () => {}) {
       if (renderInProgress) throw new Error('영상 제작이 이미 진행 중입니다.');
@@ -910,7 +964,7 @@ async function loadBetaRenderBrowserShortform() {
         };
       } finally {
         renderInProgress = false;
-        releaseBrowserPodcastWorker();
+        markBrowserPodcastUsed();
       }
     },
     async saveCurrentToArchive(jobId) {
@@ -930,5 +984,14 @@ async function loadBetaRenderBrowserShortform() {
     window.StoryMakerBetaBrowserRenderer.prime(saved);
     window.dispatchEvent(new CustomEvent('storymaker-beta-renderer-ready', { detail:{ jobId:saved } }));
   }
-  initWebGPU().finally(refreshDiag);
+  window.addEventListener('pagehide', () => releaseBrowserPodcastWorker('pagehide'), { once:true });
+  window.addEventListener('beforeunload', () => releaseBrowserPodcastWorker('beforeunload'), { once:true });
+  initWebGPU().then(() => {
+    if (gpu.device?.lost) {
+      gpu.device.lost.then((info) => {
+        releaseBrowserPodcastWorker('gpu-device-lost');
+        dispatchPodcastEngineState('error', { message: info?.message || 'GPU device lost' });
+      }).catch(() => releaseBrowserPodcastWorker('gpu-device-lost'));
+    }
+  }).finally(refreshDiag);
 })();

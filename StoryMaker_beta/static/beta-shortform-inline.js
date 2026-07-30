@@ -5,7 +5,7 @@
   if (!root) return;
 
   const q = (id) => document.getElementById(id);
-  const state = { jobId: '', context: null, settings: null, timer: null, sceneTimer: null, thumbnailTimer: null, thumbnailChecking: false, thumbnailUrl: '', mediaUrls: [], mediaNames: [], sceneIndex: 0, startedAt: 0, lastProgress: 0, readyToSave: false, saving: false, savedToArchive: false, rendering: false, selectedPodcast: '50', previewPlaying: false, previewFocusTimer: null, scriptDrafts: { '50': '', '80': '' } };
+  const state = { jobId: '', context: null, settings: null, timer: null, sceneTimer: null, thumbnailTimer: null, thumbnailChecking: false, thumbnailUrl: '', mediaUrls: [], mediaNames: [], sceneIndex: 0, startedAt: 0, lastProgress: 0, readyToSave: false, saving: false, savedToArchive: false, rendering: false, selectedPodcast: '50', previewPlaying: false, previewFocusTimer: null, engineReady: false, enginePreparing: false, scriptDrafts: { '50': '', '80': '' } };
 
   const fields = {
     title1: q('sf-title-1'), title2: q('sf-title-2'), business: q('sf-business'), phone: q('sf-phone'),
@@ -258,6 +258,9 @@
 
   async function loadJob(jobId) {
     state.jobId = jobId;
+    state.engineReady = false;
+    if (fields.make) { fields.make.disabled = true; fields.make.textContent = '브라우저 엔진 준비 중...'; }
+    const enginePromise = prepareRendererForJob(jobId);
     const data = await request(`/beta-api/shortform/jobs/${encodeURIComponent(jobId)}/context`);
     state.context = data.context;
     state.settings = data.context.settings || defaults;
@@ -279,6 +282,7 @@
     appendLog(`작업 연결 완료 · ${jobId}`);
     appendLog(`이미지 ${data.context.image_count}장 · 동영상 ${data.context.video_count}개`);
     startThumbnailWatch();
+    await enginePromise;
   }
 
   if (fields.images && !fields.images._hasListener) {
@@ -333,6 +337,34 @@
       window.addEventListener('storymaker-beta-renderer-ready', onReady);
       onReady();
     });
+  }
+
+  async function prepareRendererForJob(jobId) {
+    const renderer = await waitForRenderer();
+    state.enginePreparing = true;
+    state.engineReady = false;
+    if (fields.make) {
+      fields.make.disabled = true;
+      fields.make.classList.remove('beta-action-breathe');
+      fields.make.textContent = '브라우저 엔진 준비 중...';
+    }
+    setProgress(4, '사용자 PC WebGPU 음성 엔진을 미리 준비하는 중...');
+    const ready = await renderer.prime(jobId);
+    state.enginePreparing = false;
+    state.engineReady = Boolean(ready || renderer.isPodcastEngineReady?.());
+    if (fields.make) {
+      fields.make.disabled = !state.engineReady;
+      fields.make.textContent = state.engineReady ? '영상 만들기' : '브라우저 엔진 다시 준비';
+      fields.make.classList.toggle('beta-action-breathe', state.engineReady && !state.readyToSave);
+    }
+    if (state.engineReady) {
+      setProgress(0, '브라우저 엔진 준비 완료 · 영상 만들기를 누르세요');
+      appendLog('사용자 PC WebGPU 음성 엔진 사전 준비 완료 · 같은 탭에서 재사용');
+    } else {
+      setProgress(0, '브라우저 엔진 준비 실패 · 버튼을 눌러 다시 준비합니다');
+      appendLog('브라우저 엔진 사전 준비 실패 · 제작 시작 시 다시 시도');
+    }
+    return state.engineReady;
   }
 
   function showRenderedFrame(sourceCanvas) {
@@ -420,7 +452,11 @@
   }
 
   async function makeVideo() {
-    if (!state.jobId || state.rendering) return;
+    if (!state.jobId || state.rendering || state.enginePreparing) return;
+    if (!state.engineReady) {
+      await prepareRendererForJob(state.jobId);
+      if (!state.engineReady) return;
+    }
     state.rendering = true;
     fields.make.disabled = true;
     fields.make.classList.remove('beta-action-breathe');
@@ -553,8 +589,9 @@
       }
       stopPreviewFocusLock({ keepPosition: false });
       state.rendering = false;
-      fields.make.disabled = false;
-      fields.make.classList.toggle('beta-action-breathe', !state.readyToSave);
+      fields.make.disabled = !state.engineReady;
+      fields.make.textContent = state.engineReady ? '영상 만들기' : '브라우저 엔진 다시 준비';
+      fields.make.classList.toggle('beta-action-breathe', state.engineReady && !state.readyToSave);
     }
   }
 
@@ -686,6 +723,21 @@
       images: state.mediaUrls.length ? state.mediaUrls.slice() : (Array.isArray(state.context?.images) ? state.context.images.slice() : [])
     };
   }
+  window.addEventListener('storymaker-beta-podcast-engine-state', (event) => {
+    const phase = event.detail?.phase || '';
+    if (phase === 'ready') {
+      state.engineReady = true;
+      state.enginePreparing = false;
+      if (!state.rendering && fields.make) { fields.make.disabled = false; fields.make.textContent = '영상 만들기'; }
+    } else if (phase === 'preparing') {
+      state.enginePreparing = true;
+      if (!state.rendering && fields.make) { fields.make.disabled = true; fields.make.textContent = '브라우저 엔진 준비 중...'; }
+    } else if (phase === 'released' || phase === 'error') {
+      state.engineReady = false;
+      state.enginePreparing = false;
+      if (!state.rendering && fields.make) { fields.make.disabled = false; fields.make.textContent = '브라우저 엔진 다시 준비'; }
+    }
+  });
   fields.make.addEventListener('click', makeVideo);
   fields.play?.addEventListener('click', () => {
     if (fields.finalVideo?.src) {
