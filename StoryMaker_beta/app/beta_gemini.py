@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import time
 import urllib.error
 import urllib.request
@@ -62,7 +63,46 @@ class BetaPromptTemplateUpdate(BaseModel):
 
 
 PROMPT_TEMPLATE_PATH = Path(os.getenv("STORYMAKER_BETA_PROMPT_TEMPLATE", str(Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta")) / "data" / "admin_prompt_template.md")))
+INDUSTRY_TEMPLATE_DB_PATH = Path(os.getenv("STORYMAKER_V1_DB", "/home/bourne/StoryMaker_1/database/storymaker.db"))
 PROMPT_REQUIRED_VARIABLES = ("{{company}}", "{{region}}", "{{service}}", "{{phone}}", "{{source_text}}", "{{weather_block}}")
+
+
+def _load_industry_prompt_details(industry_key: object) -> dict[str, str]:
+    normalized = str(industry_key or "").strip().lower().replace("-", "_").replace(" ", "_")
+    empty = {
+        "industry_prompt_guidance": "",
+        "industry_content_flow": "",
+        "industry_keyword_hint": "",
+        "industry_tone_hint": "",
+        "industry_avoid_hint": "",
+    }
+    if not normalized or not INDUSTRY_TEMPLATE_DB_PATH.exists():
+        return empty
+    try:
+        connection = sqlite3.connect(INDUSTRY_TEMPLATE_DB_PATH)
+        connection.row_factory = sqlite3.Row
+        row = connection.execute(
+            """
+            SELECT prompt_guidance, content_flow, keyword_hint, tone_hint, avoid_hint
+            FROM industry_prompt_templates
+            WHERE industry_key=? AND is_active=1
+            LIMIT 1
+            """,
+            (normalized,),
+        ).fetchone()
+        connection.close()
+    except sqlite3.Error:
+        LOGGER.exception("industry prompt detail database read failed")
+        return empty
+    if row is None:
+        return empty
+    return {
+        "industry_prompt_guidance": str(row["prompt_guidance"] or "").strip(),
+        "industry_content_flow": str(row["content_flow"] or "").strip(),
+        "industry_keyword_hint": str(row["keyword_hint"] or "").strip(),
+        "industry_tone_hint": str(row["tone_hint"] or "").strip(),
+        "industry_avoid_hint": str(row["avoid_hint"] or "").strip(),
+    }
 
 
 def beta_gemini_model() -> str:
@@ -486,6 +526,8 @@ def beta_default_prompt_template() -> str:
 
 def beta_render_prompt_template(template: str, payload: BetaGeminiRequest) -> str:
     business = payload.business or {}
+    industry_key = business.get("industry_key") or business.get("service")
+    industry_details = _load_industry_prompt_details(industry_key)
     default_prompt = beta_build_default_prompt(payload)
     weather = _prompt_section(default_prompt, "## 현재 날짜·기상 기준 정보", "## Gemini")
     values = {
@@ -497,6 +539,11 @@ def beta_render_prompt_template(template: str, payload: BetaGeminiRequest) -> st
         "{{phone}}": str(business.get("phone") or "미등록").strip(),
         "{{source_text}}": str(payload.topic or "").strip(),
         "{{weather_block}}": weather,
+        "{{industry_prompt_guidance}}": industry_details["industry_prompt_guidance"],
+        "{{industry_content_flow}}": industry_details["industry_content_flow"],
+        "{{industry_keyword_hint}}": industry_details["industry_keyword_hint"],
+        "{{industry_tone_hint}}": industry_details["industry_tone_hint"],
+        "{{industry_avoid_hint}}": industry_details["industry_avoid_hint"],
     }
     rendered = str(template or "")
     for key, value in values.items():
