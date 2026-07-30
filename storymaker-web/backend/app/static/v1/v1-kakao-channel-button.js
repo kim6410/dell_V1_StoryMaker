@@ -19,7 +19,7 @@
     style.textContent = `
       #${WRAP_ID} {
         position: fixed;
-        top: 221px;
+        top: 196px;
         right: 0;
         z-index: 2147483000;
         display: flex;
@@ -33,9 +33,9 @@
         display: inline-flex;
         align-items: center;
         gap: 10px;
-        width: 214px;
+        width: 196px;
         min-height: 50px;
-        padding: 0 18px 0 13px;
+        padding: 0 10px 0 13px;
         box-sizing: border-box;
         border-radius: 999px;
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
