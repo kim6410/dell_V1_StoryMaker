@@ -5,7 +5,7 @@
   if (!root) return;
 
   const q = (id) => document.getElementById(id);
-  const state = { jobId: '', context: null, settings: null, timer: null, sceneTimer: null, thumbnailTimer: null, thumbnailChecking: false, thumbnailUrl: '', mediaUrls: [], mediaNames: [], sceneIndex: 0, startedAt: 0, lastProgress: 0, readyToSave: false, saving: false, savedToArchive: false, selectedPodcast: '50', previewPlaying: false, previewFocusTimer: null, scriptDrafts: { '50': '', '80': '' } };
+  const state = { jobId: '', context: null, settings: null, timer: null, sceneTimer: null, thumbnailTimer: null, thumbnailChecking: false, thumbnailUrl: '', mediaUrls: [], mediaNames: [], sceneIndex: 0, startedAt: 0, lastProgress: 0, readyToSave: false, saving: false, savedToArchive: false, rendering: false, selectedPodcast: '50', previewPlaying: false, previewFocusTimer: null, scriptDrafts: { '50': '', '80': '' } };
 
   const fields = {
     title1: q('sf-title-1'), title2: q('sf-title-2'), business: q('sf-business'), phone: q('sf-phone'),
@@ -414,7 +414,8 @@
   }
 
   async function makeVideo() {
-    if (!state.jobId) return;
+    if (!state.jobId || state.rendering) return;
+    state.rendering = true;
     fields.make.disabled = true;
     fields.make.classList.remove('beta-action-breathe');
     startPreviewFocusLock();
@@ -545,6 +546,7 @@
         stopHeartbeat = null;
       }
       stopPreviewFocusLock({ keepPosition: false });
+      state.rendering = false;
       fields.make.disabled = false;
       fields.make.classList.toggle('beta-action-breathe', !state.readyToSave);
     }

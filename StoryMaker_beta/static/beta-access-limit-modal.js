@@ -162,6 +162,7 @@
   }
 
   let allowVideoClickOnce = false;
+  let videoClickDispatched = false;
   document.addEventListener('click', async (event) => {
     const button = event.target?.closest?.('#sf-make');
     if (!button || allowVideoClickOnce) {
@@ -170,7 +171,9 @@
     }
     event.preventDefault();
     event.stopImmediatePropagation();
+    if (button.disabled) return;
     button.disabled = true;
+    videoClickDispatched = false;
     try {
       const response = await fetch('/beta-api/usage-summary', { cache: 'no-store', credentials: 'include' });
       const payload = await response.json().catch(() => ({}));
@@ -186,11 +189,12 @@
       }
       allowVideoClickOnce = true;
       button.disabled = false;
+      videoClickDispatched = true;
       button.click();
     } catch (error) {
       nativeAlert(`영상 제작 가능 여부를 확인하지 못했습니다. ${error.message || error}`);
     } finally {
-      if (!allowVideoClickOnce) button.disabled = false;
+      if (!videoClickDispatched) button.disabled = false;
     }
   }, true);
 
