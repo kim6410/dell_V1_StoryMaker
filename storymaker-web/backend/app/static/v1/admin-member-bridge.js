@@ -286,9 +286,24 @@
   function formatKoreanDateTime(value) {
     const text = clean(value);
     if (!text) return '-';
-    const match = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
-    if (!match) return text;
-    return `${match[1]}.${match[2]}.${match[3]}${match[4] ? ` ${match[4]}:${match[5]}` : ''}`;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text.replaceAll('-', '.');
+    const normalized = text.replace(' ', 'T');
+    const utcText = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized) ? normalized : `${normalized}Z`;
+    const date = new Date(utcText);
+    if (Number.isNaN(date.getTime())) return text;
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(date).reduce((result, part) => {
+      result[part.type] = part.value;
+      return result;
+    }, {});
+    return `${parts.year}.${parts.month}.${parts.day} ${parts.hour}:${parts.minute}`;
   }
 
   function dateInputValue(value) {

@@ -3,7 +3,8 @@
 
 기존 제작 API, Queue, Worker와 분리된 관리자 전용 회원·페르소나 관리 기능입니다.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 import calendar
 import os
 import sqlite3
@@ -170,10 +171,26 @@ def _credit_totals(db: Session, user_id: int) -> dict:
     }
 
 
+KOREA_TZ = ZoneInfo("Asia/Seoul")
+
+
+def _utc_text_to_korea_datetime(value: str | None) -> datetime | None:
+    text_value = str(value or "").strip()
+    if not text_value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text_value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(KOREA_TZ)
+
+
 def _daily_usage_history(db: Session, user_id: int, days: int = 14) -> list[dict]:
-    """검증 완료된 Beta MP4 사용량 원장을 기준으로 최근 일자별 사용량을 반환합니다."""
+    """검증 완료된 Beta MP4 사용량 원장을 한국시간 기준 최근 일자별로 반환합니다."""
     safe_days = max(7, min(int(days or 14), 31))
-    end_date = datetime.now().date()
+    end_date = datetime.now(KOREA_TZ).date()
     start_date = end_date - timedelta(days=safe_days - 1)
     consumed: dict[str, int] = {}
     reserved: dict[str, int] = {}
@@ -191,17 +208,21 @@ def _daily_usage_history(db: Session, user_id: int, days: int = 14) -> list[dict
                       and mp4_status in ('completed', 'reserved')
                     order by mp4_created_at
                     """,
-                    (int(user_id), start_date.isoformat()),
+                    (int(user_id), (start_date - timedelta(days=1)).isoformat()),
                 ).fetchall()
 
             for created_at, status_value, verified_value in rows:
-                usage_date = str(created_at or "")[:10]
-                if not usage_date:
+                korea_datetime = _utc_text_to_korea_datetime(created_at)
+                if korea_datetime is None:
                     continue
+                usage_date = korea_datetime.date()
+                if usage_date < start_date or usage_date > end_date:
+                    continue
+                usage_date_text = usage_date.isoformat()
                 if status_value == "completed" and int(verified_value or 0) == 1:
-                    consumed[usage_date] = consumed.get(usage_date, 0) + 1
+                    consumed[usage_date_text] = consumed.get(usage_date_text, 0) + 1
                 elif status_value == "reserved":
-                    reserved[usage_date] = reserved.get(usage_date, 0) + 1
+                    reserved[usage_date_text] = reserved.get(usage_date_text, 0) + 1
         except Exception:
             pass
 
@@ -290,7 +311,7 @@ def _billing_summary(db: Session, user: User) -> dict:
 
 
 def _beta_completed_stats(user_id: int | None = None) -> dict:
-    """파일 삭제 여부와 무관하게 검증 완료된 Beta MP4 원장을 집계합니다."""
+    """파일 삭제 여부와 무관하게 검증 완료된 Beta MP4 원장을 한국시간 기준으로 집계합니다."""
     db_path = os.getenv("STORYMAKER_BETA_DB_PATH", "/beta_data/storymaker_beta.db")
     result = {"total": 0, "today": 0, "month": 0, "last_completed_at": None, "completed_at": [], "by_user": {}}
     if not os.path.exists(db_path):
@@ -310,22 +331,24 @@ def _beta_completed_stats(user_id: int | None = None) -> dict:
                 params = (int(user_id),)
             rows = connection.execute(sql, params).fetchall()
 
-        today_text = datetime.now().date().isoformat()
+        today_text = datetime.now(KOREA_TZ).date().isoformat()
         month_text = today_text[:7]
-        completed_rows: list[tuple[int, str]] = []
+        completed_rows: list[tuple[int, str, datetime]] = []
         for owner_user_id, created_at in rows:
-            stamp = str(created_at or "")
-            if not stamp:
+            stamp = str(created_at or "").strip()
+            korea_datetime = _utc_text_to_korea_datetime(stamp)
+            if not stamp or korea_datetime is None:
                 continue
             owner_id = int(owner_user_id)
-            completed_rows.append((owner_id, stamp))
+            completed_rows.append((owner_id, stamp, korea_datetime))
             result["by_user"][owner_id] = int(result["by_user"].get(owner_id, 0)) + 1
 
         result["total"] = len(completed_rows)
-        result["today"] = sum(1 for _, stamp in completed_rows if stamp[:10] == today_text)
-        result["month"] = sum(1 for _, stamp in completed_rows if stamp[:7] == month_text)
-        result["last_completed_at"] = max((stamp for _, stamp in completed_rows), default=None)
-        result["completed_at"] = [stamp for _, stamp in completed_rows]
+        result["today"] = sum(1 for _, _, korea_datetime in completed_rows if korea_datetime.date().isoformat() == today_text)
+        result["month"] = sum(1 for _, _, korea_datetime in completed_rows if korea_datetime.strftime("%Y-%m") == month_text)
+        latest_row = max(completed_rows, key=lambda row: row[2], default=None)
+        result["last_completed_at"] = latest_row[1] if latest_row else None
+        result["completed_at"] = [stamp for _, stamp, _ in completed_rows]
         return result
     except Exception:
         return result
