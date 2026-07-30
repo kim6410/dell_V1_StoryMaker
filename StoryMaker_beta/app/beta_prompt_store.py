@@ -38,17 +38,28 @@ FOOD_INDUSTRY_KEYS: Final[set[str]] = {
     "kids_cafe",
 }
 
+LOCAL_PROFESSIONAL_INDUSTRY_KEYS: Final[set[str]] = {
+    "home_repair",
+    "boiler_facility",
+    "appliance_clean",
+    "general_cleaning",
+    "window_screen",
+    "key_doorlock",
+    "lighting_electric",
+    "drain_unclog",
+}
+
 SEED_TEMPLATES: Final[dict[str, tuple[str, str, str, str]]] = {
     "local_professional_service": (
         "로컬 전문 서비스",
         "local_service",
-        "3.8",
+        "3.9",
         "local_professional_service.md",
     ),
     "food_service": (
         "외식·카페 업종",
         "food",
-        "3.9",
+        "4.3",
         "food_service.md",
     ),
 }
@@ -159,6 +170,19 @@ def ensure_prompt_database() -> Path:
                     industry_key, prompt_key, created_at, updated_at
                 ) VALUES (?, 'food_service', ?, ?)
                 ON CONFLICT(industry_key) DO NOTHING
+                """,
+                (industry_key, stamp, stamp),
+            )
+
+        for industry_key in sorted(LOCAL_PROFESSIONAL_INDUSTRY_KEYS):
+            connection.execute(
+                """
+                INSERT INTO prompt_category_mappings (
+                    industry_key, prompt_key, created_at, updated_at
+                ) VALUES (?, 'local_professional_service', ?, ?)
+                ON CONFLICT(industry_key) DO UPDATE SET
+                    prompt_key=excluded.prompt_key,
+                    updated_at=excluded.updated_at
                 """,
                 (industry_key, stamp, stamp),
             )
