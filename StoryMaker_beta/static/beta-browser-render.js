@@ -2,7 +2,7 @@ let betaRenderBrowserShortform = null;
 
 async function loadBetaRenderBrowserShortform() {
   if (betaRenderBrowserShortform) return betaRenderBrowserShortform;
-  const module = await import('./assets/beta-mediabunny-webcodecs-renderer-20260724.js?v=20260730-browser-video-clips-1');
+  const module = await import('./assets/beta-mediabunny-webcodecs-renderer-20260724.js?v=20260730-browser-video-clips-15pct-1');
   if (typeof module.c !== 'function') throw new Error('Beta Mediabunny/WebCodecs 렌더 함수를 찾지 못했습니다.');
   betaRenderBrowserShortform = module.c;
   return betaRenderBrowserShortform;
@@ -396,13 +396,13 @@ async function loadBetaRenderBrowserShortform() {
     const imageFiles = [];
     for (let i = 0; i < totalSlots && sourceImages.length; i += 1) imageFiles.push(sourceImages[i % sourceImages.length]);
     const videoClips = [];
-    const perClipTarget = videoUrls.length ? Math.min(4, 10 / videoUrls.length) : 0;
+    const perClipTarget = videoUrls.length ? Math.min(4.6, 11.5 / videoUrls.length) : 0;
     for (let index = 0; index < videoUrls.length; index += 1) {
       try {
         const video = await loadVideo(videoUrls[index], 15000);
         const sourceDuration = Math.max(0, Number(video.duration || 0));
         if (!sourceDuration) throw new Error('동영상 재생시간을 확인하지 못했습니다.');
-        const clipDuration = Math.min(sourceDuration, Math.max(2, perClipTarget));
+        const clipDuration = Math.min(sourceDuration, Math.max(2.3, perClipTarget));
         const sourceStart = Math.max(0, (sourceDuration - clipDuration) / 2);
         videoClips.push({
           video,
