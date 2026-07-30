@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from app.beta_auth import current_user_id, current_user_role
 from app.beta_mp4_usage import enforce_generation_access
 from app.beta_title import clean_beta_title, persist_beta_job_title
-from app.beta_prompt_store import load_prompt_template
+from app.beta_prompt_store import load_prompt_template, save_prompt_template
 
 beta_gemini_router = APIRouter(prefix="/beta-api/gemini", tags=["beta-gemini"])
 
@@ -536,9 +536,17 @@ def _require_prompt_admin(request: Request) -> None:
 @beta_gemini_router.get("/admin/prompt")
 def beta_admin_prompt_get(request: Request) -> dict[str, Any]:
     _require_prompt_admin(request)
-    saved = PROMPT_TEMPLATE_PATH.exists()
-    prompt = PROMPT_TEMPLATE_PATH.read_text(encoding="utf-8") if saved else beta_default_prompt_template()
-    return {"ok": True, "prompt": prompt, "saved": saved, "required_variables": list(PROMPT_REQUIRED_VARIABLES)}
+    industry_key = str(request.query_params.get("industry_key") or "").strip()
+    prompt, prompt_key, version = load_prompt_template(industry_key)
+    return {
+        "ok": True,
+        "prompt": prompt,
+        "saved": True,
+        "prompt_key": prompt_key,
+        "version": version,
+        "industry_key": industry_key,
+        "required_variables": list(PROMPT_REQUIRED_VARIABLES),
+    }
 
 
 @beta_gemini_router.put("/admin/prompt")
@@ -550,11 +558,17 @@ def beta_admin_prompt_update(payload: BetaPromptTemplateUpdate, request: Request
     missing = [name for name in PROMPT_REQUIRED_VARIABLES if name not in prompt]
     if missing:
         raise HTTPException(status_code=422, detail="필수 변수가 누락되었습니다: " + ", ".join(missing))
-    PROMPT_TEMPLATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = PROMPT_TEMPLATE_PATH.with_suffix(".md.tmp")
-    temp_path.write_text(prompt + "\n", encoding="utf-8")
-    temp_path.replace(PROMPT_TEMPLATE_PATH)
-    return {"ok": True, "saved": True, "size": len(prompt), "required_variables": list(PROMPT_REQUIRED_VARIABLES)}
+    industry_key = str(request.query_params.get("industry_key") or "").strip()
+    prompt_key, version = save_prompt_template(industry_key, prompt)
+    return {
+        "ok": True,
+        "saved": True,
+        "size": len(prompt),
+        "prompt_key": prompt_key,
+        "version": version,
+        "industry_key": industry_key,
+        "required_variables": list(PROMPT_REQUIRED_VARIABLES),
+    }
 
 
 def beta_extract_text(response: dict[str, Any]) -> str:

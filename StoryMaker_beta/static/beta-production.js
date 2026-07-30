@@ -673,9 +673,11 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
         betaUi.promptEditor.value = String(data.prompt || '');
         betaUi.promptMeta.textContent = `현재 작업 ${betaCurrentJobId} · ${betaUi.promptEditor.value.length.toLocaleString()}자 · 읽기 전용`;
       } else {
-        const data = await betaRequest('/beta-api/gemini/admin/prompt');
+        const industryKey = String(betaUi.businessIndustryKey?.value || '').trim();
+        const query = new URLSearchParams({ industry_key: industryKey });
+        const data = await betaRequest(`/beta-api/gemini/admin/prompt?${query.toString()}`);
         betaUi.promptEditor.value = String(data.prompt || '');
-        betaUi.promptMeta.textContent = `${data.saved ? '관리자 저장본' : '기본 프롬프트'} · ${betaUi.promptEditor.value.length.toLocaleString()}자 · 필수 변수 ${Array.isArray(data.required_variables) ? data.required_variables.join(', ') : ''}`;
+        betaUi.promptMeta.textContent = `${data.prompt_key || '프롬프트'} v${data.version || '-'} · 업종 ${industryKey || '기본'} · ${betaUi.promptEditor.value.length.toLocaleString()}자`;
       }
       betaUi.promptMessage.textContent = '';
       betaUi.promptEditor.focus();
@@ -689,13 +691,15 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
     betaUi.promptSave.disabled = true;
     betaUi.promptMessage.textContent = '저장 중...';
     try {
-      const data = await betaRequest('/beta-api/gemini/admin/prompt', {
+      const industryKey = String(betaUi.businessIndustryKey?.value || '').trim();
+      const query = new URLSearchParams({ industry_key: industryKey });
+      const data = await betaRequest(`/beta-api/gemini/admin/prompt?${query.toString()}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt })
       });
-      betaUi.promptMessage.textContent = `저장 완료 · ${Number(data.size || prompt.length).toLocaleString()}자 · 다음 프롬프트 생성부터 적용`;
-      betaUi.promptMeta.textContent = `관리자 저장본 · ${prompt.length.toLocaleString()}자`;
+      betaUi.promptMessage.textContent = `저장 완료 · ${data.prompt_key || '프롬프트'} v${data.version || '-'} · 다음 생성부터 적용`;
+      betaUi.promptMeta.textContent = `${data.prompt_key || '프롬프트'} v${data.version || '-'} · 업종 ${industryKey || '기본'} · ${prompt.length.toLocaleString()}자`;
     } catch (error) {
       betaUi.promptMessage.textContent = `저장 실패: ${error.message}`;
     } finally {

@@ -38,15 +38,17 @@ FOOD_INDUSTRY_KEYS: Final[set[str]] = {
     "kids_cafe",
 }
 
-SEED_TEMPLATES: Final[dict[str, tuple[str, str, str]]] = {
+SEED_TEMPLATES: Final[dict[str, tuple[str, str, str, str]]] = {
     "local_professional_service": (
         "로컬 전문 서비스",
         "local_service",
+        "1.0",
         "local_professional_service.md",
     ),
     "food_service": (
         "외식·카페 업종",
         "food",
+        "1.2",
         "food_service.md",
     ),
 }
@@ -107,12 +109,29 @@ def ensure_prompt_database() -> Path:
             """
         )
 
-        for prompt_key, (name, category_group, filename) in SEED_TEMPLATES.items():
-            exists = connection.execute(
-                "SELECT 1 FROM prompt_templates WHERE prompt_key=?",
+        for prompt_key, (name, category_group, seed_version, filename) in SEED_TEMPLATES.items():
+            existing = connection.execute(
+                "SELECT version FROM prompt_templates WHERE prompt_key=?",
                 (prompt_key,),
             ).fetchone()
-            if exists:
+            seed_content = _read_seed(filename)
+            if existing:
+                current_version = str(existing["version"] or "0")
+                try:
+                    current_parts = tuple(int(part) for part in current_version.split("."))
+                    seed_parts = tuple(int(part) for part in seed_version.split("."))
+                except ValueError:
+                    current_parts = (9999,)
+                    seed_parts = (0,)
+                if current_parts < seed_parts:
+                    connection.execute(
+                        """
+                        UPDATE prompt_templates
+                        SET name=?, category_group=?, version=?, content=?, updated_at=?
+                        WHERE prompt_key=?
+                        """,
+                        (name, category_group, seed_version, seed_content, stamp, prompt_key),
+                    )
                 continue
             connection.execute(
                 """
@@ -125,8 +144,8 @@ def ensure_prompt_database() -> Path:
                     prompt_key,
                     name,
                     category_group,
-                    "1.0",
-                    _read_seed(filename),
+                    seed_version,
+                    seed_content,
                     1 if prompt_key == DEFAULT_PROMPT_KEY else 0,
                     stamp,
                     stamp,
@@ -196,3 +215,32 @@ def load_prompt_template(industry_key: object) -> tuple[str, str, str]:
         if not row:
             raise RuntimeError("활성 프롬프트를 찾지 못했습니다.")
         return str(row["content"]), str(row["prompt_key"]), str(row["version"])
+
+
+def save_prompt_template(industry_key: object, content: str) -> tuple[str, str]:
+    prompt = str(content or "").strip()
+    if len(prompt) < 500:
+        raise ValueError("프롬프트 내용이 너무 짧습니다.")
+    prompt_key = select_prompt_key(industry_key)
+    stamp = _now_text()
+    with _connect() as connection:
+        row = connection.execute(
+            "SELECT version FROM prompt_templates WHERE prompt_key=? AND is_active=1 LIMIT 1",
+            (prompt_key,),
+        ).fetchone()
+        if not row:
+            raise RuntimeError("활성 프롬프트를 찾지 못했습니다.")
+        current = str(row["version"] or "1.0")
+        parts = current.split(".", 1)
+        try:
+            major = int(parts[0])
+            minor = int(parts[1]) if len(parts) > 1 else 0
+            version = f"{major}.{minor + 1}"
+        except ValueError:
+            version = current
+        connection.execute(
+            "UPDATE prompt_templates SET content=?, version=?, updated_at=? WHERE prompt_key=?",
+            (prompt, version, stamp, prompt_key),
+        )
+        connection.commit()
+    return prompt_key, version
