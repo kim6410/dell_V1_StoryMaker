@@ -21,21 +21,43 @@ TEMPLATE_DIR: Final[Path] = ROOT / "data" / "prompt_templates"
 DEFAULT_PROMPT_KEY: Final[str] = "local_professional_service"
 
 FOOD_INDUSTRY_KEYS: Final[set[str]] = {
-    "cafe",
-    "dessert",
+    "bar",
     "bakery",
     "bakery_dessert",
-    "restaurant",
-    "meat_korean",
-    "mealkit_sidedish",
+    "bbq",
+    "beef_ribs",
+    "bunsik_korean_snack",
+    "cafe",
+    "chinese_restaurant",
+    "dakgalbi",
+    "delivery_food",
+    "dessert",
+    "dosirak_catering",
+    "fastfood_burger",
     "food",
     "food_service",
-    "delivery_food",
-    "takeout",
-    "bar",
+    "fruit_shop",
+    "hof_pub",
+    "japanese_restaurant",
+    "jokbal_bossam",
+    "kids_cafe",
+    "latenight_food",
+    "mealkit_sidedish",
+    "meat_korean",
+    "noodle_soup",
+    "omakase",
+    "pizza_western",
+    "pork_ribs",
     "pub",
     "pub_bar",
-    "kids_cafe",
+    "restaurant",
+    "seolleongtang_gomtang",
+    "takeout",
+    "teppanyaki",
+    "traditional_dessert",
+    "tteokgalbi",
+    "vietnamese_pho",
+    "wine_bar",
 }
 
 LOCAL_PROFESSIONAL_INDUSTRY_KEYS: Final[set[str]] = {
@@ -169,7 +191,9 @@ def ensure_prompt_database() -> Path:
                 INSERT INTO prompt_category_mappings (
                     industry_key, prompt_key, created_at, updated_at
                 ) VALUES (?, 'food_service', ?, ?)
-                ON CONFLICT(industry_key) DO NOTHING
+                ON CONFLICT(industry_key) DO UPDATE SET
+                    prompt_key=excluded.prompt_key,
+                    updated_at=excluded.updated_at
                 """,
                 (industry_key, stamp, stamp),
             )
