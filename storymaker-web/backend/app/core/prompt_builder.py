@@ -14,6 +14,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 from app.settings import settings
 from app.core.region_display import format_region_display, format_region_text
+from app.core.phone_number import normalize_korean_phone_number
 from app.services.weather_cache_service import get_or_fetch_weather
 
 
@@ -1204,6 +1205,9 @@ def build_prompt_markdown(company: str, persona: str, base_content: str, referen
             general_match = re.search(r"\b\d{2,4}-\d{3,4}-\d{4}\b", persona + "\n" + base_content)
             if general_match:
                 phone_val = general_match.group(0).strip()
+
+    if phone_val:
+        phone_val = normalize_korean_phone_number(phone_val)
 
     # phone_number가 없으면 “전화번호” placeholder 대신 “미등록”
     if not phone_val:

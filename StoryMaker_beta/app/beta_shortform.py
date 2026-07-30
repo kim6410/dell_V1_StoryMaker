@@ -21,6 +21,7 @@ from app.beta_auth import current_user_id, current_user_role
 from app.beta_mp4_usage import enforce_monthly_limit, record_verified_mp4
 from app.beta_archive_retention import enforce_beta_archive_limit_for_job
 from app.beta_storage import canonical_audio_path
+from app.beta_phone import normalize_korean_phone_number
 
 ROOT = Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta"))
 DB_PATH = ROOT / "data" / "storymaker_beta.db"
@@ -219,7 +220,7 @@ def shortform_context(job_id: str, request: Request) -> JSONResponse:
         "carousel_content": carousel_text,
         "instagram_content": instagram_text,
         "business_name": business.get("name") or "",
-        "business_phone": business.get("phone") or "",
+        "business_phone": normalize_korean_phone_number(business.get("phone") or ""),
         "script": script,
         "podcast_50": podcast_50,
         "podcast_80": podcast_80,

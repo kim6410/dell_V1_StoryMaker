@@ -27,6 +27,7 @@ from app.beta_mp4_usage import ensure_mp4_usage_table, enforce_monthly_limit, mo
 from app.beta_archive_retention import enforce_beta_archive_limit_for_job, enforce_beta_archive_limit_for_user
 from app.beta_storage import canonical_audio_path, prune_unreferenced_shared_images, store_normalized_image
 from app.beta_title import clean_beta_title
+from app.beta_phone import normalize_korean_phone_number, phone_numbers_for_tts
 
 KST = ZoneInfo("Asia/Seoul")
 
@@ -496,8 +497,9 @@ def beta_make_tts(script: str, wav_path: Path, job_dir: Path) -> None:
     clean_script = strip_speaker_labels(script).strip()
     if not clean_script:
         raise RuntimeError("Beta 음성 대본이 없습니다.")
+    tts_script = phone_numbers_for_tts(clean_script)
     wav_path.parent.mkdir(parents=True, exist_ok=True)
-    wav_path.write_bytes(request_supertonic(clean_script, "F1", 1.05))
+    wav_path.write_bytes(request_supertonic(tts_script, "F1", 1.05))
     if not wav_path.exists() or wav_path.stat().st_size == 0:
         raise RuntimeError("Beta Supertonic 음성이 생성되지 않았습니다.")
 
@@ -643,7 +645,12 @@ async def beta_create_job(
         with target.open("wb") as stream:
             shutil.copyfileobj(upload.file, stream)
         saved_videos.append(str(target))
-    business = {"name": business_name.strip(), "region": business_region.strip(), "service": business_service.strip(), "phone": business_phone.strip()}
+    business = {
+        "name": business_name.strip(),
+        "region": business_region.strip(),
+        "service": business_service.strip(),
+        "phone": normalize_korean_phone_number(business_phone),
+    }
     weather_snapshot = get_weather_snapshot(business_region.strip())
     content = beta_make_content(business, topic, len(saved_images))
     content["title"] = clean_beta_title(content.get("title"), f"{business_region.strip()} {topic.strip()}")

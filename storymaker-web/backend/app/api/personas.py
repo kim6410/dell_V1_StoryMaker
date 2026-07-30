@@ -22,20 +22,9 @@ from app.services import StoryMakerService
 from app.schemas import PersonaUpdate, PersonaResponse, CommonResponse
 from app.schemas.persona import UserPersonaUpsert
 from app.core.region_display import format_region_display
+from app.core.phone_number import normalize_korean_phone_number
 
 router = APIRouter()
-
-
-def normalize_korean_phone_number(value: str) -> str:
-    raw = (value or "").strip()
-    digits = re.sub(r"\D", "", raw)
-    if len(digits) == 11 and digits.startswith("010"):
-        return f"{digits[:3]}-{digits[3:7]}-{digits[7:]}"
-    if len(digits) == 10 and digits.startswith("02"):
-        return f"{digits[:2]}-{digits[2:6]}-{digits[6:]}"
-    if len(digits) == 10:
-        return f"{digits[:3]}-{digits[3:6]}-{digits[6:]}"
-    return raw
 
 
 def normalize_blog_content_length(value) -> int:
@@ -58,7 +47,7 @@ def serialize_user_persona(persona: UserPersona) -> dict:
     return {
         "id": persona.id,
         "company_name": persona.company_name,
-        "phone_number": persona.phone_number,
+        "phone_number": normalize_korean_phone_number(persona.phone_number),
         "website_url": getattr(persona, "website_url", None) or "",
         "region": format_region_display(getattr(persona, "region", None) or ""),
         "industry_key": getattr(persona, "industry_key", None) or "general",
