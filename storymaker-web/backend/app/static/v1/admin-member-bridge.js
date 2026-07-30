@@ -451,7 +451,7 @@
   function prepareMemberArchive(userId) {
     const frame = document.getElementById('sm-member-archive-frame');
     if (!frame) return;
-    const nextSrc = `/beta/archive?admin_user_id=${encodeURIComponent(userId)}&embedded=1`;
+    const nextSrc = `/v1/beta/archive?admin_user_id=${encodeURIComponent(userId)}&embedded=1`;
     if (frame.getAttribute('src') !== nextSrc) frame.setAttribute('src', nextSrc);
   }
 
