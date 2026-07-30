@@ -92,6 +92,18 @@ LIFESTYLE_EXPERIENCE_SPACE_INDUSTRY_KEYS: Final[set[str]] = {
     "event_planning",
 }
 
+AUTOMOTIVE_MOBILITY_INDUSTRY_KEYS: Final[set[str]] = {
+    "car_repair",
+    "car_detailing",
+    "car_rental",
+    "tire_shop",
+    "bicycle_shop",
+    "car_window_tinting",
+    "car_dent_paint",
+    "used_car_dealer",
+    "driving_school",
+}
+
 BEAUTY_WELLNESS_INDUSTRY_KEYS: Final[set[str]] = {
     "beauty_wellness",
     "hair_salon",
@@ -125,6 +137,12 @@ SEED_TEMPLATES: Final[dict[str, tuple[str, str, str, str]]] = {
         "medical",
         "1.0",
         "medical_health.md",
+    ),
+    "automotive_mobility": (
+        "자동차 및 이동 수단 업종",
+        "automotive",
+        "1.0",
+        "automotive_mobility.md",
     ),
     "lifestyle_experience_space": (
         "라이프스타일·체험 및 공간 업종",
@@ -271,6 +289,19 @@ def ensure_prompt_database() -> Path:
                 INSERT INTO prompt_category_mappings (
                     industry_key, prompt_key, created_at, updated_at
                 ) VALUES (?, 'medical_health', ?, ?)
+                ON CONFLICT(industry_key) DO UPDATE SET
+                    prompt_key=excluded.prompt_key,
+                    updated_at=excluded.updated_at
+                """,
+                (industry_key, stamp, stamp),
+            )
+
+        for industry_key in sorted(AUTOMOTIVE_MOBILITY_INDUSTRY_KEYS):
+            connection.execute(
+                """
+                INSERT INTO prompt_category_mappings (
+                    industry_key, prompt_key, created_at, updated_at
+                ) VALUES (?, 'automotive_mobility', ?, ?)
                 ON CONFLICT(industry_key) DO UPDATE SET
                     prompt_key=excluded.prompt_key,
                     updated_at=excluded.updated_at
