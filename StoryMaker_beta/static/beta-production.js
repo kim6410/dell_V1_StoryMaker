@@ -478,6 +478,12 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
       betaSetStatus('이미지를 한 장 이상 선택하세요.');
       return;
     }
+    const selectedVideos = Array.from(betaUi.videos?.files || []);
+    if (selectedVideos.length > 3) {
+      betaSetStatus('동영상은 최대 3개까지 선택할 수 있습니다. 초과한 파일을 제외해 주세요.');
+      betaUi.videos.value = '';
+      return;
+    }
     const body = new FormData();
     body.append('business_name', betaUi.businessName.value.trim());
     body.append('business_region', betaUi.businessRegion.value.trim());
@@ -485,7 +491,7 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
     body.append('business_phone', betaUi.businessPhone.value.trim());
     body.append('topic', betaUi.topic.value.trim());
     for (const file of betaUi.images.files) body.append('images', file);
-    for (const file of betaUi.videos.files) body.append('videos', file);
+    for (const file of selectedVideos) body.append('videos', file);
     betaSetGeminiButtons({ promptDisabled: true, aiDisabled: true });
     betaSetStatus('작업 공간과 AI 프롬프트를 준비하는 중...', 8);
     try {

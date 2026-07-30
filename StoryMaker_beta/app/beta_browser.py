@@ -155,8 +155,17 @@ def beta_browser_source_video(beta_job_id: str, video_index: int) -> FileRespons
     path = Path(videos[video_index - 1])
     if not path.exists():
         raise HTTPException(status_code=404, detail="동영상 파일이 없습니다.")
-    proxy = beta_browser_video_proxy(job_dir, path, video_index)
-    return FileResponse(proxy, media_type="video/mp4", filename=proxy.name)
+    media_type = {
+        ".mp4": "video/mp4",
+        ".mov": "video/quicktime",
+        ".webm": "video/webm",
+    }.get(path.suffix.lower(), "application/octet-stream")
+    return FileResponse(
+        path,
+        media_type=media_type,
+        filename=path.name,
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
 
 
 @beta_browser_router.get("/jobs/{beta_job_id}/voice-wav")

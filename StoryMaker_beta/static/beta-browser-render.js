@@ -2,7 +2,7 @@ let betaRenderBrowserShortform = null;
 
 async function loadBetaRenderBrowserShortform() {
   if (betaRenderBrowserShortform) return betaRenderBrowserShortform;
-  const module = await import('./assets/beta-mediabunny-webcodecs-renderer-20260724.js?v=20260727-transition-options-phone-white-1');
+  const module = await import('./assets/beta-mediabunny-webcodecs-renderer-20260724.js?v=20260730-browser-video-clips-1');
   if (typeof module.c !== 'function') throw new Error('Beta Mediabunny/WebCodecs 렌더 함수를 찾지 못했습니다.');
   betaRenderBrowserShortform = module.c;
   return betaRenderBrowserShortform;
@@ -206,15 +206,28 @@ async function loadBetaRenderBrowserShortform() {
     return image;
   }
 
-  async function loadVideo(url) {
+  async function loadVideo(url, timeoutMs = 15000) {
     const video = document.createElement('video');
     video.crossOrigin = 'anonymous';
     video.muted = true;
-    video.preload = 'auto';
+    video.playsInline = true;
+    video.preload = 'metadata';
     video.src = url;
     await new Promise((resolve, reject) => {
-      video.onloadedmetadata = resolve;
-      video.onerror = () => reject(new Error('삽입 동영상을 불러오지 못했습니다.'));
+      const timer = window.setTimeout(() => {
+        cleanup();
+        reject(new Error('삽입 동영상 준비 시간이 15초를 초과했습니다.'));
+      }, timeoutMs);
+      const cleanup = () => {
+        window.clearTimeout(timer);
+        video.removeEventListener('loadedmetadata', done);
+        video.removeEventListener('error', fail);
+      };
+      const done = () => { cleanup(); resolve(); };
+      const fail = () => { cleanup(); reject(new Error('브라우저에서 읽을 수 없는 동영상입니다. MP4 H.264 형식을 권장합니다.')); };
+      video.addEventListener('loadedmetadata', done, {once:true});
+      video.addEventListener('error', fail, {once:true});
+      video.load();
     });
     return video;
   }
@@ -309,13 +322,18 @@ async function loadBetaRenderBrowserShortform() {
     return new File([blob], name, {type:blob.type || fallbackType});
   }
 
-  async function seekVideo(video, time) {
+  async function seekVideo(video, time, timeoutMs = 8000) {
     const target = Math.max(0, Math.min(time, Math.max(0, (video.duration || 0) - 0.05)));
     if (Math.abs((video.currentTime || 0) - target) < 0.01) return;
     await new Promise((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        cleanup();
+        reject(new Error('삽입 동영상 탐색 시간이 8초를 초과했습니다.'));
+      }, timeoutMs);
       const done = () => { cleanup(); resolve(); };
       const fail = () => { cleanup(); reject(new Error('삽입 동영상 프레임을 읽지 못했습니다.')); };
       const cleanup = () => {
+        window.clearTimeout(timer);
         video.removeEventListener('seeked', done);
         video.removeEventListener('error', fail);
       };
@@ -372,32 +390,35 @@ async function loadBetaRenderBrowserShortform() {
       setProgress('slideshow', 5 + ((index + 1) / Math.max(1, selectedImageUrls.length)) * 10);
     }
 
-    const videoUrls = manifest.videos || [];
+    const videoUrls = [...(manifest.videos || [])].slice(0, 3);
     const estimatedDuration = Math.max(12, Number(manifest.duration_seconds || 45));
-    const totalSlots = Math.max(sourceImages.length + (videoUrls.length ? 2 : 0), Math.ceil(estimatedDuration / 4.2));
-    const targetVideoSlots = videoUrls.length ? Math.max(videoUrls.length * 2, Math.round(totalSlots * 0.30)) : 0;
-    const targetImageSlots = Math.max(sourceImages.length, totalSlots - targetVideoSlots);
+    const totalSlots = Math.max(sourceImages.length, Math.ceil(estimatedDuration / 4.2));
     const imageFiles = [];
-    for (let i = 0; i < targetImageSlots && sourceImages.length; i += 1) imageFiles.push(sourceImages[i % sourceImages.length]);
-    const videoFrames = [];
+    for (let i = 0; i < totalSlots && sourceImages.length; i += 1) imageFiles.push(sourceImages[i % sourceImages.length]);
+    const videoClips = [];
+    const perClipTarget = videoUrls.length ? Math.min(4, 10 / videoUrls.length) : 0;
     for (let index = 0; index < videoUrls.length; index += 1) {
-      const count = Math.max(2, Math.round(targetVideoSlots / videoUrls.length));
-      const frames = await extractVideoFrameFiles(videoUrls[index], index, count);
-      videoFrames.push(...frames);
+      try {
+        const video = await loadVideo(videoUrls[index], 15000);
+        const sourceDuration = Math.max(0, Number(video.duration || 0));
+        if (!sourceDuration) throw new Error('동영상 재생시간을 확인하지 못했습니다.');
+        const clipDuration = Math.min(sourceDuration, Math.max(2, perClipTarget));
+        const sourceStart = Math.max(0, (sourceDuration - clipDuration) / 2);
+        videoClips.push({
+          video,
+          sourceStart,
+          duration: clipDuration,
+          sourceDuration,
+          index,
+        });
+        detailCallback?.({type:'video-ready', index, duration:clipDuration, sourceDuration});
+      } catch (error) {
+        detailCallback?.({type:'video-skip', index, message:error instanceof Error ? error.message : String(error)});
+      }
       setProgress('slideshow', 15 + ((index + 1) / Math.max(1, videoUrls.length)) * 8);
     }
-    for (let i = videoFrames.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [videoFrames[i], videoFrames[j]] = [videoFrames[j], videoFrames[i]];
-    }
-    for (const frame of videoFrames.slice(0, targetVideoSlots)) {
-      const min = Math.min(imageFiles.length, 1);
-      const max = Math.max(min, imageFiles.length - 1);
-      const position = min + Math.floor(Math.random() * Math.max(1, max - min + 1));
-      imageFiles.splice(position, 0, frame);
-    }
 
-    if (!imageFiles.length) throw new Error('렌더링할 이미지 또는 동영상 프레임이 없습니다.');
+    if (!imageFiles.length && !videoClips.length) throw new Error('렌더링할 이미지 또는 동영상이 없습니다.');
     const audioBlob = await fetch(manifest.voice_mp3 || manifest.voice_wav, {cache:'no-store'}).then((response) => {
       if (!response.ok) throw new Error(`음성 불러오기 실패 · HTTP ${response.status}`);
       return response.blob();
@@ -411,6 +432,7 @@ async function loadBetaRenderBrowserShortform() {
     const result = await renderBrowserShortform({
       audioBlob,
       imageFiles,
+      videoClips,
       title: settings.title_line_2 || manifest.watermark || 'StoryMaker Beta',
       caption: settings.title_line_1 || '',
       eyebrow: settings.title_line_1 || 'StoryMaker Beta',

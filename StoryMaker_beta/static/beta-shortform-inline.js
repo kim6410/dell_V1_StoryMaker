@@ -294,8 +294,14 @@
     fields.videos._hasListener = true;
     fields.videos.addEventListener('change', () => {
       const count = fields.videos.files ? fields.videos.files.length : 0;
+      if (count > 3) {
+        fields.videos.value = '';
+        if (fields.videoConnected) fields.videoConnected.innerHTML = '<span style="color:#ff9ca8;font-weight:bold;">동영상은 최대 3개까지 선택할 수 있습니다.</span>';
+        appendLog('동영상 선택 취소 · 최대 3개 제한');
+        return;
+      }
       if (count > 0 && fields.videoConnected) {
-        fields.videoConnected.innerHTML = `<span style="display:inline-block;padding:6px 12px;border-radius:8px;background:rgba(255,196,0,0.15);border:1px solid #ffc400;color:#ffe680;font-weight:bold;margin-top:6px;">📂 사용자 지정 선택 동영상 ${count}개 교체 적용</span>`;
+        fields.videoConnected.innerHTML = `<span style="display:inline-block;padding:6px 12px;border-radius:8px;background:rgba(255,196,0,0.15);border:1px solid #ffc400;color:#ffe680;font-weight:bold;margin-top:6px;">📂 사용자 지정 선택 동영상 ${count}개 · 브라우저 클립 합성 적용</span>`;
       }
     });
   }
