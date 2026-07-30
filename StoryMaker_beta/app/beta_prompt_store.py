@@ -185,7 +185,7 @@ SEED_TEMPLATES: Final[dict[str, tuple[str, str, str, str]]] = {
     "food_service": (
         "외식·카페 업종",
         "food",
-        "4.3",
+        "4.4",
         "food_service.md",
     ),
     "medical_health": (
