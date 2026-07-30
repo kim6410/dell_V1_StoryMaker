@@ -19,8 +19,8 @@
     style.textContent = `
       #${WRAP_ID} {
         position: fixed;
-        top: 108px;
-        right: 18px;
+        top: 221px;
+        right: 0;
         z-index: 2147483000;
         display: flex;
         flex-direction: column;
@@ -122,7 +122,7 @@
           opacity: 1 !important;
           top: auto !important;
           right: 12px !important;
-          bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+          bottom: calc(55px + env(safe-area-inset-bottom, 0px)) !important;
           z-index: 2147483646 !important;
           gap: 9px;
           transform: translateZ(0);
