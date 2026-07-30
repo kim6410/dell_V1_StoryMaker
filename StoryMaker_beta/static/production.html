@@ -20,7 +20,8 @@
 <div class="grid4">
 <div><label>업체명</label><select id="beta-business-profile-select" aria-label="등록 업체 선택" hidden></select><input id="beta-business-name" name="business_name" placeholder="예: 오박사만능인테리어" required></div>
 <div><label>지역</label><input id="beta-business-region" name="business_region" placeholder="예: 울산 북구" required></div>
-<div><label>업종</label><input id="beta-business-service" name="business_service" placeholder="예: 인테리어업" required></div>
+<div><label>콘텐츠용 지역명</label><input id="beta-business-region-alias" name="business_region_alias" placeholder="예: 봉담읍, 상리 · 비우면 기존 규칙"></div>
+<div><label>업종</label><input id="beta-business-service" name="business_service" placeholder="예: 인테리어업" required><input id="beta-business-industry-key" name="business_industry_key" type="hidden"></div>
 <div><label>전화번호</label><input id="beta-business-phone" name="business_phone" placeholder="010-0000-0000"></div>
 </div>
 <div style="margin-top:14px"><label><span class="beta-step-circle">1</span>기초 콘텐츠 입력</label><textarea id="beta-topic" name="topic" rows="10" placeholder="블로그 원문, 현장 설명, 작업 과정 등 기초 콘텐츠를 입력하세요." required></textarea></div>
@@ -308,10 +309,10 @@
 <div hidden aria-hidden="true"><div id="beta-content"></div><audio id="beta-audio"></audio><video id="beta-preview"></video></div>
 </main>
 <script src="/beta-static/vendor/WasmMediaEncoder.min.js"></script>
-<script type="module" src="/beta-static/beta-browser-render.js?v=20260730-video-first3-friendly-1"></script>
+<script type="module" src="/beta-static/beta-browser-render.js?v=20260730-phone-tts-spaced-1"></script>
 <script src="/beta-static/beta-shortform-inline.js?v=20260730-video-first3-friendly-1"></script>
 <link rel="stylesheet" href="/beta-static/beta-content-reference.css?v=20260727-reference-direct-6">
-<script src="/beta-static/beta-production.js?v=20260730-video-first3-friendly-1"></script>
+<script src="/beta-static/beta-production.js?v=20260730-prompt-db-industry-3"></script>
 <script src="/beta-static/beta-content-reference.js?v=20260727-reference-autoclose-7"></script>
 <script src="/beta-static/beta-page-background-slideshow.js?v=20260727-page-bg-visible-2"></script>
 <script src="/beta-static/beta-pet-tori.js?v=20260727-tori-visible-4"></script>

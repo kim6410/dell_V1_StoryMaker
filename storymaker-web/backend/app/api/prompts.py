@@ -9,7 +9,7 @@ import json
 from app.services import StoryMakerService
 from app.schemas import PromptRequest, PromptResponse, CommonResponse
 from app.api.auth import get_optional_current_user
-from app.db.models import User, ActivityLog
+from app.db.models import User, UserPersona, ActivityLog
 from app.db.database import get_db
 
 router = APIRouter()
@@ -28,6 +28,15 @@ def generate_prompt(
     """
     try:
         timing = {"pc_prompt_request_at": datetime.now().isoformat(timespec="milliseconds")}
+        if current_user and not str(getattr(req, "region_alias", "") or "").strip():
+            persona_query = db.query(UserPersona).filter(UserPersona.user_id == current_user.id)
+            company_name = str(req.company or "").strip()
+            region_name = str(req.region or "").strip()
+            if company_name:
+                persona_query = persona_query.filter(UserPersona.company_name == company_name)
+            persona = persona_query.order_by(UserPersona.is_default.desc(), UserPersona.updated_at.desc()).first()
+            if persona and (not region_name or str(persona.region or "").strip() == region_name):
+                req = req.model_copy(update={"region_alias": str(getattr(persona, "region_alias", "") or "").strip()})
         prompt_text = StoryMakerService.generate_prompt(req)
         timing["pc_prompt_ready_at"] = datetime.now().isoformat(timespec="milliseconds")
         timing["pc_prompt_length"] = len(prompt_text)

@@ -563,6 +563,7 @@ def update_member_persona(
         phone_number,
         website_url,
         region,
+        region_alias,
         industry_key,
         default_style,
         blog_content_length,
@@ -589,6 +590,7 @@ def update_member_persona(
     persona.phone_number = phone_number
     persona.website_url = website_url
     persona.region = region
+    persona.region_alias = region_alias
     persona.industry_key = industry_key
     persona.default_style = default_style
     persona.blog_content_length = blog_content_length

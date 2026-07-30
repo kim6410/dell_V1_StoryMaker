@@ -114,6 +114,7 @@ class StoryMakerService:
             ai_preset=req.ai_preset,
             emotion_levels=getattr(req, "tones", None),
             region=getattr(req, "region", None),
+            region_alias=getattr(req, "region_alias", "") or "",
             industry_key=getattr(req, "industry_key", "general") or "general",
             blog_content_length=getattr(req, "blog_content_length", 1500),
             phone_number=getattr(req, "phone_number", "")

@@ -599,6 +599,32 @@ async function loadBetaRenderBrowserShortform() {
     };
   }
 
+  function preparePhoneNumbersForTts(text) {
+    const digitKo = { '0':'공', '1':'일', '2':'이', '3':'삼', '4':'사', '5':'오', '6':'육', '7':'칠', '8':'팔', '9':'구' };
+    const mappings = [];
+    const pattern = /(?<!\d)(?:0507[-.\s]?\d{4}[-.\s]?\d{4}|01[016789][-.\s]?\d{3,4}[-.\s]?\d{4}|0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4})(?!\d)/g;
+    const ttsScript = String(text || '').replace(pattern, (matched) => {
+      const digits = matched.replace(/\D/g, '');
+      let groups = [digits];
+      if (digits.length === 12 && digits.startsWith('0507')) groups = [digits.slice(0,4), digits.slice(4,8), digits.slice(8)];
+      else if (digits.length === 11) groups = [digits.slice(0,3), digits.slice(3,7), digits.slice(7)];
+      else if (digits.length === 10 && digits.startsWith('02')) groups = [digits.slice(0,2), digits.slice(2,6), digits.slice(6)];
+      else if (digits.length === 10) groups = [digits.slice(0,3), digits.slice(3,6), digits.slice(6)];
+      const spoken = groups.map((group) => [...group].map((digit) => digitKo[digit] || digit).join(' ')).join(', ');
+      const display = groups.join('-');
+      mappings.push({ spoken, display });
+      return spoken;
+    });
+    return { ttsScript, mappings };
+  }
+
+  async function restorePhoneNumbersInSrt(blob, mappings) {
+    if (!blob || !mappings.length) return blob;
+    let text = await blob.text();
+    for (const item of mappings) text = text.split(item.spoken).join(item.display);
+    return new Blob([text], { type: blob.type || 'text/plain;charset=utf-8' });
+  }
+
   async function generateBrowserPodcast(script, settings = {}, onProgress = () => {}) {
     await prepareBrowserPodcast(onProgress);
     return await new Promise((resolve, reject) => {
@@ -680,10 +706,14 @@ async function loadBetaRenderBrowserShortform() {
     const startedAt = performance.now();
     try {
       ui.status.textContent = '사용자 브라우저 WebGPU·WASM 음성 엔진을 준비하는 중...';
-      const generated = await generateBrowserPodcast(script, settings, (percent, detail) => {
+      const phoneTts = preparePhoneNumbersForTts(script);
+      const generated = await generateBrowserPodcast(phoneTts.ttsScript, settings, (percent, detail) => {
         ui.status.textContent = detail || `브라우저 음성 생성 중 · ${Math.round(percent)}%`;
         onProgress(percent, detail);
       });
+      if (generated.srtBlob && phoneTts.mappings.length) {
+        generated.srtBlob = await restorePhoneNumbersInSrt(generated.srtBlob, phoneTts.mappings);
+      }
       if (ui.job.value.trim() !== currentJobId) throw new Error('음성 생성 중 작업이 변경되었습니다.');
       lastPodcastSeconds = (performance.now() - startedAt) / 1000;
       lastPodcastProvider = String(generated.provider || 'browser').toLowerCase();

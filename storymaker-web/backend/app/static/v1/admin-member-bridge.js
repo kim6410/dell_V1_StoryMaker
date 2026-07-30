@@ -545,6 +545,7 @@
         <div class="sm-field"><label>전화번호 <em>*</em></label><input name="phone_number" value="${esc(persona.phone_number || '')}" required></div>
         <div class="sm-field"><label>홈페이지/SNS</label><input name="website_url" value="${esc(persona.website_url || '')}" placeholder="홈페이지, 블로그 또는 SNS 주소"></div>
         <div class="sm-field"><label>지역 <em>*</em></label><select name="region" required><option value="">지역을 선택해 주세요</option>${adminRegionOptions.map((region) => `<option value="${esc(region)}" ${persona.region === region ? 'selected' : ''}>${esc(region)}</option>`).join('')}${persona.region && !adminRegionOptions.includes(persona.region) ? `<option value="${esc(persona.region)}" selected>${esc(persona.region)}</option>` : ''}</select></div>
+        <div class="sm-field"><label>콘텐츠용 지역명</label><input name="region_alias" value="${esc(persona.region_alias || '')}" placeholder="예: 봉담읍, 상리 · 비우면 기존 지역 규칙 사용"><small>행정 지역명보다 우선 사용하는 지역명</small></div>
         <div class="sm-field"><label>업종 <em>*</em></label><select name="industry_key" required><option value="">업종을 선택해 주세요</option>${INDUSTRY_OPTIONS.map(([value, label]) => `<option value="${esc(value)}" ${persona.industry_key === value ? 'selected' : ''}>${esc(label)}</option>`).join('')}${persona.industry_key && !INDUSTRY_OPTIONS.some(([value]) => value === persona.industry_key) ? `<option value="${esc(persona.industry_key)}" selected>${esc(persona.industry_key)}</option>` : ''}</select></div>
         <div class="sm-field"><label>기본 작성 채널</label><select name="default_style"><option value="">작성 채널을 선택해 주세요</option>${STYLE_OPTIONS.map((style) => `<option value="${esc(style)}" ${persona.default_style === style ? 'selected' : ''}>${esc(style)}</option>`).join('')}</select></div>
         <div class="sm-field"><label>블로그 글 길이</label><select name="blog_content_length"><option value="1200" ${Number(persona.blog_content_length) === 1200 ? 'selected' : ''}>1,200자</option><option value="1500" ${Number(persona.blog_content_length) !== 1200 && Number(persona.blog_content_length) !== 2000 ? 'selected' : ''}>1,500자</option><option value="2000" ${Number(persona.blog_content_length) === 2000 ? 'selected' : ''}>2,000자</option></select></div>
@@ -568,6 +569,7 @@
       phone_number: data.get('phone_number'),
       website_url: data.get('website_url'),
       region: data.get('region'),
+      region_alias: data.get('region_alias'),
       industry_key: data.get('industry_key'),
       default_style: data.get('default_style'),
       blog_content_length: Number(data.get('blog_content_length') || 1500),

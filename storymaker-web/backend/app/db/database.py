@@ -88,6 +88,8 @@ def migrate_user_auth_columns() -> None:
                 connection.execute(text("ALTER TABLE user_personas ADD COLUMN website_url TEXT DEFAULT '' NOT NULL"))
             if "region" not in persona_columns:
                 connection.execute(text("ALTER TABLE user_personas ADD COLUMN region TEXT DEFAULT '' NOT NULL"))
+            if "region_alias" not in persona_columns:
+                connection.execute(text("ALTER TABLE user_personas ADD COLUMN region_alias TEXT DEFAULT '' NOT NULL"))
             if "default_style" not in persona_columns:
                 connection.execute(text("ALTER TABLE user_personas ADD COLUMN default_style TEXT DEFAULT '네이버 블로그' NOT NULL"))
             if "default_tones_json" not in persona_columns:

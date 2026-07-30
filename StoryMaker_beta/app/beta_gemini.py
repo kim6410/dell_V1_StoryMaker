@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from app.beta_auth import current_user_id, current_user_role
 from app.beta_mp4_usage import enforce_generation_access
 from app.beta_title import clean_beta_title, persist_beta_job_title
+from app.beta_prompt_store import load_prompt_template
 
 beta_gemini_router = APIRouter(prefix="/beta-api/gemini", tags=["beta-gemini"])
 
@@ -128,7 +129,9 @@ def _prompt_region(region: str) -> str:
 def beta_build_default_prompt(payload: BetaGeminiRequest) -> str:
     business = payload.business or {}
     company = str(business.get("name", "")).strip() or "업체명 미등록"
-    region = _prompt_region(business.get("region"))
+    official_region = _prompt_region(business.get("region"))
+    region_alias = str(business.get("region_alias") or "").strip()
+    region = region_alias or official_region
     service = str(business.get("service", "")).strip() or "서비스 미등록"
     phone = str(business.get("phone", "")).strip() or "미등록"
     source_text = str(payload.topic or "").strip()
@@ -149,7 +152,7 @@ def beta_build_default_prompt(payload: BetaGeminiRequest) -> str:
 - 현재 요일: {weather.get('weekday_text', '')}
 - 현재 시각: {weather.get('time_text', '')}
 - 현재 계절: {weather.get('season', '')}
-- 기상 기준 지역: {_prompt_region(weather.get('region') or region)}
+- 기상 기준 지역: {_prompt_region(weather.get('region') or official_region)}
 - 현재 날씨: {weather.get('condition', '')}
 - 현재 기온: {weather.get('temperature_c', '')}℃
 - 현재 습도: {weather.get('humidity_percent', '')}%
@@ -163,7 +166,7 @@ def beta_build_default_prompt(payload: BetaGeminiRequest) -> str:
 - 현재 요일: {weather.get('weekday_text', '')}
 - 현재 시각: {weather.get('time_text', '')}
 - 현재 계절: {weather.get('season', '')}
-- 기상 기준 지역: {_prompt_region(weather.get('region') or region)}
+- 기상 기준 지역: {_prompt_region(weather.get('region') or official_region)}
 - 기상 정보: 기상 서버 정보를 불러오지 못함 (날씨 항목 추정 금지)"""
 
     gemini_rule_block = """## Gemini 날짜·기상 절대 준수 규칙 (최우선 강제 적용)
@@ -208,13 +211,21 @@ def beta_build_default_prompt(payload: BetaGeminiRequest) -> str:
 - 업체명: {company}
 - 글쓰기 스타일: 현장감 있는 네이버 블로그
 - 블로그 본문 목표 길이: 약 1500자
-- 선택 지역: {region}
+- 선택 행정구역: {official_region}
+- 콘텐츠에서 최우선 사용할 지역명: {region}
 - 주요 서비스: {service}
 - 전화번호: {phone}
 
 {weather_block}
 
 {gemini_rule_block}
+
+## 콘텐츠 지역명 우선 규칙
+- 콘텐츠에서 최우선 사용할 지역명이 행정구역과 다르면 사용자가 지정한 별칭이다.
+- 별칭이 지정된 경우 SNS 8개 슬롯의 제목, 첫 문단, 본문, 해시태그, 팟캐스트, 썸네일 문구에서 별칭을 가장 우선한다.
+- 별칭을 다른 지역명으로 임의 변경하지 않는다.
+- 별칭이 비어 있을 때만 기존 지역 분석 규칙을 사용한다.
+- 전체 행정구역은 날씨와 정확한 위치 설명에만 보조로 사용한다.
 
 ## 최우선 반영 규칙
 - 업체명, 전화번호, 업체 페르소나, 입력 자료를 가장 우선합니다.
@@ -479,8 +490,10 @@ def beta_render_prompt_template(template: str, payload: BetaGeminiRequest) -> st
     weather = _prompt_section(default_prompt, "## 현재 날짜·기상 기준 정보", "## Gemini")
     values = {
         "{{company}}": str(business.get("name") or "업체명 미등록").strip(),
-        "{{region}}": _prompt_region(business.get("region")),
+        "{{official_region}}": str(business.get("region") or "지역 미등록").strip(),
+        "{{region}}": str(business.get("region_alias") or "").strip() or _prompt_region(business.get("region")),
         "{{service}}": str(business.get("service") or "서비스 미등록").strip(),
+        "{{industry_key}}": str(business.get("industry_key") or "").strip(),
         "{{phone}}": str(business.get("phone") or "미등록").strip(),
         "{{source_text}}": str(payload.topic or "").strip(),
         "{{weather_block}}": weather,
@@ -492,6 +505,19 @@ def beta_render_prompt_template(template: str, payload: BetaGeminiRequest) -> st
 
 
 def beta_build_prompt(payload: BetaGeminiRequest) -> str:
+    business = payload.business or {}
+    try:
+        template, prompt_key, prompt_version = load_prompt_template(
+            business.get("industry_key") or business.get("service")
+        )
+        rendered = beta_render_prompt_template(template, payload)
+        return (
+            f"<!-- StoryMaker prompt: {prompt_key} v{prompt_version} -->\n"
+            + rendered
+        )
+    except Exception:
+        LOGGER.exception("prompt database read failed; using legacy template")
+
     if PROMPT_TEMPLATE_PATH.exists():
         try:
             template = PROMPT_TEMPLATE_PATH.read_text(encoding="utf-8").strip()

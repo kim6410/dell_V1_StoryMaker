@@ -6,7 +6,9 @@
     businessName: document.getElementById('beta-business-name'),
     businessProfileSelect: document.getElementById('beta-business-profile-select'),
     businessRegion: document.getElementById('beta-business-region'),
+    businessRegionAlias: document.getElementById('beta-business-region-alias'),
     businessService: document.getElementById('beta-business-service'),
+    businessIndustryKey: document.getElementById('beta-business-industry-key'),
     businessPhone: document.getElementById('beta-business-phone'),
     topic: document.getElementById('beta-topic'),
     images: document.getElementById('beta-images'),
@@ -486,7 +488,9 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\nì
     const body = new FormData();
     body.append('business_name', betaUi.businessName.value.trim());
     body.append('business_region', betaUi.businessRegion.value.trim());
+    body.append('business_region_alias', betaUi.businessRegionAlias?.value.trim() || '');
     body.append('business_service', betaUi.businessService.value.trim());
+    body.append('business_industry_key', betaUi.businessIndustryKey?.value.trim() || '');
     body.append('business_phone', betaUi.businessPhone.value.trim());
     body.append('topic', betaUi.topic.value.trim());
     for (const file of betaUi.images.files) body.append('images', file);
@@ -793,7 +797,9 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\nì
     const pairs = [
       [betaUi.businessName, profile.name],
       [betaUi.businessRegion, profile.region],
+      [betaUi.businessRegionAlias, profile.region_alias],
       [betaUi.businessService, profile.service],
+      [betaUi.businessIndustryKey, profile.industry_key],
       [betaUi.businessPhone, profile.phone],
     ];
     for (const [input, value] of pairs) {

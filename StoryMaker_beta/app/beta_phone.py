@@ -32,7 +32,7 @@ def phone_numbers_for_tts(text: str | None) -> str:
     )
 
     def read_digits(value: str) -> str:
-        return "".join(DIGIT_KO.get(ch, ch) for ch in value)
+        return " ".join(DIGIT_KO.get(ch, ch) for ch in value)
 
     def convert(match: re.Match[str]) -> str:
         digits = re.sub(r"\D", "", match.group(0))

@@ -607,8 +607,8 @@ beta_init()
 @beta_jobs_router.post("/jobs")
 async def beta_create_job(
     request: Request,
-    business_name: str = Form(""), business_region: str = Form(""), business_service: str = Form(""),
-    business_phone: str = Form(""), topic: str = Form(""), images: list[UploadFile] = File(...),
+    business_name: str = Form(""), business_region: str = Form(""), business_region_alias: str = Form(""), business_service: str = Form(""),
+    business_industry_key: str = Form(""), business_phone: str = Form(""), topic: str = Form(""), images: list[UploadFile] = File(...),
     videos: list[UploadFile] | None = File(None),
 ) -> JSONResponse:
     if not images:
@@ -648,12 +648,15 @@ async def beta_create_job(
     business = {
         "name": business_name.strip(),
         "region": business_region.strip(),
+        "region_alias": re.sub(r"\s+", " ", business_region_alias.strip()),
         "service": business_service.strip(),
+        "industry_key": business_industry_key.strip(),
         "phone": normalize_korean_phone_number(business_phone),
     }
     weather_snapshot = get_weather_snapshot(business_region.strip())
     content = beta_make_content(business, topic, len(saved_images))
-    content["title"] = clean_beta_title(content.get("title"), f"{business_region.strip()} {topic.strip()}")
+    content_region = str(business.get("region_alias") or business.get("region") or "").strip()
+    content["title"] = clean_beta_title(content.get("title"), f"{content_region} {topic.strip()}")
     created_at = beta_now()
     state = {"beta_job_id": beta_job_id, "title": content["title"], "status": "created", "progress": 0, "created_at": created_at, "owner_user_id": owner_user_id}
     result = {**state, "schema_version": "beta-2.0", "business": business, "topic": topic.strip(), "weather_snapshot": weather_snapshot, "content": content,
@@ -859,6 +862,8 @@ def beta_v1_profile(request: Request) -> JSONResponse:
     profile = {
         "name": persona.get("company_name") or persona.get("business_name") or persona.get("name") or "",
         "region": persona.get("region") or persona.get("business_region") or persona.get("address") or "",
+        "region_alias": persona.get("region_alias") or "",
+        "industry_key": str(persona.get("industry_key") or "").strip(),
         "service": BETA_INDUSTRY_LABELS.get(str(persona.get("industry_key") or "").strip(), "") or persona.get("industry_name") or persona.get("business_type") or persona.get("industry") or "",
         "phone": persona.get("phone") or persona.get("phone_number") or persona.get("tel") or "",
     }

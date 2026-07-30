@@ -446,7 +446,7 @@ def read_beta_v1_profile(current_user: Optional[User] = Depends(get_optional_cur
     try:
         rows = db.execute(
             text("""
-                SELECT id, company_name, phone_number, region, industry_key, content, is_default
+                SELECT id, company_name, phone_number, region, region_alias, industry_key, content, is_default
                 FROM user_personas
                 WHERE user_id = :user_id
                 ORDER BY is_default DESC, updated_at DESC, id DESC
@@ -467,6 +467,12 @@ def read_beta_v1_profile(current_user: Optional[User] = Depends(get_optional_cur
             "lighting_electric": "조명·전기",
             "drain_unclog": "하수구·배관",
             "restaurant": "음식점",
+            "meat_korean": "고기·한식",
+            "bakery_dessert": "베이커리·디저트",
+            "pub_bar": "주점",
+            "mealkit_sidedish": "밀키트·반찬",
+            "cafe": "카페·디저트",
+            "kids_cafe": "키즈카페",
             "logistics": "물류·3PL",
         }
 
@@ -477,7 +483,9 @@ def read_beta_v1_profile(current_user: Optional[User] = Depends(get_optional_cur
                 "id": int(row.get("id") or 0),
                 "name": str(row.get("company_name") or "").strip(),
                 "region": str(row.get("region") or "").strip(),
+                "region_alias": str(row.get("region_alias") or "").strip(),
                 "service": industry_labels.get(industry_key, industry_key if industry_key != "general" else "일반 서비스업"),
+                "industry_key": industry_key,
                 "phone": str(row.get("phone_number") or "").strip(),
                 "is_default": bool(row.get("is_default")),
             })

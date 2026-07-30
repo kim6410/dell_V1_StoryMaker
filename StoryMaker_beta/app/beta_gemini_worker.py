@@ -244,7 +244,7 @@ def build_thumbnail_prompt_for_job(result: dict[str, Any]) -> str:
     return f"""StoryMaker Beta 썸네일 프롬프트 전용 요청입니다.
 
 업체명: {str(business.get('name') or '').strip()}
-지역: {str(business.get('region') or '').strip()}
+지역: {str(business.get('region_alias') or business.get('region') or '').strip()}
 주요 서비스: {str(business.get('service') or '').strip()}
 전화번호: {str(business.get('phone') or '').strip()}
 콘텐츠 제목: {title}
@@ -307,7 +307,8 @@ def run_api_job(job_id: str) -> None:
         business = result.get("business") or {}
         required = {
             "업체명": business.get("name"),
-            "대표 지역": business.get("region"),
+            "대표 지역": business.get("region_alias") or business.get("region"),
+            "행정구역": business.get("region"),
             "주요 서비스": business.get("service"),
             "전화번호": business.get("phone"),
             "원문": result.get("topic"),

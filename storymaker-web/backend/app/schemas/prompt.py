@@ -17,6 +17,7 @@ class PromptRequest(BaseModel):
     style: str
     ai_preset: str
     region: Optional[str] = None
+    region_alias: Optional[str] = ""
     industry_key: str = "general"
     tones: Optional[List[str]] = None
     blog_content_length: int = 1500

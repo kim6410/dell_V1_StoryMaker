@@ -38,6 +38,9 @@ Supertonic3/
 StoryMaker_beta/.env
 StoryMaker_beta/data/*.db
 StoryMaker_beta/data/*.db-wal
+data/prompt_db/*.db
+data/prompt_db/*.db-wal
+data/prompt_db/*.db-shm
 StoryMaker_beta/data/*.db-shm
 StoryMaker_beta/data/jobs/
 StoryMaker_beta/data/cache/

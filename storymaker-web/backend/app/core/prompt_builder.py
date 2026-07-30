@@ -1109,8 +1109,9 @@ def build_life_context_manifest(now: datetime, region_name: str, weather_context
 - 실제 입력자료와 업체 페르소나가 언제나 최우선입니다."""
 
 
-def build_prompt_markdown(company: str, persona: str, base_content: str, reference_text: str, keywords: list, style: str, ai_preset: str, emotion_levels=None, region=None, industry_key="general", blog_content_length=1500, phone_number="") -> str:
+def build_prompt_markdown(company: str, persona: str, base_content: str, reference_text: str, keywords: list, style: str, ai_preset: str, emotion_levels=None, region=None, region_alias="", industry_key="general", blog_content_length=1500, phone_number="") -> str:
     region_name = normalize_region_alias(_normalize_primary_region(region, persona, base_content, " ".join(str(k or "") for k in (keywords or []))))
+    region_alias_name = re.sub(r"\s+", " ", format_region_text(str(region_alias or "").strip()))
     try:
         blog_length = int(blog_content_length or 1500)
     except (TypeError, ValueError):
@@ -1186,6 +1187,7 @@ def build_prompt_markdown(company: str, persona: str, base_content: str, referen
         region_name = normalize_region_alias(primary_region)
     else:
         region_name = normalize_region_alias(region_name)
+    content_region_name = region_alias_name or region_name
     region_subareas = life_examples or f"{region_name} 주변 지역 및 생활권"
 
     # 날씨 및 기온 조회: DB 조회는 '울산광역시'와 '울산' 별칭을 함께 확인합니다.
@@ -1245,7 +1247,8 @@ def build_prompt_markdown(company: str, persona: str, base_content: str, referen
 - 블로그 본문 목표 길이: 약 {blog_length}자
 - 스타일 지침: {style_guidance}
 - 감성 레벨: {emotion_summary}
-- 선택 지역: {region_name or '지역 선택 없음'}
+- 선택 행정구역: {region_name or '지역 선택 없음'}
+- 사용자 지정 콘텐츠 지역명: {region_alias_name or '(미지정 · 기존 지역 규칙 사용)'}
 
 ## StoryMaker 생활 배경 엔진
 {life_context_manifest}
@@ -1266,10 +1269,13 @@ def build_prompt_markdown(company: str, persona: str, base_content: str, referen
 - 실제 입력자료와 업체 페르소나를 항상 우선합니다.
 
 ## 지역 정보
-대표 지역
+행정구역
 {region_name}
 
-우선 활용 지역
+콘텐츠에서 최우선 사용할 지역명
+{content_region_name}
+
+기존 규칙의 우선 활용 지역
 {first_area or region_name}
 
 생활권 예시
@@ -1279,7 +1285,10 @@ def build_prompt_markdown(company: str, persona: str, base_content: str, referen
 {extracted_region_text or '(감지된 세부 지역 없음)'}
 
 작성 참고
-- 대표 지역, 시·군·구, 읍·면·동, 주변 생활권을 실제 현장 경험처럼 섞어 씁니다.
+- 사용자 지정 콘텐츠 지역명이 있으면 SNS 8개 슬롯의 제목, 첫 문단, 본문, 해시태그, 팟캐스트, 썸네일 문구에서 그 이름을 가장 우선합니다.
+- 사용자 지정 콘텐츠 지역명을 다른 지역명으로 임의 변경하지 않습니다.
+- 사용자 지정 콘텐츠 지역명이 비어 있을 때만 기존 지역 분석 규칙을 그대로 사용합니다.
+- 전체 행정구역은 날씨와 정확한 위치 설명에만 보조로 사용합니다.
 - 같은 지역명 반복이나 억지 나열은 피합니다.
 
 ## 업종별 작성 흐름

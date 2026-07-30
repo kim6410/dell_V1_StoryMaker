@@ -50,6 +50,7 @@ def serialize_user_persona(persona: UserPersona) -> dict:
         "phone_number": normalize_korean_phone_number(persona.phone_number),
         "website_url": getattr(persona, "website_url", None) or "",
         "region": format_region_display(getattr(persona, "region", None) or ""),
+        "region_alias": str(getattr(persona, "region_alias", "") or "").strip(),
         "industry_key": getattr(persona, "industry_key", None) or "general",
         "default_style": getattr(persona, "default_style", None) or "네이버 블로그",
         "blog_content_length": normalize_blog_content_length(getattr(persona, "blog_content_length", 1500)),
@@ -62,11 +63,12 @@ def serialize_user_persona(persona: UserPersona) -> dict:
     }
 
 
-def clean_persona_payload(req: UserPersonaUpsert) -> tuple[str, str, str, str, str, str, int, list[str], list[str], str]:
+def clean_persona_payload(req: UserPersonaUpsert) -> tuple[str, str, str, str, str, str, str, int, list[str], list[str], str]:
     company_name = req.company_name.strip()
     phone_number = normalize_korean_phone_number(req.phone_number)
     website_url = (req.website_url or "").strip()
     region = format_region_display(req.region)
+    region_alias = re.sub(r"\s+", " ", str(getattr(req, "region_alias", "") or "").strip())
     industry_candidates = {"general", "home_repair", "boiler_facility", "appliance_clean", "general_cleaning", "window_screen", "key_doorlock", "lighting_electric", "drain_unclog", "restaurant", "meat_korean", "bakery_dessert", "pub_bar", "mealkit_sidedish", "cafe", "workshop_class", "partyroom_studio", "beauty_wellness", "hair_salon", "nail_art", "skin_care", "fitness_pt", "body_massage", "car_repair", "car_detailing", "car_rental", "pet_beauty_hotel", "veterinary_clinic", "flower_shop", "kids_cafe", "real_estate", "education_academy", "study_cafe", "professional_service", "moving_service", "camping", "logistics"}
     style_candidates = {"네이버 블로그", "티스토리", "인스타그램", "스레드", "브런치스토리", "워드프레스"}
     tone_candidates = {"따뜻함", "전문가", "친근함", "신뢰감", "현장감", "진정성", "차분함", "활기", "담백함", "순박함", "진지함"}
@@ -106,7 +108,7 @@ def clean_persona_payload(req: UserPersonaUpsert) -> tuple[str, str, str, str, s
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"필수 입력 항목을 확인해 주세요: {', '.join(missing_fields)}",
         )
-    return company_name, phone_number, website_url, region, industry_key, default_style, blog_content_length, default_tones[:11], keywords[:30], content
+    return company_name, phone_number, website_url, region, region_alias, industry_key, default_style, blog_content_length, default_tones[:11], keywords[:30], content
 
 
 @router.get("/auth/personas", response_model=CommonResponse)
@@ -121,7 +123,7 @@ def list_my_personas(db: Session = Depends(get_db), current_user: User = Depends
 
 @router.post("/auth/personas", response_model=CommonResponse)
 def create_my_persona(req: UserPersonaUpsert, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    company_name, phone_number, website_url, region, industry_key, default_style, blog_content_length, default_tones, keywords, content = clean_persona_payload(req)
+    company_name, phone_number, website_url, region, region_alias, industry_key, default_style, blog_content_length, default_tones, keywords, content = clean_persona_payload(req)
     if getattr(current_user, "username", "") == ("g" + "uest"):
         phone_number = "-".join(["010", "1234", "5678"])
     duplicate = db.query(UserPersona).filter(
@@ -135,7 +137,7 @@ def create_my_persona(req: UserPersonaUpsert, db: Session = Depends(get_db), cur
         )
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     db.query(UserPersona).filter(UserPersona.user_id == current_user.id).update({UserPersona.is_default: False})
-    persona = UserPersona(user_id=current_user.id, company_name=company_name, phone_number=phone_number, website_url=website_url, region=region, industry_key=industry_key, default_style=default_style, blog_content_length=blog_content_length, default_tones_json=json.dumps(default_tones, ensure_ascii=False), is_default=True, keywords_json=json.dumps(keywords, ensure_ascii=False), content=content, created_at=stamp, updated_at=stamp)
+    persona = UserPersona(user_id=current_user.id, company_name=company_name, phone_number=phone_number, website_url=website_url, region=region, region_alias=region_alias, industry_key=industry_key, default_style=default_style, blog_content_length=blog_content_length, default_tones_json=json.dumps(default_tones, ensure_ascii=False), is_default=True, keywords_json=json.dumps(keywords, ensure_ascii=False), content=content, created_at=stamp, updated_at=stamp)
     db.add(persona)
     db.commit()
     db.refresh(persona)
@@ -147,7 +149,7 @@ def update_my_persona(persona_id: int, req: UserPersonaUpsert, db: Session = Dep
     persona = db.query(UserPersona).filter(UserPersona.id == persona_id, UserPersona.user_id == current_user.id).first()
     if not persona:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="페르소나를 찾을 수 없습니다.")
-    company_name, phone_number, website_url, region, industry_key, default_style, blog_content_length, default_tones, keywords, content = clean_persona_payload(req)
+    company_name, phone_number, website_url, region, region_alias, industry_key, default_style, blog_content_length, default_tones, keywords, content = clean_persona_payload(req)
     if getattr(current_user, "username", "") == ("g" + "uest"):
         phone_number = "-".join(["010", "1234", "5678"])
     duplicate = db.query(UserPersona).filter(
@@ -161,6 +163,7 @@ def update_my_persona(persona_id: int, req: UserPersonaUpsert, db: Session = Dep
     persona.phone_number = phone_number
     persona.website_url = website_url
     persona.region = region
+    persona.region_alias = region_alias
     persona.industry_key = industry_key
     persona.default_style = default_style
     persona.blog_content_length = blog_content_length
