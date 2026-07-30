@@ -41,12 +41,16 @@
       #${MODAL_ID} .v1-industry-query:focus{border-color:#0891b2;box-shadow:0 0 0 4px rgba(34,211,238,.18)}
       #${MODAL_ID} .v1-industry-help{margin:8px 2px 0;color:#64748b;font-size:12px;font-weight:700}
       #${MODAL_ID} .v1-industry-results{min-height:220px;max-height:500px;overflow:auto;padding:8px 20px 20px;background:#f8fafc}
+      #${MODAL_ID} .v1-industry-contact{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 20px;border-top:1px solid #e5c900;background:#fff9c4}
+      #${MODAL_ID} .v1-industry-contact-text{color:#3b2f00;font-size:13px;font-weight:850;line-height:1.5}
+      #${MODAL_ID} .v1-industry-contact-button{flex:none;border:1px solid #e6c200;border-radius:999px;background:#fee500;padding:10px 16px;color:#191919;font-size:13px;font-weight:950;cursor:pointer;box-shadow:0 5px 14px rgba(80,65,0,.16)}
+      #${MODAL_ID} .v1-industry-contact-button:hover{background:#f7dc00}
       #${MODAL_ID} .v1-industry-empty{padding:42px 12px;text-align:center;color:#64748b;font-size:14px;font-weight:800}
       #${MODAL_ID} .v1-industry-request-wrap{display:grid;gap:12px;justify-items:center;padding:34px 16px;text-align:center}
       #${MODAL_ID} .v1-industry-request-title{color:#0f172a;font-size:16px;font-weight:950}
       #${MODAL_ID} .v1-industry-request-desc{max-width:460px;color:#64748b;font-size:13px;font-weight:700;line-height:1.6}
-      #${MODAL_ID} .v1-industry-request-button{border:1px solid #0891b2;border-radius:999px;background:#cffafe;padding:11px 18px;color:#0e7490;font-size:13px;font-weight:950;cursor:pointer}
-      #${MODAL_ID} .v1-industry-request-button:hover{background:#a5f3fc}
+      #${MODAL_ID} .v1-industry-request-button{border:1px solid #e6c200;border-radius:999px;background:#fee500;padding:11px 18px;color:#191919;font-size:13px;font-weight:950;cursor:pointer;box-shadow:0 5px 14px rgba(80,65,0,.16)}
+      #${MODAL_ID} .v1-industry-request-button:hover{background:#f7dc00}
       #${MODAL_ID} .v1-industry-group{margin:14px 2px 5px;color:#0e7490;font-size:12px;font-weight:950;letter-spacing:.02em}
       #${MODAL_ID} .v1-industry-result{display:flex;width:100%;align-items:center;justify-content:space-between;gap:14px;margin-top:7px;border:1px solid #cbd5e1;border-radius:15px;background:#fff;padding:13px 15px;color:#0f172a;text-align:left;cursor:pointer}
       #${MODAL_ID} .v1-industry-result:hover,#${MODAL_ID} .v1-industry-result.is-active{border-color:#06b6d4;background:#ecfeff;box-shadow:0 8px 22px rgba(8,145,178,.12)}
@@ -146,11 +150,16 @@
           <p class="v1-industry-help">검색어 없이 열면 전체 업종을 그룹별로 확인할 수 있습니다.</p>
         </div>
         <div class="v1-industry-results"></div>
+        <div class="v1-industry-contact">
+          <div class="v1-industry-contact-text">찾는 업종이 없나요?<br>카카오톡 채널로 업종 추가를 요청해 주세요.</div>
+          <button type="button" class="v1-industry-contact-button">카카오톡 문의</button>
+        </div>
       </div>`;
     document.body.appendChild(modal);
     modal.querySelector('.v1-industry-close').addEventListener('click', closeModal);
     modal.addEventListener('mousedown', event => { if (event.target === modal) closeModal(); });
     const query = modal.querySelector('.v1-industry-query');
+    modal.querySelector('.v1-industry-contact-button')?.addEventListener('click', () => requestMissingIndustry(query.value));
     query.addEventListener('input', renderResults);
     query.addEventListener('keydown', event => {
       const buttons = Array.from(modal.querySelectorAll('button.v1-industry-result'));
