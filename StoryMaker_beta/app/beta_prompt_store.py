@@ -42,13 +42,13 @@ SEED_TEMPLATES: Final[dict[str, tuple[str, str, str, str]]] = {
     "local_professional_service": (
         "로컬 전문 서비스",
         "local_service",
-        "1.0",
+        "3.8",
         "local_professional_service.md",
     ),
     "food_service": (
         "외식·카페 업종",
         "food",
-        "1.2",
+        "3.9",
         "food_service.md",
     ),
 }
