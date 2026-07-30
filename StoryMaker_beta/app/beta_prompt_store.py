@@ -104,6 +104,28 @@ AUTOMOTIVE_MOBILITY_INDUSTRY_KEYS: Final[set[str]] = {
     "driving_school",
 }
 
+LOCAL_PROFESSIONAL_EDUCATION_INDUSTRY_KEYS: Final[set[str]] = {
+    "real_estate",
+    "education_academy",
+    "study_cafe",
+    "professional_service",
+    "moving_service",
+    "logistics",
+    "photo_studio",
+    "tutoring_lesson",
+    "labor_attorney",
+    "english_academy",
+    "art_academy",
+    "math_academy",
+    "clothing_repair",
+    "music_academy",
+    "martial_arts_gym",
+    "coding_academy",
+    "legal_service",
+    "fortune_telling",
+    "unmanned_studycafe",
+}
+
 PET_FAMILY_CARE_INDUSTRY_KEYS: Final[set[str]] = {
     "pet_beauty_hotel",
     "veterinary_clinic",
@@ -167,6 +189,12 @@ SEED_TEMPLATES: Final[dict[str, tuple[str, str, str, str]]] = {
         "pet_family",
         "1.0",
         "pet_family_care.md",
+    ),
+    "local_professional_education": (
+        "로컬 전문 서비스 및 교육 업종",
+        "professional_education",
+        "1.0",
+        "local_professional_education.md",
     ),
     "lifestyle_experience_space": (
         "라이프스타일·체험 및 공간 업종",
@@ -326,6 +354,19 @@ def ensure_prompt_database() -> Path:
                 INSERT INTO prompt_category_mappings (
                     industry_key, prompt_key, created_at, updated_at
                 ) VALUES (?, 'automotive_mobility', ?, ?)
+                ON CONFLICT(industry_key) DO UPDATE SET
+                    prompt_key=excluded.prompt_key,
+                    updated_at=excluded.updated_at
+                """,
+                (industry_key, stamp, stamp),
+            )
+
+        for industry_key in sorted(LOCAL_PROFESSIONAL_EDUCATION_INDUSTRY_KEYS):
+            connection.execute(
+                """
+                INSERT INTO prompt_category_mappings (
+                    industry_key, prompt_key, created_at, updated_at
+                ) VALUES (?, 'local_professional_education', ?, ?)
                 ON CONFLICT(industry_key) DO UPDATE SET
                     prompt_key=excluded.prompt_key,
                     updated_at=excluded.updated_at
