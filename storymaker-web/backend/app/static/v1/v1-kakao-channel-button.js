@@ -32,9 +32,11 @@
       #${WRAP_ID} a {
         display: inline-flex;
         align-items: center;
-        gap: 9px;
-        min-height: 48px;
-        padding: 0 16px 0 12px;
+        gap: 10px;
+        width: 214px;
+        min-height: 50px;
+        padding: 0 18px 0 13px;
+        box-sizing: border-box;
         border-radius: 999px;
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         font-size: 14px;
@@ -72,24 +74,41 @@
       #${WRAP_ID} .storymaker-contact-icon {
         display: grid;
         place-items: center;
-        width: 30px;
-        height: 30px;
-        flex: 0 0 30px;
+        width: 32px;
+        height: 32px;
+        flex: 0 0 32px;
         border-radius: 50%;
-        font-size: 12px;
-        font-weight: 950;
-        letter-spacing: -.04em;
+      }
+
+      #${WRAP_ID} .storymaker-contact-icon svg {
+        display: block;
+        width: 20px;
+        height: 20px;
       }
 
       #${BUTTON_ID} .storymaker-contact-icon {
-        background: #191919;
-        color: #fee500;
+        background: #fee500;
+        color: #191919;
+        border: 1px solid rgba(25, 25, 25, .14);
+      }
+
+      #${BUTTON_ID} .storymaker-contact-icon svg {
+        width: 24px;
+        height: 24px;
+        fill: #191919;
       }
 
       #${MAIL_BUTTON_ID} .storymaker-contact-icon {
         background: #0f2f73;
         color: #ffffff;
-        font-size: 15px;
+      }
+
+      #${MAIL_BUTTON_ID} .storymaker-contact-icon svg {
+        fill: none;
+        stroke: #ffffff;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
       }
 
       #${WRAP_ID} .storymaker-contact-label {
@@ -154,14 +173,14 @@
     kakao.rel = 'noopener noreferrer';
     kakao.setAttribute('aria-label', '스토리메이커 카카오톡 채널 문의');
     kakao.title = '카카오톡 채널 문의';
-    kakao.innerHTML = '<span class="storymaker-contact-icon" aria-hidden="true">톡</span><span class="storymaker-contact-label">카카오톡 채널</span>';
+    kakao.innerHTML = '<span class="storymaker-contact-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 3C6.48 3 2 6.53 2 10.88c0 2.82 1.89 5.29 4.73 6.68l-.98 3.56c-.09.32.28.58.56.4l4.28-2.83c.46.05.93.08 1.41.08 5.52 0 10-3.53 10-7.89S17.52 3 12 3Z"/></svg></span><span class="storymaker-contact-label">카카오톡 채널</span>';
 
     const mail = document.createElement('a');
     mail.id = MAIL_BUTTON_ID;
     mail.href = MAIL_URL;
     mail.setAttribute('aria-label', '스토리메이커 이메일 문의');
     mail.title = '이메일 문의 · rinsoo641022@gmail.com';
-    mail.innerHTML = '<span class="storymaker-contact-icon" aria-hidden="true">✉</span><span class="storymaker-contact-label">이메일 문의</span>';
+    mail.innerHTML = '<span class="storymaker-contact-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m4 7 8 6 8-6"></path></svg></span><span class="storymaker-contact-label">이메일 문의</span>';
 
     wrap.append(kakao, mail);
     document.body.appendChild(wrap);
