@@ -631,9 +631,7 @@ async def beta_create_job(
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"이미지 축소 저장 실패: {exc}") from exc
         saved_images.append(str(target))
-    selected_videos = [upload for upload in (videos or []) if upload and upload.filename]
-    if len(selected_videos) > 3:
-        raise HTTPException(status_code=400, detail="동영상은 최대 3개까지 업로드할 수 있습니다.")
+    selected_videos = [upload for upload in (videos or []) if upload and upload.filename][:3]
     saved_videos: list[str] = []
     for index, upload in enumerate(selected_videos, start=1):
         if not upload.filename:

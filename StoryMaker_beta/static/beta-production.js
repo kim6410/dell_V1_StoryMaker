@@ -478,11 +478,10 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
       betaSetStatus('이미지를 한 장 이상 선택하세요.');
       return;
     }
-    const selectedVideos = Array.from(betaUi.videos?.files || []);
-    if (selectedVideos.length > 3) {
-      betaSetStatus('동영상은 최대 3개까지 선택할 수 있습니다. 초과한 파일을 제외해 주세요.');
-      betaUi.videos.value = '';
-      return;
+    const allSelectedVideos = Array.from(betaUi.videos?.files || []);
+    const selectedVideos = allSelectedVideos.slice(0, 3);
+    if (allSelectedVideos.length > 3) {
+      betaSetStatus(`동영상은 최대 3개까지 사용됩니다. 선택한 ${allSelectedVideos.length}개 중 앞의 3개만 적용했습니다.`);
     }
     const body = new FormData();
     body.append('business_name', betaUi.businessName.value.trim());
@@ -740,6 +739,13 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
   });
   betaUi.topic?.addEventListener('input', betaRefreshActionGlow);
   betaUi.images?.addEventListener('change', betaRefreshActionGlow);
+  betaUi.videos?.addEventListener('change', () => {
+    const count = Number(betaUi.videos?.files?.length || 0);
+    if (count > 3) {
+      betaSetStatus(`동영상은 최대 3개까지 사용됩니다. 선택한 ${count}개 중 앞의 3개만 적용했습니다.`);
+    }
+    betaRefreshActionGlow();
+  });
   betaRefreshActionGlow();
   if (betaUi.prepareBrowser) betaUi.prepareBrowser.addEventListener('click', betaCreateSupertonicVoice);
   async function betaRestoreCurrentJob() {
