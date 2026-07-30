@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
 from typing import List
+from pathlib import Path
 import re
+import sqlite3
 
 from app.db.database import get_db
 from app.db.models import User, Project, Company, Persona, UserPersona, UserSession, ActivityLog, IndustryPromptTemplate
@@ -493,6 +495,20 @@ class IndustryTemplateCreateRequest(IndustryTemplateUpdateRequest):
     industry_key: str
 
 
+class IndustryPromptContentRequest(BaseModel):
+    content: str
+
+
+PROMPT_DB_PATH = Path("/home/bourne/StoryMaker_1/data/prompt_db/storymaker_prompts.db")
+
+
+def _prompt_db_connect() -> sqlite3.Connection:
+    connection = sqlite3.connect(PROMPT_DB_PATH, timeout=15)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA foreign_keys=ON")
+    return connection
+
+
 class BulkDeleteUsersRequest(BaseModel):
     user_ids: List[int]
 
@@ -513,6 +529,116 @@ def serialize_industry_template(item: IndustryPromptTemplate) -> dict:
         "created_at": item.created_at,
         "updated_at": item.updated_at,
     }
+
+
+@router.get("/admin/industry-templates/{industry_key}/prompt", response_model=CommonResponse)
+def get_industry_prompt_content(
+    industry_key: str,
+    admin_user: User = Depends(get_admin_user)
+):
+    normalized = re.sub(r"\s+", "_", (industry_key or "").strip().lower())
+    if not normalized:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="업종 키가 비어 있습니다.")
+    with _prompt_db_connect() as connection:
+        row = connection.execute(
+            """
+            SELECT t.prompt_key, t.name, t.version, t.content, t.updated_at
+            FROM prompt_category_mappings AS m
+            JOIN prompt_templates AS t ON t.prompt_key=m.prompt_key
+            WHERE m.industry_key=? AND t.is_active=1
+            LIMIT 1
+            """,
+            (normalized,),
+        ).fetchone()
+        inherited = False
+        if row is None:
+            row = connection.execute(
+                """
+                SELECT prompt_key, name, version, content, updated_at
+                FROM prompt_templates
+                WHERE prompt_key='local_professional_service' AND is_active=1
+                LIMIT 1
+                """
+            ).fetchone()
+            inherited = True
+        if row is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="사용 가능한 프롬프트를 찾을 수 없습니다.")
+        return CommonResponse(ok=True, data={
+            "industry_key": normalized,
+            "prompt_key": row["prompt_key"],
+            "name": row["name"],
+            "version": row["version"],
+            "content": row["content"],
+            "updated_at": row["updated_at"],
+            "inherited": inherited or row["prompt_key"] != f"industry_{normalized}",
+        }, message="")
+
+
+@router.put("/admin/industry-templates/{industry_key}/prompt", response_model=CommonResponse)
+def save_industry_prompt_content(
+    industry_key: str,
+    req: IndustryPromptContentRequest,
+    admin_user: User = Depends(get_admin_user)
+):
+    normalized = re.sub(r"\s+", "_", (industry_key or "").strip().lower())
+    content = str(req.content or "").strip()
+    if not normalized:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="업종 키가 비어 있습니다.")
+    if len(content) < 500:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="프롬프트 내용은 500자 이상 입력해 주세요.")
+    prompt_key = f"industry_{normalized}"
+    stamp = datetime.now().isoformat()
+    with _prompt_db_connect() as connection:
+        existing = connection.execute(
+            "SELECT version FROM prompt_templates WHERE prompt_key=? LIMIT 1",
+            (prompt_key,),
+        ).fetchone()
+        version = "1.0"
+        if existing:
+            current = str(existing["version"] or "1.0")
+            parts = current.split(".", 1)
+            try:
+                version = f"{int(parts[0])}.{int(parts[1]) + 1 if len(parts) > 1 else 1}"
+            except ValueError:
+                version = current
+            connection.execute(
+                """
+                UPDATE prompt_templates
+                SET content=?, version=?, is_active=1, updated_at=?
+                WHERE prompt_key=?
+                """,
+                (content, version, stamp, prompt_key),
+            )
+        else:
+            connection.execute(
+                """
+                INSERT INTO prompt_templates (
+                    prompt_key, name, category_group, version, content,
+                    is_active, is_default, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, 1, 0, ?, ?)
+                """,
+                (prompt_key, f"{normalized} 업종 전용", "industry", version, content, stamp, stamp),
+            )
+        connection.execute(
+            """
+            INSERT INTO prompt_category_mappings (
+                industry_key, prompt_key, created_at, updated_at
+            ) VALUES (?, ?, ?, ?)
+            ON CONFLICT(industry_key) DO UPDATE SET
+                prompt_key=excluded.prompt_key,
+                updated_at=excluded.updated_at
+            """,
+            (normalized, prompt_key, stamp, stamp),
+        )
+        connection.commit()
+    return CommonResponse(ok=True, data={
+        "industry_key": normalized,
+        "prompt_key": prompt_key,
+        "version": version,
+        "content": content,
+        "updated_at": stamp,
+        "inherited": False,
+    }, message="업종 전용 프롬프트가 저장되었습니다.")
 
 
 @router.get("/admin/industry-templates", response_model=CommonResponse)
