@@ -5,6 +5,7 @@
   const MODAL_ID = 'v1-industry-modal';
   const BOUND = 'v1IndustrySearchBound';
   const INDUSTRY_API = '/v1-api/auth/industry-templates';
+  const KAKAO_CHANNEL_URL = 'https://pf.kakao.com/_FxjaxnX';
   let currentField = null;
   let currentDisplay = null;
   let activeIndex = -1;
@@ -187,19 +188,16 @@
     closeModal();
   }
 
-  function requestMissingIndustry(query){
+  async function requestMissingIndustry(query){
     const requestedIndustry = clean(query) || '목록에 없는 업종';
+    const message = `스토리메이커 업종 추가 요청\n요청 업종: ${requestedIndustry}`;
+    try {
+      await navigator.clipboard?.writeText?.(message);
+    } catch (_error) {
+      // 클립보드 권한이 없어도 카카오톡 채널은 정상적으로 엽니다.
+    }
+    window.open(KAKAO_CHANNEL_URL, '_blank', 'noopener,noreferrer');
     closeModal();
-    const openRequest = function(){
-      const api = window.StoryMakerV1FeatureRequests;
-      if (!api || typeof api.newRequest !== 'function') return false;
-      api.newRequest({
-        title: '[업종 추가 요청] ' + requestedIndustry,
-        content: '마이페이지 업종 목록에 아래 업종을 추가해 주세요.\n\n요청 업종: ' + requestedIndustry + '\n\n비슷한 기존 업종이 있다면 함께 안내해 주세요.'
-      });
-      return true;
-    };
-    if (!openRequest()) setTimeout(openRequest, 250);
   }
 
   function renderResults(){
@@ -211,7 +209,7 @@
     results.innerHTML = '';
     activeIndex = -1;
     if (!filtered.length) {
-      results.innerHTML = '<div class="v1-industry-request-wrap"><div class="v1-industry-request-title">찾는 업종이 목록에 없습니다.</div><div class="v1-industry-request-desc">관리자에게 업종 추가를 요청하면 요청사항에 자동으로 등록할 수 있습니다.</div><button type="button" class="v1-industry-request-button">관리자에게 업종 요청</button></div>';
+      results.innerHTML = '<div class="v1-industry-request-wrap"><div class="v1-industry-request-title">찾는 업종이 목록에 없습니다.</div><div class="v1-industry-request-desc">카카오톡 채널에서 추가할 업종명을 보내주세요. 입력한 검색어는 복사를 시도한 뒤 채널을 새 창으로 엽니다.</div><button type="button" class="v1-industry-request-button">카카오톡 채널 문의</button></div>';
       results.querySelector('.v1-industry-request-button')?.addEventListener('click', () => requestMissingIndustry(query));
       return;
     }
