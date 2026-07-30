@@ -861,26 +861,38 @@ def beta_v1_profile(request: Request) -> JSONResponse:
 def beta_list_jobs(request: Request) -> JSONResponse:
     user_id = current_user_id(request)
     role = current_user_role(request)
-    retention = enforce_beta_archive_limit_for_user(int(user_id))
+    requested_user_id = 0
+    if role == "admin":
+        raw_requested_user_id = str(request.query_params.get("admin_user_id") or "").strip()
+        if raw_requested_user_id:
+            try:
+                requested_user_id = int(raw_requested_user_id)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail="조회할 사용자 ID가 올바르지 않습니다.") from exc
+            if requested_user_id <= 0:
+                raise HTTPException(status_code=400, detail="조회할 사용자 ID가 올바르지 않습니다.")
+    archive_user_id = requested_user_id or int(user_id)
+    retention = enforce_beta_archive_limit_for_user(archive_user_id)
     force_refresh = str(request.query_params.get("refresh") or "").strip() == "1"
     columns = (
         "beta_job_id,title,status,progress,created_at,completed_at,result_json,owner_user_id,"
         "selected_thumbnail_template,selected_thumbnail_path,media_deleted_at,media_deleted_bytes,media_delete_reason"
     )
     with beta_connect() as connection:
-        if role == "admin":
+        if role == "admin" and not requested_user_id:
             rows = connection.execute(
                 f"SELECT {columns} FROM beta_jobs ORDER BY created_at DESC"
             ).fetchall()
         else:
             rows = connection.execute(
                 f"SELECT {columns} FROM beta_jobs WHERE owner_user_id=? ORDER BY created_at DESC",
-                (user_id,),
+                (archive_user_id,),
             ).fetchall()
+    cache_role = "user" if requested_user_id else role
     items, cache_hit, signature = beta_archive_cached_items(
         rows,
-        int(user_id),
-        role,
+        archive_user_id,
+        cache_role,
         force_refresh=force_refresh,
     )
     return JSONResponse({
@@ -892,6 +904,8 @@ def beta_list_jobs(request: Request) -> JSONResponse:
             "count": len(items),
         },
         "retention": retention,
+        "archive_user_id": archive_user_id,
+        "admin_user_scope": bool(requested_user_id),
     })
 
 

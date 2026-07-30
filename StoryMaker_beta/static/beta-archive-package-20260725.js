@@ -14,6 +14,8 @@
   const statMp4 = document.getElementById('archive-stat-mp4');
   let jobs = [];
   let isAdmin = false;
+  const pageParams = new URLSearchParams(window.location.search);
+  const adminUserId = /^\d+$/.test(pageParams.get('admin_user_id') || '') ? Number(pageParams.get('admin_user_id')) : 0;
   const PAGE_SIZE = 10;
   let currentPage = 1;
 
@@ -732,7 +734,10 @@
     list.className = 'empty'; list.textContent = '불러오는 중...';
     try {
       await resolveAdminAccess();
-      const url = forceRefresh ? '/beta-api/jobs?refresh=1' : '/beta-api/jobs';
+      const query = new URLSearchParams();
+      if (forceRefresh) query.set('refresh', '1');
+      if (adminUserId) query.set('admin_user_id', String(adminUserId));
+      const url = `/beta-api/jobs${query.size ? `?${query.toString()}` : ''}`;
       jobs = (await req(url)).items || [];
       jobs.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
       renderList();

@@ -145,7 +145,7 @@
         .sm-member-box{margin-top:12px;border-color:#334155}.sm-member-filters{display:grid;grid-template-columns:1fr 190px 190px auto auto;gap:10px}.sm-member-input{width:100%;border:1px solid #334155;background:#020617;color:#cbd5e1;border-radius:12px;padding:11px 13px;font-weight:800}
         .sm-member-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px}.sm-member-table{width:100%;min-width:1120px;border-collapse:collapse}.sm-member-table th{background:rgba(2,6,23,.75);color:#94a3b8;font-size:12px;text-align:left;padding:11px 10px}.sm-member-table td{border-top:1px solid #1e293b;padding:14px 10px;text-align:center;color:#cbd5e1;font-weight:800;font-size:14px}.sm-member-table tr:hover{background:rgba(30,41,59,.32)}
         .sm-user-link{background:none;border:0;color:#fff;font-weight:900;cursor:pointer;text-decoration:underline;text-underline-offset:4px}.sm-check{width:17px;height:17px;cursor:pointer}.sm-scroll{overflow-x:auto}
-        .sm-detail{position:fixed;inset:0;z-index:12000;display:flex;align-items:flex-start;justify-content:center;padding:28px;background:rgba(2,6,23,.78);overflow:auto}.sm-detail[hidden]{display:none}.sm-detail-card{width:min(1120px,calc(100vw - 56px));max-height:calc(100vh - 56px);overflow:auto;background:#0f172a;border:1px solid #334155;border-radius:20px;padding:22px;box-shadow:0 30px 90px rgba(0,0,0,.55)}
+        .sm-detail{position:fixed;inset:0;z-index:12000;display:flex;align-items:flex-start;justify-content:center;padding:28px;background:rgba(2,6,23,.78);overflow:auto}.sm-detail[hidden]{display:none}.sm-detail-card{width:min(1120px,calc(100vw - 56px));max-height:calc(100vh - 56px);overflow:auto;background:#0f172a;border:1px solid #334155;border-radius:20px;padding:22px;box-shadow:0 30px 90px rgba(0,0,0,.55)}.sm-detail-card.archive-active{width:min(1440px,calc(100vw - 36px))}.sm-detail-topbar{position:sticky;top:-22px;z-index:5;margin:-22px -22px 16px;padding:18px 22px;background:rgba(15,23,42,.97);border-bottom:1px solid #334155}.sm-member-detail-tabs{display:flex;gap:8px;margin-right:auto}.sm-member-detail-tab{min-height:42px;padding:0 18px;border:1px solid #334155;border-radius:12px;background:#111f36;color:#94a3b8;font-size:14px;font-weight:900;cursor:pointer}.sm-member-detail-tab.active{border-color:#22d3ee;background:rgba(8,145,178,.18);color:#cffafe}.sm-member-archive-pane{height:calc(100vh - 150px);min-height:620px}.sm-member-archive-pane[hidden]{display:none}.sm-member-archive-pane iframe{display:block;width:100%;height:100%;border:0;border-radius:16px;background:#071426}
         .sm-detail-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:16px}.sm-detail-head h3{margin:0;font-size:22px}.sm-detail-topbar{justify-content:flex-end}.sm-detail-hidden-title{display:none}.sm-detail-identity{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}.sm-detail-identity h2{margin:0;font-size:29px;line-height:1.2}.sm-detail-identity-meta{color:#a5f3fc;font-size:14px;font-weight:900}.sm-persona-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.sm-persona-item{border:1px solid #334155;background:#020617;border-radius:14px;padding:16px;cursor:pointer;color:#fff;text-align:left}.sm-persona-item strong{display:block;font-size:17px}.sm-persona-item small{display:block;margin-top:7px;color:#94a3b8}
         .sm-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.sm-field{display:flex;flex-direction:column;gap:6px}.sm-field.full{grid-column:1/-1}.sm-field label{font-size:12px;color:#94a3b8;font-weight:900}.sm-field input,.sm-field textarea,.sm-field select{border:1px solid #334155;background:#020617;color:#e2e8f0;border-radius:10px;padding:11px;font:inherit}.sm-field textarea{min-height:130px;resize:vertical}.sm-tone-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;border:1px solid #334155;background:#020617;border-radius:12px;padding:12px}.sm-tone-option{display:flex!important;align-items:center;gap:8px;border:1px solid #334155;border-radius:10px;padding:9px 10px;color:#cbd5e1!important;cursor:pointer}.sm-tone-option input{width:16px;height:16px;padding:0}.sm-detail-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:16px;flex-wrap:wrap}.sm-user-meta{font-size:13px;color:#94a3b8;margin-bottom:14px}
         .sm-detail-overview,.sm-mypage-section{border:1px solid #334155;background:linear-gradient(145deg,rgba(15,23,42,.96),rgba(2,6,23,.76));border-radius:20px;padding:20px;margin-bottom:16px;box-shadow:0 16px 40px rgba(0,0,0,.18)}.sm-detail-overview{border-color:rgba(34,211,238,.28)}.sm-detail-overview .sm-detail-head{margin-bottom:18px}.sm-detail-summary-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;width:100%}.sm-detail-summary-grid>div{min-width:0;border:1px solid #334155;background:rgba(2,6,23,.86);border-radius:16px;padding:16px 17px;box-shadow:inset 0 1px 0 rgba(255,255,255,.025)}.sm-detail-summary-grid>div:first-child{border-color:rgba(59,130,246,.38)}.sm-detail-summary-grid>div:last-child{border-color:rgba(34,211,238,.34)}.sm-detail-summary-grid span{display:block;font-size:13px;line-height:1.3;font-weight:900;color:#94a3b8}.sm-detail-summary-grid strong{display:block;overflow-wrap:anywhere;margin-top:9px;font-size:20px;line-height:1.35;color:#f8fafc}.sm-field label em{font-style:normal;color:#fb7185}.sm-badge{display:inline-flex;align-items:center;border:1px solid rgba(103,232,249,.32);background:rgba(8,145,178,.14);color:#a5f3fc;border-radius:999px;padding:8px 13px;font-size:13px;font-weight:900}.sm-mypage-kicker{font-size:13px;font-weight:900;letter-spacing:.12em;color:#67e8f9}.sm-mypage-title{margin:6px 0 0;font-size:29px;line-height:1.2}.sm-mypage-section>.sm-detail-head{padding-bottom:14px;border-bottom:1px solid rgba(51,65,85,.7)}.sm-detail-card .sm-action{min-height:42px}.sm-detail-card .sm-primary{box-shadow:0 10px 30px rgba(8,145,178,.18)}.sm-usage-box{margin:0 0 14px;border:1px solid rgba(34,211,238,.24);background:linear-gradient(145deg,rgba(8,47,73,.28),rgba(2,6,23,.78));border-radius:18px;padding:18px}.sm-usage-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap}.sm-usage-total{font-size:13px;color:#94a3b8;font-weight:900}.sm-usage-total strong{display:block;margin-top:5px;font-size:24px;color:#f8fafc}.sm-usage-chart{display:grid;grid-template-columns:repeat(14,minmax(24px,1fr));gap:7px;align-items:end;height:150px;margin-top:18px;padding:12px 10px 0;border-top:1px solid rgba(51,65,85,.65)}.sm-usage-day{display:flex;min-width:0;height:100%;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px}.sm-usage-value{min-height:16px;font-size:11px;color:#a5f3fc;font-weight:900}.sm-usage-bar-wrap{display:flex;align-items:flex-end;width:100%;height:92px;border-radius:8px;background:rgba(15,23,42,.62);overflow:hidden}.sm-usage-bar{width:100%;min-height:3px;border-radius:8px 8px 0 0;background:linear-gradient(180deg,#67e8f9,#2563eb);box-shadow:0 0 18px rgba(34,211,238,.2)}.sm-usage-date{font-size:10px;color:#64748b;font-weight:800;white-space:nowrap}.sm-usage-empty{margin-top:14px;color:#94a3b8;font-size:13px;font-weight:800}
@@ -179,7 +179,7 @@
           <div class="sm-scroll"><table class="sm-member-table"><thead><tr><th><input id="sm-check-all" class="sm-check" type="checkbox"></th><th>Status</th><th>WordPress</th><th>StoryMaker</th><th>WP ID</th><th>Local ID</th><th>Persona</th><th>Projects</th><th>Last login</th><th>Manage</th></tr></thead><tbody id="sm-member-tbody"><tr><td colspan="10">Loading.</td></tr></tbody></table></div>
         </div>
       </div>
-      <div id="sm-member-detail" class="sm-detail" hidden><div class="sm-detail-card"><div class="sm-detail-head sm-detail-topbar"><h3 id="sm-detail-title" class="sm-detail-hidden-title">My page</h3><button id="sm-detail-close" class="sm-action">닫기</button></div><div id="sm-detail-body"></div></div></div>`;
+      <div id="sm-member-detail" class="sm-detail" hidden><div class="sm-detail-card"><div class="sm-detail-head sm-detail-topbar"><h3 id="sm-detail-title" class="sm-detail-hidden-title">My page</h3><div class="sm-member-detail-tabs" role="tablist" aria-label="회원 관리 상세 메뉴"><button type="button" class="sm-member-detail-tab active" data-member-detail-tab="profile" role="tab" aria-selected="true">구독·회원정보</button><button type="button" class="sm-member-detail-tab" data-member-detail-tab="archive" role="tab" aria-selected="false">사용자 보관함</button></div><button id="sm-detail-close" class="sm-action">닫기</button></div><div id="sm-detail-body" data-member-detail-pane="profile"></div><div id="sm-member-archive-pane" class="sm-member-archive-pane" data-member-detail-pane="archive" hidden><iframe id="sm-member-archive-frame" title="사용자 보관함" loading="lazy"></iframe></div></div></div>`;
   }
 
   function renderMembers() {
@@ -432,6 +432,29 @@
     return billingSummaryHtml(summary) + html;
   }
 
+  function switchMemberDetailTab(tabName) {
+    const detail = document.getElementById('sm-member-detail');
+    if (!detail) return;
+    const profilePane = detail.querySelector('[data-member-detail-pane="profile"]');
+    const archivePane = detail.querySelector('[data-member-detail-pane="archive"]');
+    const archiveActive = tabName === 'archive';
+    if (profilePane) profilePane.hidden = archiveActive;
+    if (archivePane) archivePane.hidden = !archiveActive;
+    detail.querySelector('.sm-detail-card')?.classList.toggle('archive-active', archiveActive);
+    detail.querySelectorAll('[data-member-detail-tab]').forEach((button) => {
+      const active = button.dataset.memberDetailTab === tabName;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', String(active));
+    });
+  }
+
+  function prepareMemberArchive(userId) {
+    const frame = document.getElementById('sm-member-archive-frame');
+    if (!frame) return;
+    const nextSrc = `/beta/archive?admin_user_id=${encodeURIComponent(userId)}&embedded=1`;
+    if (frame.getAttribute('src') !== nextSrc) frame.setAttribute('src', nextSrc);
+  }
+
   async function openUser(userId) {
     const panel = document.getElementById(PANEL_ID);
     const detail = panel?.querySelector('#sm-member-detail');
@@ -439,6 +462,8 @@
     if (!detail || !body) throw new Error('Member detail area is missing.');
     currentUserId = userId;
     currentPersonas = [];
+    prepareMemberArchive(userId);
+    switchMemberDetailTab('profile');
     detail.hidden = false;
     detail.removeAttribute('hidden');
     body.textContent = '회원 상세정보를 불러오는 중입니다.';
@@ -601,6 +626,12 @@
       panel.addEventListener('click', (event) => {
         if (event.target.id === 'sm-member-detail') {
           event.target.hidden = true;
+          return;
+        }
+        const detailTab = event.target.closest('[data-member-detail-tab]');
+        if (detailTab) {
+          event.preventDefault();
+          switchMemberDetailTab(detailTab.dataset.memberDetailTab || 'profile');
           return;
         }
         const saveButton = event.target.closest('#sm-persona-save');
