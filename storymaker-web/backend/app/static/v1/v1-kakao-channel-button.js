@@ -168,6 +168,39 @@
     document.head.appendChild(style);
   }
 
+  function positionDesktopButtons() {
+    const wrap = document.getElementById(WRAP_ID);
+    if (!wrap) return;
+
+    if (window.matchMedia('(max-width: 900px)').matches) {
+      wrap.style.position = '';
+      wrap.style.top = '';
+      wrap.style.left = '';
+      wrap.style.right = '';
+      return;
+    }
+
+    const hero = document.getElementById('storymaker-v1-summer-hero');
+    if (!hero) {
+      wrap.style.position = 'fixed';
+      wrap.style.top = '196px';
+      wrap.style.left = 'auto';
+      wrap.style.right = '0';
+      return;
+    }
+
+    const heroRect = hero.getBoundingClientRect();
+    const wrapWidth = wrap.offsetWidth || 196;
+    wrap.style.position = 'absolute';
+    wrap.style.top = `${Math.round(window.scrollY + heroRect.bottom + 19)}px`;
+    wrap.style.left = `${Math.max(0, Math.round(window.scrollX + heroRect.right - wrapWidth))}px`;
+    wrap.style.right = 'auto';
+  }
+
+  function schedulePosition() {
+    window.requestAnimationFrame(positionDesktopButtons);
+  }
+
   function installButton() {
     if (!document.body || document.getElementById(WRAP_ID)) return;
 
@@ -193,11 +226,23 @@
 
     wrap.append(kakao, mail);
     document.body.appendChild(wrap);
+    schedulePosition();
   }
 
   function boot() {
     installStyle();
     installButton();
+    schedulePosition();
+
+    window.addEventListener('resize', schedulePosition, { passive: true });
+    window.addEventListener('orientationchange', schedulePosition, { passive: true });
+
+    const observer = new MutationObserver(() => {
+      if (document.getElementById('storymaker-v1-summer-hero')) {
+        schedulePosition();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 
   if (document.readyState === 'loading') {
