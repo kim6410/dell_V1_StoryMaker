@@ -115,15 +115,24 @@
         white-space: nowrap;
       }
 
-      @media (max-width: 767px) {
+      @media (max-width: 900px) {
         #${WRAP_ID} {
-          top: auto;
-          right: 12px;
-          bottom: 88px;
+          display: flex !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          top: auto !important;
+          right: 12px !important;
+          bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+          z-index: 2147483646 !important;
           gap: 9px;
+          transform: translateZ(0);
+          -webkit-transform: translateZ(0);
         }
 
         #${WRAP_ID} a {
+          display: inline-flex !important;
+          visibility: visible !important;
+          opacity: 1 !important;
           width: 52px;
           height: 52px;
           min-height: 52px;
