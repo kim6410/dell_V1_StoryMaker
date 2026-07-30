@@ -180,6 +180,7 @@ def shortform_context(job_id: str, request: Request) -> JSONResponse:
     job_dir = safe_job_dir(job_id)
     result = read_json(job_dir / "result.json")
     content = result.get("content", {}) or {}
+    source_blocks = content.get("source_blocks", {}) or {}
     channels = content.get("channels", {}) or {}
     blog = channels.get("BLOG", {}) if isinstance(channels, dict) else {}
     carousel = channels.get("CAROUSEL_7", {}) if isinstance(channels, dict) else {}
@@ -219,6 +220,7 @@ def shortform_context(job_id: str, request: Request) -> JSONResponse:
         "title_line_2": compact_title(carousel_title_2 or carousel_title_1 or blog_title or result.get("title") or "StoryMaker Beta", limit=30),
         "carousel_content": carousel_text,
         "instagram_content": instagram_text,
+        "blog_hashtags": str(source_blocks.get("BLOG_HASHTAGS") or ""),
         "business_name": business.get("name") or "",
         "business_phone": normalize_korean_phone_number(business.get("phone") or ""),
         "script": script,

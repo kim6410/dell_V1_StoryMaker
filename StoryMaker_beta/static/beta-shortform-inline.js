@@ -529,6 +529,7 @@
           phone: fields.phone?.value || '',
           script: fields.script?.value || '',
           carouselContent: state.context?.carousel_content || '',
+          blogHashtags: state.context?.blog_hashtags || '',
           images: state.mediaUrls.length ? state.mediaUrls.slice() : (Array.isArray(state.context?.images) ? state.context.images.slice() : [])
         }
       }));
@@ -573,6 +574,7 @@
             phone: fields.phone?.value || '',
             script: fields.script?.value || '',
             carouselContent: state.context?.carousel_content || '',
+            blogHashtags: state.context?.blog_hashtags || '',
             images: state.mediaUrls.length ? state.mediaUrls.slice() : (Array.isArray(state.context?.images) ? state.context.images.slice() : [])
           }
         }));
@@ -719,6 +721,7 @@
       phone: fields.phone?.value || '',
       script: fields.script?.value || '',
       carouselContent: state.context?.carousel_content || '',
+      blogHashtags: state.context?.blog_hashtags || '',
       instagramContent: state.context?.instagram_content || '',
       images: state.mediaUrls.length ? state.mediaUrls.slice() : (Array.isArray(state.context?.images) ? state.context.images.slice() : [])
     };
