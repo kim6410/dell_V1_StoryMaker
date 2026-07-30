@@ -14,6 +14,9 @@ async function loadBetaRenderBrowserShortform() {
   const ui = { job:$('job'), load:$('load'), mp3:$('mp3'), mp4:$('mp4'), upload:$('upload'), diag:$('diag'), status:$('status'), canvas:$('canvas'), audio:$('audio'), video:$('video'), podcastProgressWrap:$('podcast-progress-wrap'), podcastProgressBar:$('podcast-progress-bar'), podcastProgressText:$('podcast-progress-text'), slideshowProgressWrap:$('slideshow-progress-wrap'), slideshowProgressBar:$('slideshow-progress-bar'), slideshowProgressText:$('slideshow-progress-text'), thumbnailImage:$('thumbnail-live-image'), thumbnailStatus:$('thumbnail-live-status') };
   const ctx = ui.canvas.getContext('2d');
   let manifest = null, mp3Blob = null, mp4Blob = null, subtitles = [];
+  let lastAppliedSettings = {};
+  let lastResolvedVoices = { female: '', male: '' };
+  let previousRandomVoices = { female: '', male: '' };
   const gpu = { ready:false, canvas:null, context:null, device:null, pipeline:null, sampler:null, uniformBuffer:null, textures:[] };
   const progressTimers = { podcast:null, slideshow:null };
 
@@ -438,22 +441,22 @@ async function loadBetaRenderBrowserShortform() {
       eyebrow: settings.title_line_1 || 'StoryMaker Beta',
       businessName: settings.business_name || manifest.watermark || '',
       businessPhone: settings.business_phone || '',
-      businessNameFontSize: Number(settings.brand_size || 46),
-      businessPhoneFontSize: Number(settings.phone_size || 43),
-      bottomMargin: Number(settings.bottom_margin || 80),
+      businessNameFontSize: Number(settings.brand_size ?? 46),
+      businessPhoneFontSize: Number(settings.phone_size ?? 43),
+      bottomMargin: Number(settings.bottom_margin ?? 80),
       scriptLines: subtitles.map((cue) => cue.text),
       subtitleCues: subtitles,
       subtitleStartSeconds: 0,
       subtitleDurationSeconds: 180,
-      subtitleFontSize: Number(settings.subtitle_size || 30),
+      subtitleFontSize: Number(settings.subtitle_size ?? 30),
 
       subtitlePosition: settings.subtitle_position || 'bottom',
 
       transitionType: settings.transition_type || 'random',
-      transitionDuration: Number(settings.transition_duration || 2.20),
+      transitionDuration: Number(settings.transition_duration ?? 2.20),
       width: 720,
       height: 1280,
-      fps: Number(settings.fps || 24),
+      fps: Number(settings.fps ?? 24),
       maxDurationSeconds: 180,
       perfScreen: 'storymaker-beta',
       onProgress: (progress) => {
@@ -595,8 +598,83 @@ async function loadBetaRenderBrowserShortform() {
       podcast_provider: lastPodcastProvider,
       podcast_generation_seconds: lastPodcastSeconds,
       podcast_perf: lastPodcastPerf,
+      selected_voices: { ...lastResolvedVoices },
+      applied_settings: { ...lastAppliedSettings },
       ...extra
     };
+  }
+
+  function clampNumber(value, fallback, min, max) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(min, Math.min(max, parsed));
+  }
+
+  function secureRandomIndex(length) {
+    if (length <= 1) return 0;
+    if (window.crypto?.getRandomValues) {
+      const values = new Uint32Array(1);
+      window.crypto.getRandomValues(values);
+      return values[0] % length;
+    }
+    return Math.floor(Math.random() * length);
+  }
+
+  function pickRandomVoice(prefix, previous = '') {
+    const voices = [1, 2, 3, 4, 5].map((number) => `${prefix}${number}`);
+    const candidates = voices.filter((voice) => voice !== previous);
+    return candidates[secureRandomIndex(candidates.length)] || voices[0];
+  }
+
+  function resolveRenderSettings(settings = {}) {
+    const femaleRequested = String(settings.female_voice || 'random');
+    const maleRequested = String(settings.male_voice || 'random');
+    const femaleVoice = femaleRequested === 'random'
+      ? pickRandomVoice('F', previousRandomVoices.female)
+      : femaleRequested;
+    const maleVoice = maleRequested === 'random'
+      ? pickRandomVoice('M', previousRandomVoices.male)
+      : maleRequested;
+    if (femaleRequested === 'random') previousRandomVoices.female = femaleVoice;
+    if (maleRequested === 'random') previousRandomVoices.male = maleVoice;
+    lastResolvedVoices = { female: femaleVoice, male: maleVoice };
+    const resolved = {
+      ...settings,
+      female_voice: femaleVoice,
+      male_voice: maleVoice,
+      voice_speed: clampNumber(settings.voice_speed, 1.15, 0.7, 1.8),
+      voice_volume: clampNumber(settings.voice_volume, 0.8, 0, 1.5),
+      brand_size: clampNumber(settings.brand_size, 46, 12, 120),
+      phone_size: clampNumber(settings.phone_size, 43, 12, 120),
+      bottom_margin: clampNumber(settings.bottom_margin, 80, 0, 400),
+      fps: clampNumber(settings.fps, 24, 12, 60),
+      transition_type: String(settings.transition_type || 'random'),
+      transition_duration: clampNumber(settings.transition_duration, 2.2, 0.5, 4),
+      bgm_mode: String(settings.bgm_mode || 'shuffle'),
+      bgm_file: String(settings.bgm_file || ''),
+      bgm_volume: clampNumber(settings.bgm_volume, 0.08, 0, 0.5),
+      subtitle_size: clampNumber(settings.subtitle_size, 30, 12, 96),
+      subtitle_position: String(settings.subtitle_position || 'bottom')
+    };
+    lastAppliedSettings = {
+      female_voice: resolved.female_voice,
+      male_voice: resolved.male_voice,
+      voice_speed: resolved.voice_speed,
+      voice_volume: resolved.voice_volume,
+      brand_size: resolved.brand_size,
+      phone_size: resolved.phone_size,
+      bottom_margin: resolved.bottom_margin,
+      fps: resolved.fps,
+      transition_type: resolved.transition_type,
+      transition_duration: resolved.transition_duration,
+      bgm_mode: resolved.bgm_mode,
+      bgm_file: resolved.bgm_file,
+      bgm_volume: resolved.bgm_volume,
+      subtitle_size: resolved.subtitle_size,
+      subtitle_position: resolved.subtitle_position,
+      podcast_version: String(resolved.podcast_version || '50')
+    };
+    return resolved;
   }
 
   function preparePhoneNumbersForTts(text) {
@@ -633,8 +711,8 @@ async function loadBetaRenderBrowserShortform() {
       const timeout = window.setTimeout(() => {
         worker.removeEventListener('message', onMessage);
         releaseBrowserPodcastWorker();
-        reject(new Error('브라우저 음성 생성이 120초 동안 완료되지 않았습니다.'));
-      }, 120000);
+        reject(new Error('브라우저 WebGPU 음성 추론이 15초를 초과해 Dell Supertonic으로 전환합니다.'));
+      }, 15000);
 
       function finish() {
         window.clearTimeout(timeout);
@@ -663,10 +741,10 @@ async function loadBetaRenderBrowserShortform() {
         type: 'generate',
         options: {
           script,
-          maleVoice: settings.male_voice && settings.male_voice !== 'random' ? settings.male_voice : 'M1',
-          femaleVoice: settings.female_voice && settings.female_voice !== 'random' ? settings.female_voice : 'F1',
-          speed: Number(settings.voice_speed || 1.05),
-          voiceVolume: Number(settings.voice_volume || 1),
+          maleVoice: settings.male_voice || 'M1',
+          femaleVoice: settings.female_voice || 'F1',
+          speed: Number(settings.voice_speed ?? 1.05),
+          voiceVolume: Number(settings.voice_volume ?? 1),
           pauseSeconds: 0.47,
           inferenceSteps: preparedPodcastProvider === 'webgpu' ? 6 : 8,
           preferredProvider: 'auto'
@@ -796,27 +874,28 @@ async function loadBetaRenderBrowserShortform() {
       renderInProgress = true;
       try {
         ui.job.value = String(jobId || '');
+        const appliedSettings = resolveRenderSettings(settings);
         manifest = null; mp3Blob = null; mp4Blob = null; subtitles = [];
         await request(`/beta-api/shortform/jobs/${encodeURIComponent(jobId)}/reset-generated`, {method:'POST'});
-        onProgress(12, '사용자 브라우저 WebGPU 우선으로 MP3와 SRT를 만드는 중...');
-        await ensurePodcastReady(settings, (percent, detail) => {
+        onProgress(12, `사용자 브라우저 WebGPU 음성 준비 · 여성 ${lastResolvedVoices.female} · 남성 ${lastResolvedVoices.male}`);
+        await ensurePodcastReady(appliedSettings, (percent, detail) => {
           onProgress(12 + Math.max(0, Math.min(100, Number(percent || 0))) * 0.22, detail || '브라우저 음성 생성 중...');
         });
         onProgress(36, '새 랜덤 배경음악을 선택하고 음성과 믹싱하는 중...', {type:'media', images:[...(manifest?.images || [])], videos:[...(manifest?.videos || [])]});
         let prepared;
-        if (settings.bgm_mode === 'one_time' && settings.one_time_music_file) {
+        if (appliedSettings.bgm_mode === 'one_time' && appliedSettings.one_time_music_file) {
           const form = new FormData();
-          Object.entries(settings).forEach(([key,value]) => { if (key !== 'one_time_music_file' && value != null) form.append(key, String(value)); });
-          form.append('bgm_file_upload', settings.one_time_music_file, settings.one_time_music_file.name);
+          Object.entries(appliedSettings).forEach(([key,value]) => { if (key !== 'one_time_music_file' && value != null) form.append(key, String(value)); });
+          form.append('bgm_file_upload', appliedSettings.one_time_music_file, appliedSettings.one_time_music_file.name);
           prepared = await request(`/beta-api/shortform/jobs/${encodeURIComponent(jobId)}/prepare-audio`, {method:'POST', body:form});
         } else {
-          prepared = await request(`/beta-api/shortform/jobs/${encodeURIComponent(jobId)}/prepare-audio`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...settings, force_new_music:true})});
+          prepared = await request(`/beta-api/shortform/jobs/${encodeURIComponent(jobId)}/prepare-audio`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...appliedSettings, force_new_music:true})});
         }
         await loadJob();
         onProgress(45, `음악 선택 완료 · ${prepared.music_name || '음악 없음'}`, {type:'music', musicName:prepared.music_name || ''});
         await encodeMp3();
         onProgress(51, '이미지와 동영상 30% 구간을 무작위 배치하는 중...');
-        await renderMp4(settings, (detail) => {
+        await renderMp4(appliedSettings, (detail) => {
           if (detail.type === 'render') onProgress(51 + Math.max(0, Math.min(100, Number(detail.rawPercent || 0))) * 0.47, `${detail.stage || 'MP4 렌더링'} · ${Math.round(detail.rawPercent || 0)}%`, detail);
           if (detail.type === 'complete') onProgress(98, 'MP4 제작 완료 · 보관함 자동 저장 중', detail);
         });
@@ -825,6 +904,8 @@ async function loadBetaRenderBrowserShortform() {
         return {
           videoUrl: URL.createObjectURL(mp4Blob),
           musicName: prepared.music_name || manifest?.music_name || '',
+          selectedVoices: { ...lastResolvedVoices },
+          appliedSettings: { ...lastAppliedSettings },
           saved: Boolean(saved?.saved?.browser_video)
         };
       } finally {

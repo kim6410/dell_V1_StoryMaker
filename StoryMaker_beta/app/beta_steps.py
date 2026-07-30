@@ -208,8 +208,10 @@ async def create_supertonic_voice(job_id: str, request: Request) -> JSONResponse
         female_voice = random.choice(["F1", "F2", "F3", "F4", "F5"])
     if male_voice == "random":
         male_voice = random.choice(["M1", "M2", "M3", "M4", "M5"])
-    speed = max(0.7, min(float(settings.get("voice_speed", 1.05) or 1.05), 1.8))
-    voice_volume = max(0.0, min(float(settings.get("voice_volume", 0.8) or 0.8), 1.5))
+    raw_speed = settings.get("voice_speed", 1.05)
+    raw_voice_volume = settings.get("voice_volume", 0.8)
+    speed = max(0.7, min(float(1.05 if raw_speed is None else raw_speed), 1.8))
+    voice_volume = max(0.0, min(float(0.8 if raw_voice_volume is None else raw_voice_volume), 1.5))
     path = job_dir(job_id)
     result = read_result(path)
     content = result.setdefault("content", {})

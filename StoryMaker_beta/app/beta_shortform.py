@@ -368,8 +368,10 @@ async def prepare_shortform_audio(job_id: str, request: Request) -> JSONResponse
     music_root = (ROOT / "media" / "music").resolve()
     music_candidates = [path for path in music_root.glob("*") if path.is_file() and path.suffix.lower() in {".mp3", ".wav", ".m4a", ".aac"} and path.name.lower() != "beta_test_music.mp3" and "voice" not in path.name.lower()] if music_root.exists() else []
     mode = str(payload.get("bgm_mode") or "shuffle").strip().lower()
-    volume = max(0.0, min(float(payload.get("bgm_volume", 0.15) or 0.15), 0.5))
-    voice_volume = max(0.0, min(float(payload.get("voice_volume", 0.8) or 0.8), 1.5))
+    raw_bgm_volume = payload.get("bgm_volume", 0.15)
+    raw_voice_volume = payload.get("voice_volume", 0.8)
+    volume = max(0.0, min(float(0.15 if raw_bgm_volume is None else raw_bgm_volume), 0.5))
+    voice_volume = max(0.0, min(float(0.8 if raw_voice_volume is None else raw_voice_volume), 1.5))
     shortform_dir = output / "shortform"
     shortform_dir.mkdir(parents=True, exist_ok=True)
     temp_music = None
