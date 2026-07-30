@@ -4,9 +4,12 @@
   const STYLE_ID = 'v1-industry-modal-style';
   const MODAL_ID = 'v1-industry-modal';
   const BOUND = 'v1IndustrySearchBound';
+  const INDUSTRY_API = '/v1-api/auth/industry-templates';
   let currentField = null;
   let currentDisplay = null;
   let activeIndex = -1;
+  let databaseItems = [];
+  let databaseLoadPromise = null;
 
   function clean(value){
     return String(value || '').replace(/\s+/g, ' ').trim();
@@ -66,6 +69,64 @@
     return items;
   }
 
+  function authHeaders(){
+    try {
+      const token = clean(window.localStorage?.getItem('storymaker_token'));
+      return token ? {Authorization: `Bearer ${token}`} : {};
+    } catch (_error) {
+      return {};
+    }
+  }
+
+  async function loadDatabaseItems(){
+    if (databaseItems.length) return databaseItems;
+    if (databaseLoadPromise) return databaseLoadPromise;
+    databaseLoadPromise = fetch(INDUSTRY_API, {
+      credentials: 'include',
+      headers: authHeaders()
+    })
+      .then(async response => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload.ok === false) {
+          throw new Error(payload.detail || payload.message || '업종 목록을 불러오지 못했습니다.');
+        }
+        const source = Array.isArray(payload.data) ? payload.data : [];
+        databaseItems = source
+          .map(item => ({
+            value: clean(item.industry_key),
+            label: clean(item.label || item.industry_key),
+            group: clean(item.category || '공통')
+          }))
+          .filter(item => item.value && item.label);
+        return databaseItems;
+      })
+      .catch(error => {
+        console.warn('[StoryMaker] 업종 DB 검색 연동 실패, 화면 기본 목록을 사용합니다.', error);
+        return [];
+      })
+      .finally(() => {
+        databaseLoadPromise = null;
+      });
+    return databaseLoadPromise;
+  }
+
+  function ensureFieldOption(field, item){
+    if (!field || !item?.value) return;
+    let option = Array.from(field.options || []).find(candidate => candidate.value === item.value);
+    if (!option) {
+      let group = Array.from(field.querySelectorAll('optgroup')).find(candidate => clean(candidate.label) === item.group);
+      if (!group) {
+        group = document.createElement('optgroup');
+        group.label = item.group || '공통';
+        field.appendChild(group);
+      }
+      option = document.createElement('option');
+      option.value = item.value;
+      option.textContent = item.label;
+      group.appendChild(option);
+    }
+  }
+
   function ensureModal(){
     let modal = document.getElementById(MODAL_ID);
     if (modal) return modal;
@@ -116,6 +177,9 @@
 
   function commit(item){
     if (!currentField) return;
+    ensureFieldOption(currentField, item);
+    currentField.dataset.v1IndustrySelectedValue = item.value;
+    currentField.dataset.v1IndustrySelectedLabel = item.label;
     setNativeValue(currentField, item.value);
     if (currentDisplay) currentDisplay.value = item.label;
     currentField.dispatchEvent(new Event('input', {bubbles:true}));
@@ -142,7 +206,7 @@
     const modal = ensureModal();
     const query = clean(modal.querySelector('.v1-industry-query').value).toLowerCase();
     const results = modal.querySelector('.v1-industry-results');
-    const items = currentField ? getItems(currentField) : [];
+    const items = databaseItems.length ? databaseItems : (currentField ? getItems(currentField) : []);
     const filtered = items.filter(item => !query || `${item.group} ${item.label} ${item.value}`.toLowerCase().includes(query));
     results.innerHTML = '';
     activeIndex = -1;
@@ -169,16 +233,20 @@
     });
   }
 
-  function openModal(field, display){
+  async function openModal(field, display){
     currentField = field;
     currentDisplay = display;
     const modal = ensureModal();
     const query = modal.querySelector('.v1-industry-query');
+    const results = modal.querySelector('.v1-industry-results');
     query.value = '';
-    renderResults();
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
     document.documentElement.style.overflow = 'hidden';
+    results.innerHTML = '<div class="v1-industry-empty">DB에서 전체 업종을 불러오는 중입니다.</div>';
+    await loadDatabaseItems();
+    if (currentField !== field || !modal.classList.contains('is-open')) return;
+    renderResults();
     setTimeout(() => query.focus(), 30);
   }
 
@@ -215,7 +283,10 @@
     const wrap = field.closest('.v1-industry-picker');
     const display = wrap?.querySelector('.v1-industry-picker-display');
     if (!display) return;
-    const selectedLabel = clean(field.selectedOptions?.[0]?.textContent || field.value);
+    const rememberedValue = clean(field.dataset.v1IndustrySelectedValue);
+    const rememberedLabel = clean(field.dataset.v1IndustrySelectedLabel);
+    if (rememberedValue && rememberedLabel) ensureFieldOption(field, {value: rememberedValue, label: rememberedLabel, group: '선택한 업종'});
+    const selectedLabel = rememberedLabel || clean(field.selectedOptions?.[0]?.textContent || field.value);
     if (display.value !== selectedLabel) display.value = selectedLabel;
   }
 
