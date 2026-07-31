@@ -48,7 +48,8 @@
     promptSave: document.getElementById('beta-prompt-save'),
     promptCopy: document.getElementById('beta-prompt-copy'),
     promptModalX: document.getElementById('beta-prompt-modal-x'),
-    promptModalClose: document.getElementById('beta-prompt-modal-close')
+    promptModalClose: document.getElementById('beta-prompt-modal-close'),
+    newWork: document.getElementById('beta-new-work')
   };
 
   let betaCurrentJobId = sessionStorage.getItem('storymaker_beta_current_job') || '';
@@ -60,6 +61,7 @@
   let betaAutoAiDelayTimer = null;
   let betaAutoAiCountdownTimer = null;
   let betaAutoAiCountdown = 0;
+  let betaVideoRendering = false;
   const BETA_GEMINI_LOCK_MS = 60000;
   const BETA_AUTO_AI_IDLE_MS = 5000;
   const BETA_AUTO_AI_COUNTDOWN_SECONDS = 10;
@@ -441,13 +443,58 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
     }, BETA_AUTO_AI_IDLE_MS);
   }
 
+  function betaApplyVideoRenderingLock(rendering, message = '') {
+    betaVideoRendering = Boolean(rendering);
+    if (betaUi.gemini) {
+      betaUi.gemini.disabled = betaVideoRendering || betaUi.gemini.dataset.workflowDisabled === '1';
+      betaUi.gemini.title = betaVideoRendering ? '영상 생성 중에는 프롬프트를 다시 생성할 수 없습니다.' : '';
+    }
+    if (betaUi.geminiRetry) {
+      betaUi.geminiRetry.disabled = betaVideoRendering || betaUi.geminiRetry.dataset.workflowDisabled === '1';
+      betaUi.geminiRetry.title = betaVideoRendering ? '영상 생성 중에는 AI 원고를 다시 생성할 수 없습니다.' : '';
+    }
+    if (betaUi.newWork) {
+      betaUi.newWork.disabled = betaVideoRendering;
+      betaUi.newWork.title = betaVideoRendering ? '영상 생성이 끝난 뒤 새 작업을 시작할 수 있습니다.' : '현재 작업 캐시를 지우고 새 작업 시작';
+    }
+    if (message && betaUi.shortformStatus) betaUi.shortformStatus.textContent = message;
+    betaRefreshActionGlow();
+  }
+
   function betaSetGeminiButtons({ promptDisabled = false, aiDisabled = true } = {}) {
-    if (betaUi.gemini) betaUi.gemini.disabled = promptDisabled;
+    if (betaUi.gemini) betaUi.gemini.dataset.workflowDisabled = promptDisabled ? '1' : '0';
     if (betaUi.geminiRetry) {
       betaUi.geminiRetry.hidden = false;
-      betaUi.geminiRetry.disabled = aiDisabled;
+      betaUi.geminiRetry.dataset.workflowDisabled = aiDisabled ? '1' : '0';
     }
-    betaRefreshActionGlow();
+    betaApplyVideoRenderingLock(betaVideoRendering);
+  }
+
+  function betaClearWorkCache(storage) {
+    const prefixes = [
+      'storymaker_beta_', 'storymaker_thumbnail_', 'storymaker_auto_',
+      'storymaker_podcast_', 'storymaker_shortform_'
+    ];
+    const exactKeys = ['storymaker_current_job', 'storymaker_current_job_id'];
+    for (let index = storage.length - 1; index >= 0; index -= 1) {
+      const key = storage.key(index) || '';
+      if (exactKeys.includes(key) || prefixes.some((prefix) => key.startsWith(prefix))) storage.removeItem(key);
+    }
+  }
+
+  function betaStartNewWork() {
+    if (betaVideoRendering) {
+      betaSetStatus('영상 생성 중에는 새 작업을 시작할 수 없습니다. 영상 생성이 끝난 뒤 다시 눌러주세요.');
+      return;
+    }
+    if (!window.confirm('현재 화면의 작업 내용과 Beta 제작 캐시를 모두 지우고 새 작업을 시작할까요?')) return;
+    betaCancelAutoAiGeneration();
+    betaStopPromptAnimation();
+    if (betaGeminiWatchTimer) window.clearInterval(betaGeminiWatchTimer);
+    betaGeminiWatchTimer = null;
+    betaClearWorkCache(sessionStorage);
+    betaClearWorkCache(localStorage);
+    location.reload();
   }
 
   function betaUnlockAiAfterTimeout() {
@@ -740,6 +787,7 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
     if (betaUi.promptSendOpen) betaUi.promptSendOpen.hidden = !isAdmin;
   }
 
+  betaUi.newWork?.addEventListener('click', betaStartNewWork);
   betaUi.promptEditOpen?.addEventListener('click', () => betaOpenPromptModal('edit'));
   betaUi.promptSendOpen?.addEventListener('click', () => betaOpenPromptModal('send'));
   betaUi.promptSave?.addEventListener('click', betaSavePromptTemplate);
@@ -752,6 +800,12 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && betaUi.promptModal && !betaUi.promptModal.hidden) betaClosePromptModal();
   });
+
+  window.addEventListener('storymaker:shortform-render-state', (event) => {
+    const rendering = Boolean(event.detail?.rendering);
+    betaApplyVideoRenderingLock(rendering, rendering ? '영상 생성 중 · 상단 생성 버튼과 새 작업을 잠갔습니다.' : '영상 생성 완료 · 상단 버튼 잠금을 해제했습니다.');
+  });
+  betaApplyVideoRenderingLock(betaVideoRendering);
 
   betaInitAiProvider();
   betaUi.form.addEventListener('submit', betaCreateJob);

@@ -476,6 +476,7 @@
       if (!state.engineReady) return;
     }
     state.rendering = true;
+    window.dispatchEvent(new CustomEvent('storymaker:shortform-render-state', { detail: { rendering: true, jobId: state.jobId } }));
     fields.make.disabled = true;
     fields.make.classList.remove('beta-action-breathe');
     startPreviewFocusLock();
@@ -609,6 +610,7 @@
       }
       stopPreviewFocusLock({ keepPosition: false });
       state.rendering = false;
+      window.dispatchEvent(new CustomEvent('storymaker:shortform-render-state', { detail: { rendering: false, jobId: state.jobId } }));
       fields.make.disabled = !state.engineReady;
       fields.make.textContent = state.engineReady ? '영상 만들기' : '브라우저 엔진 다시 준비';
       fields.make.classList.toggle('beta-action-breathe', state.engineReady && !state.readyToSave);
