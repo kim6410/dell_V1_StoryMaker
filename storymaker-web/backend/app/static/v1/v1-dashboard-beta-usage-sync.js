@@ -72,12 +72,13 @@
   function buildPayload(responsePayload) {
     const data = responsePayload?.data && typeof responsePayload.data === 'object' ? responsePayload.data : {};
     return {
-      totalJobs: Number(data.total_verified_mp4) || 0,
-      used: Number(data.period_used) || 0,
+      totalJobs: Number(data.total_verified_videos ?? data.total_verified_mp4) || 0,
+      used: Number(data.current_period_used ?? data.period_used) || 0,
       remaining: Number(data.remaining) || 0,
       limit: Number(data.monthly_limit) || 20,
       periodStart: data.period_start || '',
       periodEnd: data.period_end || '',
+      periodLabel: String(data.period_label || '').trim(),
       planCode: String(data.plan_code || 'free').toLowerCase(),
       retained: Number(data.retained_count) || 0,
     };
@@ -133,6 +134,10 @@
   function render(target) {
     if (!payload || !target) return;
     ensureStyle();
+    const formattedPeriod = payload.periodLabel || formatPeriod(payload.periodStart, payload.periodEnd);
+    const periodNote = formattedPeriod !== '-'
+      ? `${formattedPeriod} 이용기간 기준`
+      : '최근 1개월 생성 기준';
     target.id = ROOT_ID;
     target.className = '';
     target.innerHTML = `
@@ -144,14 +149,14 @@
       </div>
       <div class="v1d-grid">
         <div class="v1d-card">
-          <div class="v1d-label">전체 작업</div>
+          <div class="v1d-label">전체 사용</div>
           <div class="v1d-value">${payload.totalJobs}건</div>
-          <div class="v1d-note">가입 후 생성·검증 완료 동영상</div>
+          <div class="v1d-note">가입 후 전체 생성 기준</div>
         </div>
         <button type="button" class="v1d-card" data-v1d-usage>
-          <div class="v1d-label">이번달 사용량</div>
+          <div class="v1d-label">최근 1개월 사용량</div>
           <div class="v1d-value">${payload.used}건</div>
-          <div class="v1d-note">${formatPeriod(payload.periodStart, payload.periodEnd)} · 상세 보기</div>
+          <div class="v1d-note">${periodNote}</div>
         </button>
         <div class="v1d-card">
           <div class="v1d-label">남은 제작 횟수</div>

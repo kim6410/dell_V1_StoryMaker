@@ -8,6 +8,7 @@ from sqlalchemy import func
 from datetime import datetime, timedelta
 from typing import List
 from pathlib import Path
+import os
 import re
 import sqlite3
 
@@ -499,7 +500,9 @@ class IndustryPromptContentRequest(BaseModel):
     content: str
 
 
-PROMPT_DB_PATH = Path("/home/bourne/StoryMaker_1/data/prompt_db/storymaker_prompts.db")
+PROMPT_DB_PATH = Path(
+    os.getenv("STORYMAKER_PROMPT_DB_PATH", "/prompt_data/storymaker_prompts.db")
+)
 
 
 def _prompt_db_connect() -> sqlite3.Connection:

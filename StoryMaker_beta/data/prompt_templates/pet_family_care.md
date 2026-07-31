@@ -8,7 +8,7 @@
 ## StoryMaker 생성 환경
 - 업체명: {{company}}
 - 글쓰기 스타일: 따뜻한 교감과 전문적인 케어가 살아 있는 네이버 블로그
-- 블로그 본문 목표 길이: 약 1500자
+- 블로그 본문 목표 길이: 약 {{blog_content_length}}자
 - 행정 지역명: {{official_region}}
 - 콘텐츠용 지역명: {{region}}
 - 업종·주요 케어 서비스: {{service}}
@@ -177,7 +177,7 @@ CAROUSEL_7
 
 ## 블로그 규칙
 - BLOG_TITLES와 BLOG_POST 첫 줄 제목은 `[콘텐츠용 지역명] + [동·상권명] + [업종·케어 서비스 특징]` 조합을 앞부분에 자연스럽게 배치합니다.
-- BLOG_POST는 약 1500자로 작성합니다.
+- BLOG_POST는 약 {{blog_content_length}}자로 작성합니다.
 - BLOG_POST 첫 줄은 반드시 `# 제목` 형식으로 시작합니다.
 - 본문 소제목은 `## 소제목`만 사용하고 최소 4개 이상 작성합니다.
 - 이용 계기, 상담·케어 과정, 실제 특징, 주의사항, 예약·방문 안내를 균형 있게 구성합니다.
@@ -262,7 +262,11 @@ CAROUSEL_7
 ## 업종별 금지·주의사항
 {{industry_avoid_hint}}
 
-## 핵심 키워드
-- {{region}}
-- {{service}}
-- {{company}}
+## 사용자 핵심 키워드
+{{keywords}}
+
+## 사용자 기본 감성 톤
+{{default_tones}}
+
+## 사용자 상세 페르소나
+{{persona_text}}

@@ -9,6 +9,7 @@ import sqlite3
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -52,7 +53,7 @@ MAIN_BLOCK_KEYS = [
 
 
 class BetaGeminiRequest(BaseModel):
-    business: dict[str, str] = Field(default_factory=dict)
+    business: dict[str, Any] = Field(default_factory=dict)
     topic: str
     image_count: int = 8
     weather_snapshot: dict[str, Any] | None = None
@@ -64,7 +65,11 @@ class BetaPromptTemplateUpdate(BaseModel):
 
 PROMPT_TEMPLATE_PATH = Path(os.getenv("STORYMAKER_BETA_PROMPT_TEMPLATE", str(Path(os.getenv("STORYMAKER_BETA_ROOT", "/home/bourne/StoryMaker_1/StoryMaker_beta")) / "data" / "admin_prompt_template.md")))
 INDUSTRY_TEMPLATE_DB_PATH = Path(os.getenv("STORYMAKER_V1_DB", "/home/bourne/StoryMaker_1/database/storymaker.db"))
-PROMPT_REQUIRED_VARIABLES = ("{{company}}", "{{region}}", "{{service}}", "{{phone}}", "{{source_text}}", "{{weather_block}}")
+PROMPT_REQUIRED_VARIABLES = (
+    "{{company}}", "{{region}}", "{{service}}", "{{phone}}",
+    "{{blog_content_length}}", "{{keywords}}", "{{default_tones}}", "{{persona_text}}",
+    "{{source_text}}", "{{weather_block}}",
+)
 
 
 def _load_industry_prompt_details(industry_key: object) -> dict[str, str]:
@@ -166,6 +171,73 @@ def _prompt_region(region: str) -> str:
     return aliases.get(first, first)
 
 
+def _prompt_list_text(value: Any) -> str:
+    if isinstance(value, list):
+        items = [str(item or "").strip() for item in value]
+    else:
+        raw = str(value or "").strip()
+        if not raw:
+            return "미등록"
+        try:
+            parsed = json.loads(raw)
+            items = parsed if isinstance(parsed, list) else [parsed]
+        except json.JSONDecodeError:
+            items = re.split(r"[,\n]", raw)
+    cleaned: list[str] = []
+    for item in items:
+        text = str(item or "").strip()
+        if text and text not in cleaned:
+            cleaned.append(text)
+    return ", ".join(cleaned) if cleaned else "미등록"
+
+
+def _hourly_weather_lines(weather: dict[str, Any]) -> tuple[str, str]:
+    hourly = weather.get("hourly_24") if isinstance(weather, dict) else None
+    if not isinstance(hourly, list) or not hourly:
+        return "저장된 시간별 기온 없음", "저장된 시간별 날씨 상태 없음"
+
+    # 같은 날짜·시간에 여러 번 저장된 관측값은 가장 최근 값 하나만 사용합니다.
+    hourly_by_bucket: dict[str, dict[str, Any]] = {}
+    for row in hourly:
+        if not isinstance(row, dict):
+            continue
+        observed = str(row.get("observed_hour") or "").strip()
+        bucket = observed[:13] if len(observed) >= 13 else observed
+        if bucket:
+            hourly_by_bucket[bucket] = row
+
+    ordered_rows = sorted(
+        hourly_by_bucket.values(),
+        key=lambda item: str(item.get("observed_hour") or ""),
+    )[-24:]
+    if not ordered_rows:
+        return "저장된 시간별 기온 없음", "저장된 시간별 날씨 상태 없음"
+
+    temp_items: list[str] = []
+    condition_items: list[str] = []
+    previous_date = ""
+    for row in ordered_rows:
+        observed = str(row.get("observed_hour") or "").strip()
+        try:
+            observed_dt = datetime.fromisoformat(observed)
+            current_date = observed_dt.date().isoformat()
+            if current_date != previous_date:
+                time_label = f"{observed_dt.month}월 {observed_dt.day}일 {observed_dt.hour:02d}시"
+                previous_date = current_date
+            else:
+                time_label = f"{observed_dt.hour:02d}시"
+        except (TypeError, ValueError):
+            time_label = observed.replace("T", " ")[:16] if observed else "시간 미상"
+
+        temp = row.get("temperature_c")
+        temp_text = f"{float(temp):g}℃" if temp is not None else "미확인"
+        condition = str(row.get("weather") or "날씨 확인").strip()
+        temp_items.append(f"{time_label} {temp_text}")
+        condition_items.append(f"{time_label} {condition}")
+
+    return ", ".join(temp_items), ", ".join(condition_items)
+
+
 def beta_build_default_prompt(payload: BetaGeminiRequest) -> str:
     business = payload.business or {}
     company = str(business.get("name", "")).strip() or "업체명 미등록"
@@ -174,9 +246,14 @@ def beta_build_default_prompt(payload: BetaGeminiRequest) -> str:
     region = region_alias or official_region
     service = str(business.get("service", "")).strip() or "서비스 미등록"
     phone = str(business.get("phone", "")).strip() or "미등록"
+    blog_content_length = str(business.get("blog_content_length") or 1500).strip()
+    keywords_text = _prompt_list_text(business.get("keywords"))
+    default_tones_text = _prompt_list_text(business.get("default_tones"))
+    persona_text = str(business.get("persona_text") or "미등록").strip()
     source_text = str(payload.topic or "").strip()
 
     weather = payload.weather_snapshot or {}
+    hourly_temperature_text, hourly_condition_text = _hourly_weather_lines(weather)
     if weather and weather.get("available"):
         obs_time = weather.get("observed_at") or ""
         obs_text = str(obs_time)
@@ -195,7 +272,8 @@ def beta_build_default_prompt(payload: BetaGeminiRequest) -> str:
 - 기상 기준 지역: {_prompt_region(weather.get('region') or official_region)}
 - 현재 날씨: {weather.get('condition', '')}
 - 현재 기온: {weather.get('temperature_c', '')}℃
-- 현재 습도: {weather.get('humidity_percent', '')}%
+- 최근 기온 추이: {hourly_temperature_text}
+- 최근 날씨 상태: {hourly_condition_text}
 - 강수 상태: {weather.get('precipitation_status', '')}
 - 강수량: {weather.get('precipitation_mm', 0)}mm
 - 기상 관측 기준 시각: {obs_text}"""
@@ -222,6 +300,11 @@ def beta_build_default_prompt(payload: BetaGeminiRequest) -> str:
             f"대표 지역: {region}",
             f"주요 서비스: {service}",
             f"대표 전화번호: {phone}",
+            f"블로그 본문 목표 길이: 약 {blog_content_length}자",
+            f"사용자 핵심 키워드: {keywords_text}",
+            f"사용자 기본 감성 톤: {default_tones_text}",
+            "사용자 상세 페르소나:",
+            persona_text,
         ]
         if part
     )
@@ -537,6 +620,10 @@ def beta_render_prompt_template(template: str, payload: BetaGeminiRequest) -> st
         "{{service}}": str(business.get("service") or "서비스 미등록").strip(),
         "{{industry_key}}": str(business.get("industry_key") or "").strip(),
         "{{phone}}": str(business.get("phone") or "미등록").strip(),
+        "{{blog_content_length}}": str(business.get("blog_content_length") or 1500).strip(),
+        "{{keywords}}": _prompt_list_text(business.get("keywords")),
+        "{{default_tones}}": _prompt_list_text(business.get("default_tones")),
+        "{{persona_text}}": str(business.get("persona_text") or "미등록").strip(),
         "{{source_text}}": str(payload.topic or "").strip(),
         "{{weather_block}}": weather,
         "{{industry_prompt_guidance}}": industry_details["industry_prompt_guidance"],

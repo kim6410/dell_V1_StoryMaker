@@ -279,17 +279,21 @@ def collect_weather_snapshots_once() -> dict:
     now_text = now.isoformat(timespec="seconds")
     date_key = now.strftime("%Y-%m-%d")
     regions = list(REGION_WEATHER_QUERY_MAP.keys())
-    
-    # 1. DB 세션 없이 먼저 모든 지역의 날씨 데이터를 네트워크로 조회합니다.
+
+    # 네트워크 조회는 DB 트랜잭션 밖에서 수행합니다. 실패한 지역은 가짜값을
+    # 저장하지 않고 건너뛰며, 다음 주기에 다시 시도할 수 있도록 오류를 남깁니다.
     weather_data = []
+    fetch_errors = []
     for region in regions:
         try:
             weather, temperature = fetch_weather_and_temp(region)
-            weather_data.append((region, weather, temperature))
-        except Exception:
-            weather_data.append((region, "맑음", "20"))
-            
-    # 2. 조회된 데이터를 바탕으로 짧고 빠른 단일 트랜잭션으로 DB에 기록합니다.
+            numeric_temperature = _safe_float(temperature)
+            if numeric_temperature is None:
+                raise ValueError(f"invalid temperature: {temperature!r}")
+            weather_data.append((region, weather, numeric_temperature))
+        except Exception as exc:
+            fetch_errors.append({"region": region, "error": f"{type(exc).__name__}: {exc}"})
+
     saved = 0
     db = SessionLocal()
     try:
@@ -303,7 +307,7 @@ def collect_weather_snapshots_once() -> dict:
                 {
                     "region": region,
                     "weather": weather,
-                    "temperature": _safe_float(temperature),
+                    "temperature": temperature,
                     "source": "hourly_auto",
                     "observed_at": now_text,
                     "created_at": now_text,
@@ -312,21 +316,49 @@ def collect_weather_snapshots_once() -> dict:
             _refresh_weather_daily_summary(db, region, date_key, now_text)
             saved += 1
         db.commit()
-        return {"ok": True, "saved": saved, "created_at": now_text}
+        return {
+            "ok": saved > 0,
+            "saved": saved,
+            "requested": len(regions),
+            "failed": len(fetch_errors),
+            "errors": fetch_errors[:10],
+            "created_at": now_text,
+        }
     except Exception as exc:
         db.rollback()
-        return {"ok": False, "error": str(exc), "saved": saved, "created_at": now_text}
+        return {
+            "ok": False,
+            "error": f"{type(exc).__name__}: {exc}",
+            "saved": saved,
+            "requested": len(regions),
+            "failed": len(fetch_errors),
+            "errors": fetch_errors[:10],
+            "created_at": now_text,
+        }
     finally:
         db.close()
 
 
 def _weather_collector_loop() -> None:
     while True:
-        result = collect_weather_snapshots_once()
         try:
-            app.state.latest_weather_collect_result = result
+            result = collect_weather_snapshots_once()
+        except Exception as exc:
+            result = {
+                "ok": False,
+                "error": f"collector loop: {type(exc).__name__}: {exc}",
+                "created_at": datetime.now(KST).isoformat(timespec="seconds"),
+            }
+        try:
+            app.state.latest_weather_collect_result = {
+                **result,
+                "mode": "hourly_snapshot_collection",
+                "auto_collection": True,
+                "collector_thread_alive": True,
+            }
         except Exception:
             pass
+        # 개별 주기 실패 여부와 관계없이 스레드는 종료하지 않고 한 시간 후 재시도합니다.
         time.sleep(3600)
 
 
@@ -339,10 +371,20 @@ def start_weather_collector() -> None:
     removed = cleanup_expired_weather_cache()
     app.state.latest_weather_collect_result = {
         "ok": True,
-        "mode": "on_demand_latest_cache",
-        "auto_collection": False,
+        "mode": "hourly_snapshot_collection",
+        "auto_collection": True,
+        "collector_thread_alive": False,
+        "status": "starting",
         "expired_removed": removed,
     }
+    thread = threading.Thread(
+        target=_weather_collector_loop,
+        name="storymaker-weather-collector",
+        daemon=True,
+    )
+    thread.start()
+    app.state.weather_collector_thread = thread
+    app.state.latest_weather_collect_result["collector_thread_alive"] = thread.is_alive()
     start_learning_scheduler()
     start_performance_scheduler()
     start_brain_scheduler()
@@ -351,12 +393,17 @@ def start_weather_collector() -> None:
 
 @app.get("/api/weather/collect-now")
 def collect_weather_now():
-    return {
-        "ok": True,
-        "mode": "on_demand_latest_cache",
-        "auto_collection": False,
-        "message": "전국 일괄 수집은 비활성화되어 있으며 사용자 요청 지역만 캐싱합니다.",
+    result = collect_weather_snapshots_once()
+    app.state.latest_weather_collect_result = {
+        **result,
+        "mode": "manual_snapshot_collection",
+        "auto_collection": True,
+        "collector_thread_alive": bool(
+            getattr(app.state, "weather_collector_thread", None)
+            and app.state.weather_collector_thread.is_alive()
+        ),
     }
+    return app.state.latest_weather_collect_result
 
 
 @app.get("/api/weather/collect-status")
@@ -446,7 +493,8 @@ def read_beta_v1_profile(current_user: Optional[User] = Depends(get_optional_cur
     try:
         rows = db.execute(
             text("""
-                SELECT id, company_name, phone_number, region, region_alias, industry_key, content, is_default
+                SELECT id, company_name, phone_number, region, region_alias, industry_key,
+                       keywords_json, default_tones_json, blog_content_length, content, is_default
                 FROM user_personas
                 WHERE user_id = :user_id
                 ORDER BY is_default DESC, updated_at DESC, id DESC
@@ -487,6 +535,10 @@ def read_beta_v1_profile(current_user: Optional[User] = Depends(get_optional_cur
                 "service": industry_labels.get(industry_key, industry_key if industry_key != "general" else "일반 서비스업"),
                 "industry_key": industry_key,
                 "phone": str(row.get("phone_number") or "").strip(),
+                "keywords": json.loads(str(row.get("keywords_json") or "[]")),
+                "default_tones": json.loads(str(row.get("default_tones_json") or "[]")),
+                "blog_content_length": int(row.get("blog_content_length") or 1500),
+                "content": str(row.get("content") or "").strip(),
                 "is_default": bool(row.get("is_default")),
             })
 

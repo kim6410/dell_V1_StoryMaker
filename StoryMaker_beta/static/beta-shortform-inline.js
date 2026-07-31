@@ -5,7 +5,7 @@
   if (!root) return;
 
   const q = (id) => document.getElementById(id);
-  const state = { jobId: '', context: null, settings: null, timer: null, sceneTimer: null, thumbnailTimer: null, thumbnailChecking: false, thumbnailUrl: '', mediaUrls: [], mediaNames: [], sceneIndex: 0, startedAt: 0, lastProgress: 0, readyToSave: false, saving: false, savedToArchive: false, rendering: false, selectedPodcast: '50', previewPlaying: false, previewFocusTimer: null, engineReady: false, enginePreparing: false, scriptDrafts: { '50': '', '80': '' } };
+  const state = { jobId: '', context: null, settings: null, timer: null, sceneTimer: null, thumbnailTimer: null, thumbnailChecking: false, thumbnailUrl: '', mediaUrls: [], mediaNames: [], sceneIndex: 0, startedAt: 0, lastProgress: 0, readyToSave: false, saving: false, savedToArchive: false, rendering: false, selectedPodcast: '50', previewPlaying: false, previewFocusTimer: null, engineReady: false, enginePreparing: false, settingsReady: false, scriptDrafts: { '50': '', '80': '' } };
 
   const fields = {
     title1: q('sf-title-1'), title2: q('sf-title-2'), business: q('sf-business'), phone: q('sf-phone'),
@@ -126,15 +126,31 @@
     refreshPreview();
   }
 
+  function readSettingNumber(field, fallback, { min = -Infinity, max = Infinity } = {}) {
+    const raw = String(field?.value ?? '').trim();
+    const parsed = raw === '' ? Number.NaN : Number(raw);
+    const fallbackNumber = Number(fallback);
+    const valid = Number.isFinite(parsed) && parsed >= min && parsed <= max;
+    const safe = valid ? parsed : fallbackNumber;
+    if (field && !valid) field.value = String(safe);
+    return safe;
+  }
+
   function values() {
     if (fields.script) state.scriptDrafts[state.selectedPodcast] = fields.script.value;
     return {
       female_voice: fields.femaleVoice.value, male_voice: fields.maleVoice.value,
-      voice_speed: Number(fields.voiceSpeed.value), voice_volume: Number(fields.voiceVolume.value),
-      brand_size: Number(fields.brandSize.value), phone_size: Number(fields.phoneSize.value),
-      bottom_margin: Number(fields.bottomMargin.value), fps: Number(fields.fps.value),
-      transition_type: fields.transition.value, transition_duration: Math.max(0.50, Math.min(4.00, Number(fields.transitionDuration?.value || 2.20))), bgm_mode: fields.bgmMode.value, bgm_file: fields.bgmFile.value,
-      bgm_volume: Number(fields.bgmVolume.value), subtitle_size: Number(fields.subtitleSize.value),
+      voice_speed: readSettingNumber(fields.voiceSpeed, defaults.voice_speed, { min: 0.7, max: 1.8 }),
+      voice_volume: readSettingNumber(fields.voiceVolume, defaults.voice_volume, { min: 0.05, max: 1 }),
+      brand_size: readSettingNumber(fields.brandSize, defaults.brand_size, { min: 18, max: 120 }),
+      phone_size: readSettingNumber(fields.phoneSize, defaults.phone_size, { min: 16, max: 100 }),
+      bottom_margin: readSettingNumber(fields.bottomMargin, defaults.bottom_margin, { min: 1, max: 400 }),
+      fps: readSettingNumber(fields.fps, defaults.fps, { min: 12, max: 60 }),
+      transition_type: fields.transition.value,
+      transition_duration: readSettingNumber(fields.transitionDuration, defaults.transition_duration, { min: 0.50, max: 4.00 }),
+      bgm_mode: fields.bgmMode.value, bgm_file: fields.bgmFile.value,
+      bgm_volume: readSettingNumber(fields.bgmVolume, defaults.bgm_volume, { min: 0.01, max: 0.5 }),
+      subtitle_size: readSettingNumber(fields.subtitleSize, defaults.subtitle_size, { min: 12, max: 80 }),
       subtitle_position: fields.subtitlePosition.value,
       title_line_1: fields.title1.value.trim(), title_line_2: fields.title2.value.trim(),
       business_name: fields.business.value.trim(), business_phone: fields.phone.value.trim(),
@@ -259,6 +275,7 @@
   async function loadJob(jobId) {
     state.jobId = jobId;
     state.engineReady = false;
+    state.settingsReady = false;
     if (fields.make) { fields.make.disabled = true; fields.make.textContent = '브라우저 엔진 준비 중...'; }
     const enginePromise = prepareRendererForJob(jobId);
     const data = await request(`/beta-api/shortform/jobs/${encodeURIComponent(jobId)}/context`);
@@ -276,6 +293,7 @@
     if (fields.videoConnected) fields.videoConnected.innerHTML = `<span style="color:${data.context.video_count > 0 ? '#75edce' : '#9cb0cc'};font-weight:bold;">${data.context.video_count > 0 ? `✔ 이전 동영상 ${data.context.video_count}개 연동 적용됨` : '동영상 없음 (이미지 슬라이드 구성)'}</span>`;
     await loadMusicLibrary();
     applySettings(state.settings);
+    state.settingsReady = true;
     refreshPreview();
     root.hidden = false;
     setProgress(0, '');
@@ -630,8 +648,12 @@
   });
 
   root.querySelectorAll('input,textarea,select').forEach((element) => {
-    element.addEventListener('input', () => { refreshPreview(); scheduleSave(); });
-    element.addEventListener('change', () => { refreshPreview(); scheduleSave(); });
+    const handleSettingChange = () => {
+      refreshPreview();
+      if (state.settingsReady) scheduleSave();
+    };
+    element.addEventListener('input', handleSettingChange);
+    element.addEventListener('change', handleSettingChange);
   });
 
   function setupSettingsModal() {
@@ -656,21 +678,85 @@
     });
 
     let returnFocus = openButton;
+    let savedScrollX = 0;
+    let savedScrollY = 0;
+    let hostWindow = window;
+    let hostDocument = document;
+    let previousHostHtmlOverflow = '';
+    let previousHostBodyOverflow = '';
+
+    const resolveHost = () => {
+      try {
+        if (window.parent && window.parent !== window && window.frameElement) {
+          hostWindow = window.parent;
+          hostDocument = window.parent.document;
+        } else {
+          hostWindow = window;
+          hostDocument = document;
+        }
+      } catch (_) {
+        hostWindow = window;
+        hostDocument = document;
+      }
+    };
+
+    const positionModalInVisibleViewport = () => {
+      let top = window.scrollY || 0;
+      let visibleHeight = window.innerHeight;
+      try {
+        if (hostWindow !== window && window.frameElement) {
+          const frameRect = window.frameElement.getBoundingClientRect();
+          top = Math.max(0, -frameRect.top);
+          visibleHeight = Math.max(320, Math.min(hostWindow.innerHeight, frameRect.bottom) - Math.max(0, frameRect.top));
+        }
+      } catch (_) {}
+      modal.style.position = 'absolute';
+      modal.style.top = `${top}px`;
+      modal.style.right = '0';
+      modal.style.bottom = 'auto';
+      modal.style.left = '0';
+      modal.style.height = `${visibleHeight}px`;
+      dialog.style.transform = 'translateY(-76px)';
+      dialog.style.maxHeight = `${Math.max(280, visibleHeight - 24)}px`;
+    };
+
     const closeModal = () => {
       if (modal.hidden) return;
       modal.hidden = true;
+      hostWindow.removeEventListener('scroll', positionModalInVisibleViewport);
+      hostWindow.removeEventListener('resize', positionModalInVisibleViewport);
       document.documentElement.classList.remove('sf-settings-modal-open');
       document.body.classList.remove('sf-settings-modal-open');
+      hostDocument.documentElement.style.overflow = previousHostHtmlOverflow;
+      hostDocument.body.style.overflow = previousHostBodyOverflow;
       openButton.setAttribute('aria-expanded', 'false');
+      hostWindow.scrollTo(savedScrollX, savedScrollY);
+      if (state.rendering) startPreviewFocusLock();
       returnFocus?.focus?.({preventScroll:true});
     };
+
     const openModal = () => {
       returnFocus = document.activeElement || openButton;
+      resolveHost();
+      savedScrollX = hostWindow.scrollX || 0;
+      savedScrollY = hostWindow.scrollY || 0;
+      previousHostHtmlOverflow = hostDocument.documentElement.style.overflow;
+      previousHostBodyOverflow = hostDocument.body.style.overflow;
+      stopPreviewFocusLock();
+      positionModalInVisibleViewport();
+      modalBody.scrollTop = 0;
       modal.hidden = false;
       document.documentElement.classList.add('sf-settings-modal-open');
       document.body.classList.add('sf-settings-modal-open');
+      hostDocument.documentElement.style.overflow = 'hidden';
+      hostDocument.body.style.overflow = 'hidden';
       openButton.setAttribute('aria-expanded', 'true');
-      requestAnimationFrame(() => dialog.focus({preventScroll:true}));
+      hostWindow.addEventListener('scroll', positionModalInVisibleViewport, { passive: true });
+      hostWindow.addEventListener('resize', positionModalInVisibleViewport);
+      requestAnimationFrame(() => {
+        positionModalInVisibleViewport();
+        dialog.focus({preventScroll:true});
+      });
     };
 
     openButton.addEventListener('click', openModal);

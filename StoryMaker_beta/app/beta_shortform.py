@@ -55,6 +55,36 @@ DEFAULT_SETTINGS: dict[str, Any] = {
 }
 
 
+def sanitize_settings(values: dict[str, Any] | None) -> dict[str, Any]:
+    settings = dict(DEFAULT_SETTINGS)
+    if isinstance(values, dict):
+        settings.update(values)
+    numeric_limits = {
+        "voice_speed": (0.7, 1.8),
+        "voice_volume": (0.05, 1.0),
+        "bgm_volume": (0.01, 0.5),
+        "fps": (12, 60),
+        "transition_duration": (0.5, 4.0),
+        "subtitle_size": (12, 80),
+        "subtitle_font_size": (12, 80),
+        "brand_size": (18, 120),
+        "phone_size": (16, 100),
+        "brand_font_size": (18, 120),
+        "phone_font_size": (16, 100),
+        "bottom_margin": (1, 400),
+    }
+    for key, (minimum, maximum) in numeric_limits.items():
+        fallback = DEFAULT_SETTINGS.get(key, minimum)
+        try:
+            value = float(settings.get(key, fallback))
+        except (TypeError, ValueError):
+            value = float(fallback)
+        if value < minimum or value > maximum:
+            value = float(fallback)
+        settings[key] = int(value) if isinstance(fallback, int) else value
+    return settings
+
+
 def connect() -> sqlite3.Connection:
     connection = sqlite3.connect(DB_PATH)
     connection.row_factory = sqlite3.Row
@@ -208,12 +238,13 @@ def shortform_context(job_id: str, request: Request) -> JSONResponse:
             "SELECT settings_json FROM beta_shortform_user_settings WHERE user_key=?",
             (user_key(request),),
         ).fetchone()
-    settings = dict(DEFAULT_SETTINGS)
+    saved_settings: dict[str, Any] = {}
     if row:
         try:
-            settings.update(json.loads(row["settings_json"]))
+            saved_settings = json.loads(row["settings_json"])
         except Exception:
-            pass
+            saved_settings = {}
+    settings = sanitize_settings(saved_settings)
     payload = {
         "job_id": job_id,
         "title_line_1": compact_title(carousel_title_1 or business.get("name") or "StoryMaker Beta", limit=30),
@@ -238,10 +269,11 @@ def shortform_context(job_id: str, request: Request) -> JSONResponse:
 @beta_shortform_router.put("/settings")
 async def save_settings(request: Request) -> JSONResponse:
     payload = await request.json()
-    settings = dict(DEFAULT_SETTINGS)
+    incoming: dict[str, Any] = {}
     if isinstance(payload, dict):
         transient = {"script", "title_line_1", "title_line_2", "business_name", "business_phone", "one_time_music_file"}
-        settings.update({key: value for key, value in payload.items() if key not in transient})
+        incoming = {key: value for key, value in payload.items() if key not in transient}
+    settings = sanitize_settings(incoming)
     stamp = now()
     key = user_key(request)
     with connect() as connection:

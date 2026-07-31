@@ -175,6 +175,138 @@ def beta_safe(value: str, fallback: str = "item") -> str:
     return cleaned[:100] or fallback
 
 
+def beta_parse_text_list(value: str) -> list[str]:
+    raw = str(value or "").strip()
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        parsed = [item.strip() for item in re.split(r"[,\n]", raw)]
+    if not isinstance(parsed, list):
+        parsed = [parsed]
+    result: list[str] = []
+    for item in parsed:
+        text = str(item or "").strip()
+        if text and text not in result:
+            result.append(text)
+    return result[:30]
+
+
+def beta_weather_hourly_24(region_raw: str) -> list[dict[str, Any]]:
+    db_path = Path("/home/bourne/StoryMaker_1/database/weather_cache.db")
+    if not db_path.exists():
+        return []
+    compact = re.sub(r"\s+", "", str(region_raw or "").strip())
+    compact = compact.replace("경기", "경기도", 1) if compact.startswith("경기") and not compact.startswith("경기도") else compact
+    compact = compact.replace("울산", "울산광역시", 1) if compact.startswith("울산") and not compact.startswith("울산광역시") else compact
+    compact = compact.replace("서울", "서울특별시", 1) if compact.startswith("서울") and not compact.startswith("서울특별시") else compact
+    try:
+        connection = sqlite3.connect(str(db_path))
+        connection.row_factory = sqlite3.Row
+        grid = connection.execute(
+            """
+            SELECT nx, ny FROM legal_weather_grid_map
+            WHERE ? LIKE legal_compact_name || '%'
+            ORDER BY length(legal_compact_name) DESC LIMIT 1
+            """,
+            (compact,),
+        ).fetchone()
+        if not grid:
+            return []
+        target_nx = int(grid["nx"])
+        target_ny = int(grid["ny"])
+        rows = connection.execute(
+            """
+            SELECT observed_hour, weather, temperature_c
+            FROM weather_hourly_snapshots
+            WHERE nx=? AND ny=?
+            ORDER BY observed_hour DESC LIMIT 24
+            """,
+            (target_nx, target_ny),
+        ).fetchall()
+        if not rows:
+            nearest = connection.execute(
+                """
+                SELECT nx, ny, COUNT(*) AS sample_count,
+                       ((nx - ?) * (nx - ?) + (ny - ?) * (ny - ?)) AS grid_distance
+                FROM weather_hourly_snapshots
+                GROUP BY nx, ny
+                HAVING COUNT(*) > 0
+                ORDER BY grid_distance ASC, sample_count DESC
+                LIMIT 1
+                """,
+                (target_nx, target_nx, target_ny, target_ny),
+            ).fetchone()
+            if nearest:
+                rows = connection.execute(
+                    """
+                    SELECT observed_hour, weather, temperature_c
+                    FROM weather_hourly_snapshots
+                    WHERE nx=? AND ny=?
+                    ORDER BY observed_hour DESC LIMIT 24
+                    """,
+                    (int(nearest["nx"]), int(nearest["ny"])),
+                ).fetchall()
+        selected_rows = [dict(row) for row in reversed(rows)]
+        if len(selected_rows) < 24:
+            history_db = Path("/home/bourne/StoryMaker_1/database/storymaker.db")
+            if history_db.exists():
+                history_connection = sqlite3.connect(str(history_db))
+                history_connection.row_factory = sqlite3.Row
+                try:
+                    candidate_regions = history_connection.execute(
+                        "SELECT region, COUNT(*) AS sample_count FROM weather_snapshots GROUP BY region"
+                    ).fetchall()
+                    nearest_region = ""
+                    nearest_key: tuple[int, int] | None = None
+                    for candidate in candidate_regions:
+                        candidate_name = str(candidate["region"] or "").strip()
+                        candidate_compact = re.sub(r"\s+", "", candidate_name)
+                        mapped = connection.execute(
+                            """
+                            SELECT nx, ny FROM legal_weather_grid_map
+                            WHERE ? LIKE legal_compact_name || '%'
+                            ORDER BY length(legal_compact_name) DESC LIMIT 1
+                            """,
+                            (candidate_compact,),
+                        ).fetchone()
+                        if not mapped:
+                            continue
+                        distance = (
+                            (int(mapped["nx"]) - target_nx) ** 2
+                            + (int(mapped["ny"]) - target_ny) ** 2
+                        )
+                        rank = (distance, -int(candidate["sample_count"] or 0))
+                        if nearest_key is None or rank < nearest_key:
+                            nearest_key = rank
+                            nearest_region = candidate_name
+                    if nearest_region:
+                        history_rows = history_connection.execute(
+                            """
+                            SELECT observed_at AS observed_hour, weather,
+                                   temperature AS temperature_c
+                            FROM weather_snapshots
+                            WHERE region=?
+                            ORDER BY observed_at DESC LIMIT 24
+                            """,
+                            (nearest_region,),
+                        ).fetchall()
+                        legacy_rows = [dict(row) for row in reversed(history_rows)]
+                        if len(legacy_rows) > len(selected_rows):
+                            selected_rows = legacy_rows
+                finally:
+                    history_connection.close()
+        return selected_rows
+    except sqlite3.Error:
+        return []
+    finally:
+        try:
+            connection.close()
+        except Exception:
+            pass
+
+
 def beta_write_json(path: Path, payload: dict[str, Any]) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -608,7 +740,9 @@ beta_init()
 async def beta_create_job(
     request: Request,
     business_name: str = Form(""), business_region: str = Form(""), business_region_alias: str = Form(""), business_service: str = Form(""),
-    business_industry_key: str = Form(""), business_phone: str = Form(""), topic: str = Form(""), images: list[UploadFile] = File(...),
+    business_industry_key: str = Form(""), business_phone: str = Form(""), business_keywords: str = Form("[]"),
+    business_default_tones: str = Form("[]"), business_persona_text: str = Form(""),
+    business_blog_content_length: int = Form(1500), topic: str = Form(""), images: list[UploadFile] = File(...),
     videos: list[UploadFile] | None = File(None),
 ) -> JSONResponse:
     if not images:
@@ -652,8 +786,13 @@ async def beta_create_job(
         "service": business_service.strip(),
         "industry_key": business_industry_key.strip(),
         "phone": normalize_korean_phone_number(business_phone),
+        "keywords": beta_parse_text_list(business_keywords),
+        "default_tones": beta_parse_text_list(business_default_tones),
+        "persona_text": str(business_persona_text or "").strip(),
+        "blog_content_length": max(300, min(int(business_blog_content_length or 1500), 5000)),
     }
     weather_snapshot = get_weather_snapshot(business_region.strip())
+    weather_snapshot["hourly_24"] = beta_weather_hourly_24(business_region.strip())
     content = beta_make_content(business, topic, len(saved_images))
     content_region = str(business.get("region_alias") or business.get("region") or "").strip()
     content["title"] = clean_beta_title(content.get("title"), f"{content_region} {topic.strip()}")
@@ -866,6 +1005,10 @@ def beta_v1_profile(request: Request) -> JSONResponse:
         "industry_key": str(persona.get("industry_key") or "").strip(),
         "service": BETA_INDUSTRY_LABELS.get(str(persona.get("industry_key") or "").strip(), "") or persona.get("industry_name") or persona.get("business_type") or persona.get("industry") or "",
         "phone": persona.get("phone") or persona.get("phone_number") or persona.get("tel") or "",
+        "keywords": persona.get("keywords") or persona.get("keywords_json") or [],
+        "default_tones": persona.get("default_tones") or persona.get("default_tones_json") or [],
+        "blog_content_length": int(persona.get("blog_content_length") or 1500),
+        "content": persona.get("content") or persona.get("persona_text") or "",
     }
     return JSONResponse({"ok": True, "authenticated": True, "profile": profile})
 

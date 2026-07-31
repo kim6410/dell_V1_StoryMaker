@@ -193,38 +193,61 @@
       const row = titleButton.closest('div.grid');
       if (!row || row.dataset.industryCompactLayout === '1') return;
       row.dataset.industryCompactLayout = '1';
-      row.style.gridTemplateColumns = '52px minmax(150px,1.2fr) minmax(125px,.9fr) 72px 226px';
-      row.style.columnGap = '0.35rem';
-      row.style.paddingLeft = '0.55rem';
-      row.style.paddingRight = '0.55rem';
+      row.style.gridTemplateColumns = '44px minmax(125px,205px) minmax(100px,165px) 64px 260px';
+      row.style.columnGap = '0.2rem';
+      row.style.justifyContent = 'start';
+      row.style.paddingLeft = '0.35rem';
+      row.style.paddingRight = '0.35rem';
 
       const cells = Array.from(row.children);
       const managementCell = cells[4];
       if (!managementCell) return;
       managementCell.style.display = 'grid';
-      managementCell.style.gridTemplateColumns = '36px 36px 42px 76px';
-      managementCell.style.gap = '0.25rem';
-      managementCell.style.alignItems = 'center';
-      managementCell.style.justifyContent = 'center';
+      managementCell.style.setProperty('grid-template-columns', 'max-content max-content max-content max-content', 'important');
+      managementCell.style.setProperty('gap', '0.3rem', 'important');
+      managementCell.style.setProperty('align-items', 'center', 'important');
+      managementCell.style.setProperty('justify-content', 'end', 'important');
+      managementCell.style.setProperty('white-space', 'nowrap', 'important');
 
       Array.from(managementCell.querySelectorAll('button')).forEach((button) => {
-        button.style.width = '100%';
-        button.style.minWidth = '0';
-        button.style.height = '2rem';
-        button.style.padding = '0.25rem 0.2rem';
-        button.style.fontSize = '0.75rem';
-        button.style.lineHeight = '1';
-        button.style.whiteSpace = 'nowrap';
+        button.classList.remove(
+          'w-8',
+          'w-9',
+          'w-10',
+          'min-w-0',
+          'break-all',
+          'break-words',
+          'whitespace-normal'
+        );
+        button.style.setProperty('display', 'inline-flex', 'important');
+        button.style.setProperty('align-items', 'center', 'important');
+        button.style.setProperty('justify-content', 'center', 'important');
+        button.style.setProperty('width', 'max-content', 'important');
+        button.style.setProperty('min-width', 'max-content', 'important');
+        button.style.setProperty('height', '2.25rem', 'important');
+        button.style.setProperty('padding', '0 0.65rem', 'important');
+        button.style.setProperty('font-size', '0.78rem', 'important');
+        button.style.setProperty('line-height', '1', 'important');
+        button.style.setProperty('white-space', 'nowrap', 'important');
+        button.style.setProperty('word-break', 'keep-all', 'important');
+        button.style.setProperty('overflow-wrap', 'normal', 'important');
+        button.style.setProperty('flex-shrink', '0', 'important');
+        Array.from(button.querySelectorAll('*')).forEach((element) => {
+          element.style.setProperty('white-space', 'nowrap', 'important');
+          element.style.setProperty('word-break', 'keep-all', 'important');
+          element.style.setProperty('overflow-wrap', 'normal', 'important');
+        });
       });
     });
 
     document.querySelectorAll('div.grid').forEach((grid) => {
       const text = String(grid.textContent || '').replace(/\s+/g, ' ').trim();
       if (!text.startsWith('순서 업종명 업종 키 상태 관리')) return;
-      grid.style.gridTemplateColumns = '52px minmax(150px,1.2fr) minmax(125px,.9fr) 72px 226px';
-      grid.style.columnGap = '0.35rem';
-      grid.style.paddingLeft = '0.55rem';
-      grid.style.paddingRight = '0.55rem';
+      grid.style.gridTemplateColumns = '44px minmax(125px,205px) minmax(100px,165px) 64px 260px';
+      grid.style.columnGap = '0.2rem';
+      grid.style.justifyContent = 'start';
+      grid.style.paddingLeft = '0.35rem';
+      grid.style.paddingRight = '0.35rem';
     });
 
     document.querySelectorAll('div.min-w-\[760px\]').forEach((table) => {

@@ -7,7 +7,7 @@
 ## StoryMaker 생성 환경
 - 업체명: {{company}}
 - 글쓰기 스타일: 현장감 있는 네이버 블로그
-- 블로그 본문 목표 길이: 약 1500자
+- 블로그 본문 목표 길이: 약 {{blog_content_length}}자
 - 행정 지역명: {{official_region}}
 - 콘텐츠용 지역명: {{region}}
 - 주요 서비스: {{service}}
@@ -48,7 +48,7 @@
 - 출력은 하나의 코드블록 안에만 작성합니다.
 - 코드블록 밖 설명, 사과, 누락 고백, 상태 문구는 금지합니다.
 - 아래 BLOCK 이름과 순서를 그대로 지키고, 각 블록에는 실제 완성 콘텐츠만 작성합니다.
-- [BLOCK:BLOG_POST] 본문은 약 1500자 분량으로 작성합니다.
+- [BLOCK:BLOG_POST] 본문은 약 {{blog_content_length}}자 분량으로 작성합니다.
 - BLOG_POST 다음에는 NAVER_PLACE_NEWS, GOOGLE_BUSINESS_POST를 바로 이어서 작성합니다.
 - INSTAGRAM_POST 다음에는 INSTAGRAM_HASHTAGS, CAROUSEL_7, PODCAST_50, PODCAST_80을 이어서 작성합니다.
 
@@ -220,7 +220,11 @@ CAROUSEL_7
 ### 기초내용 입력
 {{source_text}}
 
-## 핵심 키워드
-- {{region}}
-- {{service}}
-- {{company}}
+## 사용자 핵심 키워드
+{{keywords}}
+
+## 사용자 기본 감성 톤
+{{default_tones}}
+
+## 사용자 상세 페르소나
+{{persona_text}}

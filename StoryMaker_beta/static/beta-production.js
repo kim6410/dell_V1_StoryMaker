@@ -52,6 +52,7 @@
   };
 
   let betaCurrentJobId = sessionStorage.getItem('storymaker_beta_current_job') || '';
+  let betaSelectedBusinessProfile = null;
   let betaPromptAnimation = null;
   let betaAiCompletionState = false;
   let betaGeminiWatchTimer = null;
@@ -476,6 +477,15 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
 
   async function betaCreateJob(event) {
     event.preventDefault();
+    const topicText = String(betaUi.topic?.value || '').trim();
+    if (topicText.length <= 20) {
+      const warningMessage = `기초 콘텐츠가 ${topicText.length}자입니다. 내용을 20자보다 길게 작성해 주세요.`;
+      betaSetStatus(warningMessage, 0);
+      window.alert(warningMessage);
+      betaUi.topic?.focus({ preventScroll: true });
+      betaUi.topic?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     if (!betaUi.images.files.length) {
       betaSetStatus('이미지를 한 장 이상 선택하세요.');
       return;
@@ -492,6 +502,10 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
     body.append('business_service', betaUi.businessService.value.trim());
     body.append('business_industry_key', betaUi.businessIndustryKey?.value.trim() || '');
     body.append('business_phone', betaUi.businessPhone.value.trim());
+    body.append('business_keywords', JSON.stringify(betaSelectedBusinessProfile?.keywords || []));
+    body.append('business_default_tones', JSON.stringify(betaSelectedBusinessProfile?.default_tones || []));
+    body.append('business_persona_text', String(betaSelectedBusinessProfile?.content || '').trim());
+    body.append('business_blog_content_length', String(betaSelectedBusinessProfile?.blog_content_length || 1500));
     body.append('topic', betaUi.topic.value.trim());
     for (const file of betaUi.images.files) body.append('images', file);
     for (const file of selectedVideos) body.append('videos', file);
@@ -798,6 +812,7 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
 
   function applyV1BusinessProfile(profile, { force = false } = {}) {
     if (!profile) return;
+    betaSelectedBusinessProfile = profile;
     const pairs = [
       [betaUi.businessName, profile.name],
       [betaUi.businessRegion, profile.region],
