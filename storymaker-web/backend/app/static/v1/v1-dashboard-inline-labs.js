@@ -101,11 +101,11 @@
       #${HOST_ID} .v1-inline-switch.active{border-color:#67e8f9;background:rgba(8,145,178,.22);color:#fff}
       #${HOST_ID} .v1-inline-frame-wrap{display:none;width:100%;min-width:0;background:#020617}
       #${HOST_ID} .v1-inline-frame-wrap.active{display:block}
-      #${HOST_ID} iframe{display:block;width:100%;height:calc(100vh - 190px);min-height:720px;border:0;background:#020617}
+      #${HOST_ID} iframe{display:block;width:100%;height:calc(130vh - 247px);min-height:936px;border:0;background:#020617}
       @media(max-width:900px){
         #${HOST_ID} .v1-inline-toolbar{align-items:flex-start;flex-direction:column}
         #${HOST_ID} .v1-inline-actions{width:100%;flex-wrap:wrap}
-        #${HOST_ID} iframe{height:calc(100vh - 145px);min-height:640px}
+        #${HOST_ID} iframe{height:calc(130vh - 189px);min-height:832px}
       }
     `;
     document.head.appendChild(style);
