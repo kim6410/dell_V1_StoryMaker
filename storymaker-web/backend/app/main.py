@@ -44,6 +44,7 @@ KST = ZoneInfo("Asia/Seoul")
 
 from app.api.podcast import router as podcast_router
 from app.api.slideshow import router as slideshow_router
+from app.api.voicebox import router as voicebox_router
 try:
     from nemotron_lab.backend.router import router as nemotron_lab_router
 except Exception as nemotron_lab_import_error:
@@ -192,6 +193,7 @@ app.include_router(content_board_router, prefix="/api", tags=["V2 Content Board"
 app.include_router(local_exports_router, prefix="/api", tags=["Local Exports"])
 app.include_router(podcast_router, prefix="/api", tags=["Podcast"])
 app.include_router(slideshow_router, prefix="/api", tags=["Slideshow"])
+app.include_router(voicebox_router, prefix="/api", tags=["VoiceBox Studio"])
 if nemotron_lab_router is not None:
     app.include_router(nemotron_lab_router, prefix="/api", tags=["Nemotron Lab"])
 

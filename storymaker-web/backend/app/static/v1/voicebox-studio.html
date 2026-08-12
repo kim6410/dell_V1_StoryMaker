@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="google" content="notranslate" />
+  <title>VoiceBox Studio | StoryMaker V1</title>
+  <link rel="stylesheet" href="/static/v1/voicebox-studio.css?v=20260812-chunk-generate-1" />
+</head>
+<body>
+  <div id="voicebox-auth-gate" class="auth-gate" hidden>
+    <div class="auth-card">
+      <div class="auth-logo">VB</div>
+      <h1>VoiceBox Studio</h1>
+      <p id="voicebox-auth-message">관리자 권한을 확인하고 있습니다.</p>
+    </div>
+  </div>
+
+  <main id="voicebox-app" class="app-shell">
+    <header class="topbar">
+      <div class="brand-group">
+        <button id="back-to-v1" class="ghost-button" type="button">V1 대시보드</button>
+        <div>
+          <p class="eyebrow">STORYMAKER ADMIN LAB</p>
+          <h1>VoiceBox Studio</h1>
+          <p class="subtitle">긴 원고를 약 30초 단위로 나누고, 청크별 음성을 검수한 뒤 하나의 음성과 SRT로 합치는 관리자 제작실</p>
+        </div>
+      </div>
+      <div class="engine-panel">
+        <span class="status-dot waiting"></span>
+        <div>
+          <strong id="engine-status">Voicebox 엔진 연결 대기</strong>
+          <small>localhost:17493 · 설치 완료 후 자동 연결</small>
+        </div>
+      </div>
+    </header>
+
+    <section class="welcome-strip" aria-label="VoiceBox 작업 순서">
+      <div class="welcome-copy">
+        <span class="welcome-badge">처음 사용해도 4단계면 끝</span>
+        <strong>대본을 넣고 → 30초로 나누고 → 마음에 드는 목소리만 고르고 → 한 번에 합치세요.</strong>
+        <p>한 청크가 마음에 안 들면 그 부분만 다시 만들 수 있습니다. 전체를 처음부터 다시 만들 필요가 없습니다.</p>
+      </div>
+      <div class="step-flow">
+        <div class="step-item active"><span>1</span><b>대본 입력</b><small>전체 원고 붙여넣기</small></div>
+        <div class="step-arrow">→</div>
+        <div class="step-item"><span>2</span><b>자동 분할</b><small>약 30초씩 나누기</small></div>
+        <div class="step-arrow">→</div>
+        <div class="step-item"><span>3</span><b>듣고 선택</b><small>청크별 재생성</small></div>
+        <div class="step-arrow">→</div>
+        <div class="step-item"><span>4</span><b>최종 합치기</b><small>음성 + SRT 출력</small></div>
+      </div>
+    </section>
+
+    <section class="project-bar">
+      <label class="project-name-field">
+        <span>프로젝트명</span>
+        <input id="project-name" type="text" value="새 VoiceBox 프로젝트" maxlength="80" />
+      </label>
+      <div class="quick-tip"><strong>추천</strong><span>처음에는 30초 · 무음 0.3초 설정이 가장 무난합니다.</span></div>
+    </section>
+
+    <section class="toolbar">
+      <label class="control-field profile-field">
+        <span>Voice 프로필</span>
+        <select id="voice-profile">
+          <option value="">엔진 연결 후 프로필 선택</option>
+        </select>
+      </label>
+      <label class="control-field">
+        <span>TTS 엔진</span>
+        <select id="voice-engine">
+          <option value="qwen_custom_voice" selected>Qwen CustomVoice · 한국어 Sohee</option>
+          <option value="qwen">Qwen3-TTS · 음성복제</option>
+          <option value="chatterbox">Chatterbox</option>
+          <option value="luxtts">LuxTTS</option>
+          <option value="kokoro">Kokoro</option>
+        </select>
+      </label>
+      <label class="control-field">
+        <span>모델</span>
+        <select id="voice-model-size">
+          <option value="0.6B" selected>0.6B · GTX1060 우선</option>
+          <option value="1.7B">1.7B · 고품질</option>
+        </select>
+      </label>
+      <label class="control-field">
+        <span>목표 청크</span>
+        <select id="chunk-seconds">
+          <option value="20">약 20초</option>
+          <option value="30" selected>약 30초</option>
+          <option value="40">약 40초</option>
+        </select>
+      </label>
+      <label class="control-field">
+        <span>청크 간 무음</span>
+        <select id="silence-ms">
+          <option value="100">0.1초</option>
+          <option value="300" selected>0.3초</option>
+          <option value="500">0.5초</option>
+          <option value="800">0.8초</option>
+        </select>
+      </label>
+      <button id="play-all" class="secondary-button" type="button" disabled>전체 연속 재생</button>
+      <button id="export-all" class="primary-button" type="button" disabled>최종 음성 + SRT 합치기</button>
+    </section>
+
+    <section class="workspace-grid">
+      <article class="script-panel panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">SCRIPT</p>
+            <h2>전체 대본</h2>
+          </div>
+          <span id="script-counter" class="counter">0자</span>
+        </div>
+        <textarea id="full-script" spellcheck="false" placeholder="여기에 긴 나레이션 대본을 붙여 넣으세요.\n\n예) 오늘은 현장에서 실제로 자주 발생하는 하수구 막힘 원인과 해결 과정을 설명드리겠습니다. 먼저 고객님이 처음 불편을 느낀 지점부터 확인하고..."></textarea>
+        <div class="script-actions">
+          <button id="load-demo" class="ghost-button" type="button">예시 대본</button>
+          <button id="clear-script" class="ghost-button" type="button">비우기</button>
+          <button id="split-script" class="primary-button" type="button">30초 기준 자동 분할</button>
+        </div>
+        <div class="helper-card">
+          <strong>Smart Chunker 기본 규칙</strong>
+          <p>마침표, 물음표, 느낌표, 줄바꿈을 우선 경계로 사용합니다. 목표 시간에 가까운 문장 끝을 선택하고 너무 짧거나 긴 청크는 이웃 문장과 자동 조정합니다.</p>
+        </div>
+      </article>
+
+      <article class="chunks-panel panel">
+        <div class="panel-heading sticky-heading">
+          <div>
+            <p class="eyebrow">CHUNK REVIEW</p>
+            <h2>청크별 음성 검수</h2>
+          </div>
+          <span id="chunk-summary" class="counter">0개</span>
+        </div>
+        <div id="empty-state" class="empty-state">
+          <div class="empty-icon">30s</div>
+          <h3>대본을 자동 분할해 주세요.</h3>
+          <p>분할 후 각 청크를 독립적으로 수정하고, 생성·재생성·버전 선택을 할 수 있는 카드가 만들어집니다.</p>
+        </div>
+        <div id="chunk-list" class="chunk-list"></div>
+      </article>
+    </section>
+
+    <footer class="footer-note">
+      <strong>현재 화면은 1차 관리자 껍데기입니다.</strong>
+      <span>대본 분할과 카드 편집은 동작하며, 실제 Voicebox 생성·오디오 버전·최종 WAV/MP3/SRT 출력은 Backend 연결 단계에서 활성화됩니다.</span>
+    </footer>
+  </main>
+
+  <script src="/static/v1/voicebox-studio.js?v=20260812-chunk-generate-1"></script>
+</body>
+</html>
