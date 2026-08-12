@@ -70,6 +70,11 @@
       title: '네모트론 연구실',
       subtitle: '대화 · 번역 · 프롬프트 실험',
       url: '/static/v1/nemotron-lab/index.html?inline_lab_frame=1'
+    },
+    voicebox: {
+      title: 'VoiceBox Studio',
+      subtitle: '내 목소리 · 30초 청크 · 생성/재생성 · 최종 음성 제작',
+      url: '/static/v1/voicebox-studio.html?from=v1-admin&inline_lab_frame=1'
     }
   };
 
@@ -232,6 +237,7 @@
           <div class="v1-inline-actions">
             <button type="button" class="v1-inline-switch" data-switch-lab="experience">AI 연구실</button>
             <button type="button" class="v1-inline-switch" data-switch-lab="nemotron">네모트론 연구실</button>
+            <button type="button" class="v1-inline-switch" data-switch-lab="voicebox">VoiceBox</button>
             <button type="button" class="v1-inline-close">대시보드로 돌아가기</button>
           </div>
         </div>
@@ -240,6 +246,9 @@
         </div>
         <div class="v1-inline-frame-wrap" data-lab-frame="nemotron">
           <iframe title="StoryMaker V1 네모트론 연구실" loading="eager" allow="clipboard-read; clipboard-write; microphone; autoplay"></iframe>
+        </div>
+        <div class="v1-inline-frame-wrap" data-lab-frame="voicebox">
+          <iframe title="StoryMaker V1 VoiceBox Studio" loading="eager" allow="clipboard-read; clipboard-write; microphone; autoplay"></iframe>
         </div>
       </div>
     `;
@@ -351,8 +360,22 @@
     } catch (_) {}
   }
 
+  function cleanVoiceboxFrame(frame) {
+    try {
+      const doc = frame.contentDocument;
+      if (!doc) return;
+      doc.getElementById('back-to-v1')?.style.setProperty('display', 'none', 'important');
+      doc.documentElement.style.background = '#020617';
+      doc.body.style.margin = '0';
+    } catch (_) {}
+  }
+
   function prepareFrame(type, frame) {
-    const clean = type === 'experience' ? cleanExperienceFrame : cleanNemotronFrame;
+    const clean = type === 'experience'
+      ? cleanExperienceFrame
+      : type === 'nemotron'
+        ? cleanNemotronFrame
+        : cleanVoiceboxFrame;
     frame.onload = () => {
       clean(frame);
       setTimeout(() => clean(frame), 350);
@@ -430,6 +453,13 @@
 
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && activeType) closeLabs();
+  });
+
+  window.addEventListener('storymaker-open-inline-lab', event => {
+    const type = event?.detail?.type;
+    const trigger = event?.detail?.trigger || document.getElementById('v1-admin-voicebox-entry') || document.body;
+    if (!LABS[type]) return;
+    openLab(type, trigger);
   });
 
   function startObserver() {

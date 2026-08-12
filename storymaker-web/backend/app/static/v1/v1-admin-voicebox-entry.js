@@ -76,7 +76,9 @@
       try {
         window.sessionStorage.setItem('storymaker_voicebox_admin_entry', String(Date.now()));
       } catch (_) {}
-      window.location.href = `${TARGET_URL}?from=v1-admin&v=20260812-2242`;
+      window.dispatchEvent(new CustomEvent('storymaker-open-inline-lab', {
+        detail: { type: 'voicebox', trigger: button },
+      }));
     });
     document.body.appendChild(button);
     return button;

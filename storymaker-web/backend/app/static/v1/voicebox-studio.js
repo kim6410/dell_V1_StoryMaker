@@ -17,9 +17,29 @@
   const statusDot = document.querySelector('.status-dot');
   const exportAll = document.getElementById('export-all');
   const playAll = document.getElementById('play-all');
+  const generateAll = document.getElementById('generate-all');
+  const generateAllBottom = document.getElementById('generate-all-bottom');
+  const mergeAndSave = document.getElementById('merge-and-save');
+  const batchStatusLabel = document.getElementById('batch-status-label');
+  const batchStatusCount = document.getElementById('batch-status-count');
+  const batchProgressBar = document.getElementById('batch-progress-bar');
+  const batchProgressTrack = document.querySelector('.batch-progress-track');
+  const finalizeReadyText = document.getElementById('finalize-ready-text');
+  const projectName = document.getElementById('project-name');
+  const silenceMs = document.getElementById('silence-ms');
+  const voiceCloneModal = document.getElementById('voice-clone-modal');
+  const voiceCloneForm = document.getElementById('voice-clone-form');
+  const cloneSubmit = document.getElementById('clone-submit');
+  const cloneFormMessage = document.getElementById('clone-form-message');
+  const cloneUploadProgress = document.getElementById('clone-upload-progress');
+  const cloneUploadLabel = document.getElementById('clone-upload-label');
+  const cloneUploadPercent = document.getElementById('clone-upload-percent');
+  const cloneUploadBar = document.getElementById('clone-upload-bar');
 
   let chunks = [];
   let engineOnline = false;
+  let batchGenerating = false;
+  let batchStoppedByError = false;
 
   // Studio 껍데기는 인증 응답과 무관하게 즉시 표시한다.
   // 실제 생성/저장 API는 서버의 관리자 권한 검사에서 다시 보호한다.
@@ -132,10 +152,116 @@
       voiceProfile.innerHTML = profiles.map((profile, index) => {
         const id = escapeHtml(profile.id || '');
         const name = escapeHtml(profile.name || `Voice ${index + 1}`);
-        return `<option value="${id}">${name}</option>`;
+        const defaultEngine = escapeHtml(profile.default_engine || profile.preset_engine || 'qwen');
+        return `<option value="${id}" data-engine="${defaultEngine}">${name}</option>`;
       }).join('');
+      const selectedOption = voiceProfile.selectedOptions?.[0];
+      if (selectedOption?.dataset.engine && [...voiceEngine.options].some(option => option.value === selectedOption.dataset.engine)) {
+        voiceEngine.value = selectedOption.dataset.engine;
+      }
     } catch (_) {
       voiceProfile.innerHTML = '<option value="">엔진 연결 후 프로필 선택</option>';
+    }
+  }
+
+  function openVoiceCloneModal() {
+    if (!voiceCloneModal) return;
+    voiceCloneModal.hidden = false;
+    document.body.classList.add('modal-open');
+    cloneFormMessage.textContent = '';
+    cloneUploadProgress.hidden = true;
+    cloneUploadBar.style.width = '0%';
+    cloneUploadPercent.textContent = '0%';
+    window.setTimeout(() => document.getElementById('clone-profile-name')?.focus(), 30);
+  }
+
+  function closeVoiceCloneModal() {
+    if (!voiceCloneModal || cloneSubmit?.disabled) return;
+    voiceCloneModal.hidden = true;
+    document.body.classList.remove('modal-open');
+  }
+
+  function submitCloneProfileWithProgress(formData) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/v1-api/voicebox/profiles/clone');
+      xhr.withCredentials = true;
+      const authHeaders = getAuthHeaders();
+      if (authHeaders.Authorization) xhr.setRequestHeader('Authorization', authHeaders.Authorization);
+
+      xhr.upload.addEventListener('progress', event => {
+        cloneUploadProgress.hidden = false;
+        if (!event.lengthComputable) {
+          cloneUploadLabel.textContent = '목소리 샘플을 서버로 전송하고 있습니다.';
+          cloneUploadPercent.textContent = '전송 중';
+          return;
+        }
+        const percent = Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)));
+        cloneUploadLabel.textContent = percent < 100 ? '목소리 샘플을 서버로 전송하고 있습니다.' : 'VoiceBox가 음성 프로필을 만들고 있습니다.';
+        cloneUploadPercent.textContent = `${percent}%`;
+        cloneUploadBar.style.width = `${percent}%`;
+      });
+
+      xhr.addEventListener('load', () => {
+        let payload = {};
+        try { payload = JSON.parse(xhr.responseText || '{}'); } catch (_) {}
+        if (xhr.status >= 200 && xhr.status < 300) resolve(payload);
+        else reject(new Error(payload.detail || `목소리 등록 실패 (${xhr.status})`));
+      });
+      xhr.addEventListener('error', () => reject(new Error('목소리 샘플 전송 중 네트워크 오류가 발생했습니다.')));
+      xhr.addEventListener('timeout', () => reject(new Error('목소리 등록 시간이 초과되었습니다.')));
+      xhr.timeout = 90000;
+      xhr.send(formData);
+    });
+  }
+
+  async function handleVoiceCloneSubmit(event) {
+    event.preventDefault();
+    if (!voiceCloneForm || !cloneSubmit) return;
+    const fileInput = document.getElementById('clone-audio-file');
+    const file = fileInput?.files?.[0];
+    if (!file) {
+      cloneFormMessage.textContent = '먼저 음성 샘플 파일을 선택해 주세요.';
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      cloneFormMessage.textContent = '음성 샘플은 50MB 이하 파일만 등록할 수 있습니다.';
+      return;
+    }
+
+    cloneSubmit.disabled = true;
+    cloneSubmit.textContent = '등록 중...';
+    cloneFormMessage.textContent = '';
+    cloneUploadProgress.hidden = false;
+    cloneUploadLabel.textContent = '목소리 샘플을 준비하고 있습니다.';
+    cloneUploadPercent.textContent = '0%';
+    cloneUploadBar.style.width = '0%';
+
+    try {
+      const formData = new FormData(voiceCloneForm);
+      const payload = await submitCloneProfileWithProgress(formData);
+      const createdProfile = payload.profile || null;
+      cloneUploadBar.style.width = '100%';
+      cloneUploadPercent.textContent = '100%';
+      cloneUploadLabel.textContent = '내 목소리 프로필 등록 완료';
+      cloneFormMessage.textContent = '등록이 완료됐습니다. 지금 바로 이 목소리로 청크를 생성할 수 있습니다.';
+      await loadVoiceProfiles();
+      if (createdProfile?.id) voiceProfile.value = createdProfile.id;
+      const selectedOption = voiceProfile.selectedOptions?.[0];
+      if (selectedOption?.dataset.engine && [...voiceEngine.options].some(option => option.value === selectedOption.dataset.engine)) {
+        voiceEngine.value = selectedOption.dataset.engine;
+      }
+      window.setTimeout(() => {
+        voiceCloneForm.reset();
+        voiceCloneModal.hidden = true;
+        document.body.classList.remove('modal-open');
+      }, 900);
+    } catch (error) {
+      cloneFormMessage.textContent = error instanceof Error ? error.message : '목소리 등록 중 오류가 발생했습니다.';
+      cloneUploadLabel.textContent = '등록 실패';
+    } finally {
+      cloneSubmit.disabled = false;
+      cloneSubmit.textContent = '내 목소리 등록';
     }
   }
 
@@ -217,6 +343,14 @@
       versions: [],
       selectedVersion: null,
       error: '',
+      progress: {
+        phase: 'idle',
+        label: '대기',
+        startedAt: 0,
+        bytesReceived: 0,
+        totalBytes: 0,
+        percent: null,
+      },
     };
   }
 
@@ -236,49 +370,146 @@
     });
   }
 
+  function sleep(ms) {
+    return new Promise(resolve => window.setTimeout(resolve, ms));
+  }
+
+  function setChunkProgress(chunk, phase, label, options = {}) {
+    chunk.progress = {
+      ...(chunk.progress || {}),
+      phase,
+      label,
+      startedAt: chunk.progress?.startedAt || Date.now(),
+      bytesReceived: options.bytesReceived ?? chunk.progress?.bytesReceived ?? 0,
+      totalBytes: options.totalBytes ?? chunk.progress?.totalBytes ?? 0,
+      percent: Number.isFinite(options.percent) ? options.percent : null,
+    };
+    renderChunks();
+  }
+
   async function generateChunkAudio(index, regenerate = false) {
     const chunk = chunks[index];
-    if (!chunk) return;
+    if (!chunk) return false;
     if (!engineOnline) {
       window.alert('Voicebox 엔진이 아직 연결되지 않았습니다. 엔진이 온라인이 되면 이 버튼에서 바로 음성이 생성됩니다.');
-      return;
+      return false;
     }
     if (!voiceProfile.value) {
       window.alert('먼저 상단에서 Voice 프로필을 선택해 주세요.');
       voiceProfile.focus();
-      return;
+      return false;
     }
 
     chunk.status = 'PROCESSING';
     chunk.error = '';
+    chunk.progress = {
+      phase: 'starting',
+      label: regenerate ? '재생성 작업을 준비하고 있습니다.' : '음성 생성 작업을 준비하고 있습니다.',
+      startedAt: Date.now(),
+      bytesReceived: 0,
+      totalBytes: 0,
+      percent: null,
+    };
     renderChunks();
 
     try {
       const headers = getAuthHeaders();
       headers['Content-Type'] = 'application/json';
-      const response = await fetch('/v1-api/voicebox/generate/chunk', {
+      const requestBody = {
+        profile_id: voiceProfile.value,
+        text: chunk.text,
+        language: 'ko',
+        engine: voiceEngine.value,
+        model_size: voiceModelSize.value || null,
+        normalize: true,
+        max_chunk_chars: 800,
+        crossfade_ms: 50,
+      };
+
+      const startResponse = await fetch('/v1-api/voicebox/generate/start', {
         method: 'POST',
         credentials: 'include',
         cache: 'no-store',
         headers,
-        body: JSON.stringify({
-          profile_id: voiceProfile.value,
-          text: chunk.text,
-          language: 'ko',
-          engine: voiceEngine.value,
-          model_size: voiceModelSize.value || null,
-          normalize: true,
-          max_chunk_chars: 800,
-          crossfade_ms: 50,
-        }),
+        body: JSON.stringify(requestBody),
       });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail || `음성 생성 실패 (${response.status})`);
+      const startPayload = await startResponse.json().catch(() => ({}));
+      if (!startResponse.ok || !startPayload.generation_id) {
+        throw new Error(startPayload.detail || `음성 생성 시작 실패 (${startResponse.status})`);
       }
 
-      const blob = await response.blob();
+      const generationId = startPayload.generation_id;
+      setChunkProgress(chunk, 'generating', 'VoiceBox가 나레이션을 생성하고 있습니다.');
+
+      let finalStatus = null;
+      const deadline = Date.now() + 180000;
+      while (Date.now() < deadline) {
+        await sleep(700);
+        const statusResponse = await fetch(`/v1-api/voicebox/generate/${encodeURIComponent(generationId)}/status`, {
+          credentials: 'include',
+          cache: 'no-store',
+          headers: getAuthHeaders(),
+        });
+        const statusPayload = await statusResponse.json().catch(() => ({}));
+        if (!statusResponse.ok) {
+          throw new Error(statusPayload.detail || `생성 상태 확인 실패 (${statusResponse.status})`);
+        }
+
+        finalStatus = statusPayload;
+        if (statusPayload.status === 'loading_model') {
+          setChunkProgress(chunk, 'loading_model', '음성 모델을 GPU에 준비하고 있습니다.');
+        } else if (statusPayload.status === 'generating') {
+          setChunkProgress(chunk, 'generating', 'VoiceBox가 나레이션을 생성하고 있습니다.');
+        } else if (statusPayload.status === 'completed') {
+          break;
+        } else if (statusPayload.status === 'failed') {
+          throw new Error(statusPayload.error || 'VoiceBox 음성 생성에 실패했습니다.');
+        }
+      }
+
+      if (!finalStatus || finalStatus.status !== 'completed') {
+        throw new Error('VoiceBox 음성 생성 시간이 초과되었습니다.');
+      }
+
+      setChunkProgress(chunk, 'receiving', '완성된 오디오를 브라우저로 전송하고 있습니다.', { percent: 0 });
+      const audioResponse = await fetch(`/v1-api/voicebox/generate/${encodeURIComponent(generationId)}/audio`, {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: getAuthHeaders(),
+      });
+      if (!audioResponse.ok) {
+        const payload = await audioResponse.json().catch(() => ({}));
+        throw new Error(payload.detail || `오디오 수신 실패 (${audioResponse.status})`);
+      }
+
+      const totalBytes = Number(audioResponse.headers.get('content-length') || 0);
+      let blob;
+      if (audioResponse.body && typeof audioResponse.body.getReader === 'function') {
+        const reader = audioResponse.body.getReader();
+        const parts = [];
+        let bytesReceived = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (!value) continue;
+          parts.push(value);
+          bytesReceived += value.byteLength;
+          const percent = totalBytes > 0 ? Math.min(100, Math.round((bytesReceived / totalBytes) * 100)) : null;
+          chunk.progress = {
+            ...(chunk.progress || {}),
+            phase: 'receiving',
+            label: '완성된 오디오를 브라우저로 전송하고 있습니다.',
+            bytesReceived,
+            totalBytes,
+            percent,
+          };
+          renderChunks();
+        }
+        blob = new Blob(parts, { type: audioResponse.headers.get('content-type') || 'audio/wav' });
+      } else {
+        blob = await audioResponse.blob();
+      }
+
       if (!blob.size) throw new Error('생성된 음성 파일이 비어 있습니다.');
       const url = URL.createObjectURL(blob);
       const durationSec = await audioDuration(url);
@@ -288,17 +519,240 @@
         url,
         blob,
         durationSec,
+        generationId,
         createdAt: new Date().toISOString(),
       };
       chunk.versions.push(version);
       chunk.selectedVersion = version.id;
       chunk.status = 'COMPLETED';
       chunk.error = '';
+      chunk.progress = {
+        phase: 'completed',
+        label: `생성 완료 · ${durationSec.toFixed(1)}초`,
+        startedAt: chunk.progress?.startedAt || Date.now(),
+        bytesReceived: blob.size,
+        totalBytes: blob.size,
+        percent: 100,
+      };
       renderChunks();
+      return true;
     } catch (error) {
       chunk.status = 'ERROR';
       chunk.error = error instanceof Error ? error.message : '음성 생성 중 오류가 발생했습니다.';
+      chunk.progress = {
+        ...(chunk.progress || {}),
+        phase: 'error',
+        label: chunk.error,
+        percent: null,
+      };
       renderChunks();
+      return false;
+    }
+  }
+
+  function selectedVersionForChunk(chunk) {
+    return chunk?.versions?.find(version => version.id === chunk.selectedVersion) || null;
+  }
+
+  function updateBatchUi(message = '') {
+    const total = chunks.length;
+    const completed = chunks.filter(chunk => Boolean(selectedVersionForChunk(chunk))).length;
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const allReady = total > 0 && completed === total;
+    const canGenerate = engineOnline && Boolean(voiceProfile?.value) && total > 0 && !batchGenerating && !allReady;
+
+    if (batchStatusCount) batchStatusCount.textContent = `${completed} / ${total}`;
+    if (batchProgressBar) batchProgressBar.style.width = `${percent}%`;
+    if (batchProgressTrack) batchProgressTrack.setAttribute('aria-valuenow', String(percent));
+
+    if (batchStatusLabel) {
+      if (message) batchStatusLabel.textContent = message;
+      else if (batchGenerating) batchStatusLabel.textContent = `전체 순차 생성 중 · ${completed}/${total} 완료`;
+      else if (batchStoppedByError) batchStatusLabel.textContent = `순차 생성이 오류 청크에서 중지되었습니다 · ${completed}/${total} 완료`;
+      else if (allReady) batchStatusLabel.textContent = `모든 청크 생성 완료 · ${total}개 준비됨`;
+      else if (total) batchStatusLabel.textContent = `순차 생성을 시작할 준비가 되었습니다 · ${completed}/${total} 완료`;
+      else batchStatusLabel.textContent = '대본을 분할하면 전체 순차 생성을 시작할 수 있습니다.';
+    }
+
+    if (finalizeReadyText) {
+      finalizeReadyText.textContent = allReady
+        ? `모든 청크가 준비됐습니다. ${Number(silenceMs?.value || 300) / 1000}초 간격으로 합쳐 자동 저장할 수 있습니다.`
+        : `모든 청크가 생성되면 최종 합치기 버튼이 활성화됩니다. 현재 ${completed}/${total} 완료.`;
+    }
+
+    if (generateAll) generateAll.disabled = !canGenerate;
+    if (generateAllBottom) generateAllBottom.disabled = !canGenerate;
+    if (mergeAndSave) mergeAndSave.disabled = !allReady || batchGenerating;
+    if (exportAll) exportAll.disabled = !allReady || batchGenerating;
+  }
+
+  async function generateAllSequentially() {
+    if (batchGenerating) return;
+    if (!chunks.length) {
+      window.alert('먼저 대본을 30초 청크로 분할해 주세요.');
+      return;
+    }
+    if (!engineOnline) {
+      window.alert('VoiceBox 엔진이 온라인인지 먼저 확인해 주세요.');
+      return;
+    }
+    if (!voiceProfile?.value) {
+      window.alert('먼저 사용할 Voice 프로필을 선택해 주세요.');
+      voiceProfile?.focus();
+      return;
+    }
+
+    batchGenerating = true;
+    batchStoppedByError = false;
+    updateBatchUi('전체 순차 생성을 시작합니다. 첫 번째 미완료 청크를 준비하고 있습니다.');
+
+    try {
+      for (let index = 0; index < chunks.length; index += 1) {
+        const chunk = chunks[index];
+        if (selectedVersionForChunk(chunk)) {
+          updateBatchUi(`Chunk #${index + 1}은 이미 완료되어 건너뜁니다.`);
+          continue;
+        }
+
+        updateBatchUi(`Chunk #${index + 1} 생성 중 · 완료되면 자동으로 다음 청크를 시작합니다.`);
+        const success = await generateChunkAudio(index, false);
+        if (!success || chunk.status !== 'COMPLETED' || !selectedVersionForChunk(chunk)) {
+          batchStoppedByError = true;
+          updateBatchUi(`Chunk #${index + 1} 생성 오류로 순차 작업을 중지했습니다. 해당 청크를 확인해 주세요.`);
+          break;
+        }
+        updateBatchUi(`Chunk #${index + 1} 완료 · 다음 청크 상태를 확인하고 있습니다.`);
+      }
+    } finally {
+      batchGenerating = false;
+      const allReady = chunks.length > 0 && chunks.every(chunk => Boolean(selectedVersionForChunk(chunk)));
+      if (allReady) {
+        batchStoppedByError = false;
+        updateBatchUi(`전체 ${chunks.length}개 청크 생성 완료 · 최종 WAV 합치기가 준비됐습니다.`);
+      } else if (!batchStoppedByError) {
+        updateBatchUi();
+      }
+      updateCounters();
+    }
+  }
+
+  function encodeMergedWav(channelData, sampleRate) {
+    const channels = channelData.length;
+    const frames = channelData[0]?.length || 0;
+    const bytesPerSample = 2;
+    const blockAlign = channels * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + frames * blockAlign);
+    const view = new DataView(buffer);
+    const writeText = (offset, text) => {
+      for (let i = 0; i < text.length; i += 1) view.setUint8(offset + i, text.charCodeAt(i));
+    };
+
+    writeText(0, 'RIFF');
+    view.setUint32(4, 36 + frames * blockAlign, true);
+    writeText(8, 'WAVE');
+    writeText(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, channels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    writeText(36, 'data');
+    view.setUint32(40, frames * blockAlign, true);
+
+    let offset = 44;
+    for (let frame = 0; frame < frames; frame += 1) {
+      for (let channel = 0; channel < channels; channel += 1) {
+        const sample = Math.max(-1, Math.min(1, channelData[channel][frame] || 0));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+        offset += 2;
+      }
+    }
+    return new Blob([buffer], { type: 'audio/wav' });
+  }
+
+  function safeFilename(value) {
+    return String(value || 'VoiceBox_나레이션')
+      .trim()
+      .replace(/[\\/:*?\"<>|]+/g, '_')
+      .replace(/\s+/g, '_')
+      .slice(0, 80) || 'VoiceBox_나레이션';
+  }
+
+  async function mergeSelectedChunksAndSave() {
+    if (batchGenerating) return;
+    const selectedVersions = chunks.map(selectedVersionForChunk);
+    if (!chunks.length || selectedVersions.some(version => !version?.blob)) {
+      window.alert('모든 청크의 최종 음성이 준비된 뒤 합칠 수 있습니다.');
+      return;
+    }
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      window.alert('이 브라우저에서는 WAV 병합 기능을 사용할 수 없습니다.');
+      return;
+    }
+
+    const buttonSet = [mergeAndSave, exportAll].filter(Boolean);
+    buttonSet.forEach(button => {
+      button.disabled = true;
+      button.dataset.originalText = button.textContent;
+      button.textContent = '최종 WAV 합치는 중...';
+    });
+    if (finalizeReadyText) finalizeReadyText.textContent = '각 청크를 PCM으로 변환하고 하나의 WAV로 합치고 있습니다.';
+
+    const context = new AudioContextClass({ sampleRate: 24000 });
+    try {
+      const decoded = [];
+      for (let index = 0; index < selectedVersions.length; index += 1) {
+        if (batchStatusLabel) batchStatusLabel.textContent = `최종 WAV 병합 중 · Chunk #${index + 1} 변환`;
+        const arrayBuffer = await selectedVersions[index].blob.arrayBuffer();
+        decoded.push(await context.decodeAudioData(arrayBuffer.slice(0)));
+      }
+
+      const sampleRate = context.sampleRate;
+      const channelCount = Math.max(1, ...decoded.map(buffer => buffer.numberOfChannels));
+      const gapFrames = Math.max(0, Math.round(sampleRate * (Number(silenceMs?.value || 300) / 1000)));
+      const totalFrames = decoded.reduce((sum, buffer) => sum + buffer.length, 0) + gapFrames * Math.max(0, decoded.length - 1);
+      const merged = Array.from({ length: channelCount }, () => new Float32Array(totalFrames));
+
+      let writeOffset = 0;
+      decoded.forEach((buffer, bufferIndex) => {
+        for (let channel = 0; channel < channelCount; channel += 1) {
+          const source = buffer.getChannelData(Math.min(channel, buffer.numberOfChannels - 1));
+          merged[channel].set(source, writeOffset);
+        }
+        writeOffset += buffer.length;
+        if (bufferIndex < decoded.length - 1) writeOffset += gapFrames;
+      });
+
+      const wavBlob = encodeMergedWav(merged, sampleRate);
+      const downloadUrl = URL.createObjectURL(wavBlob);
+      const anchor = document.createElement('a');
+      const filename = `${safeFilename(projectName?.value)}_최종나레이션.wav`;
+      anchor.href = downloadUrl;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 30000);
+
+      const totalSeconds = totalFrames / sampleRate;
+      if (batchStatusLabel) batchStatusLabel.textContent = `최종 WAV 저장 완료 · ${totalSeconds.toFixed(1)}초`;
+      if (finalizeReadyText) finalizeReadyText.textContent = `${filename} 파일을 자동 저장했습니다. 청크 ${chunks.length}개와 청크 간 ${Number(silenceMs?.value || 300) / 1000}초 무음을 합쳤습니다.`;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '최종 WAV 병합 중 오류가 발생했습니다.';
+      if (batchStatusLabel) batchStatusLabel.textContent = '최종 WAV 병합 실패';
+      if (finalizeReadyText) finalizeReadyText.textContent = message;
+      window.alert(message);
+    } finally {
+      await context.close().catch(() => {});
+      buttonSet.forEach(button => {
+        button.textContent = button.dataset.originalText || '최종 WAV 합치기·저장';
+        delete button.dataset.originalText;
+      });
+      updateCounters();
     }
   }
 
@@ -307,7 +761,7 @@
     chunkSummary.textContent = chunks.length ? `${chunks.length}개 청크` : '0개';
     emptyState.hidden = chunks.length > 0;
     playAll.disabled = !chunks.some(chunk => chunk.selectedVersion);
-    exportAll.disabled = !chunks.length || !chunks.every(chunk => chunk.selectedVersion);
+    updateBatchUi();
   }
 
   function waveBars(seed) {
@@ -337,6 +791,31 @@
             </button>`).join('')}</div>`
         : '';
       const errorMessage = chunk.error ? `<p class="chunk-error">${escapeHtml(chunk.error)}</p>` : '';
+      const progress = chunk.progress || {};
+      const elapsedSec = progress.startedAt ? Math.max(0, Math.round((Date.now() - progress.startedAt) / 1000)) : 0;
+      const hasPercent = Number.isFinite(progress.percent);
+      const receivedKb = progress.bytesReceived ? Math.round(progress.bytesReceived / 1024) : 0;
+      const totalKb = progress.totalBytes ? Math.round(progress.totalBytes / 1024) : 0;
+      const transferText = progress.phase === 'receiving'
+        ? `${receivedKb.toLocaleString('ko-KR')} KB${totalKb ? ` / ${totalKb.toLocaleString('ko-KR')} KB` : ''}`
+        : `${elapsedSec}초 경과`;
+      const progressHtml = chunk.status === 'PROCESSING' || progress.phase === 'completed'
+        ? `<div class="generation-progress ${escapeHtml(progress.phase || 'starting')}">
+            <div class="generation-progress-head">
+              <span class="generation-progress-label"><i></i>${escapeHtml(progress.label || '음성 생성 준비 중')}</span>
+              <span class="generation-progress-meta">${hasPercent ? `${Math.round(progress.percent)}% · ` : ''}${transferText}</span>
+            </div>
+            <div class="generation-progress-track ${hasPercent ? 'determinate' : 'indeterminate'}" role="progressbar" ${hasPercent ? `aria-valuenow="${Math.round(progress.percent)}" aria-valuemin="0" aria-valuemax="100"` : 'aria-label="음성 생성 진행 중"'}>
+              <span class="generation-progress-bar" style="${hasPercent ? `width:${Math.max(0, Math.min(100, progress.percent))}%` : ''}"></span>
+            </div>
+            <div class="generation-progress-steps">
+              <span class="${['generating','receiving','completed'].includes(progress.phase) ? 'done' : 'active'}">모델 준비</span>
+              <span class="${['receiving','completed'].includes(progress.phase) ? 'done' : progress.phase === 'generating' ? 'active' : ''}">음성 생성</span>
+              <span class="${progress.phase === 'completed' ? 'done' : progress.phase === 'receiving' ? 'active' : ''}">오디오 수신</span>
+              <span class="${progress.phase === 'completed' ? 'done active' : ''}">완료</span>
+            </div>
+          </div>`
+        : '';
       card.innerHTML = `
         <div class="chunk-card-header">
           <div class="chunk-title">
@@ -349,6 +828,7 @@
           <span class="chunk-status ${chunk.status.toLowerCase()}">${statusLabel}</span>
         </div>
         <textarea class="chunk-text" data-action="edit" ${chunk.status === 'PROCESSING' ? 'disabled' : ''}>${escapeHtml(chunk.text)}</textarea>
+        ${progressHtml}
         <div class="wave-placeholder ${selected ? 'ready' : ''}">${waveBars(index)}</div>
         ${versionButtons}
         ${errorMessage}
@@ -420,6 +900,14 @@
     chunk.versions = [];
     chunk.selectedVersion = null;
     chunk.error = '';
+    chunk.progress = {
+      phase: 'idle',
+      label: '대기',
+      startedAt: 0,
+      bytesReceived: 0,
+      totalBytes: 0,
+      percent: null,
+    };
     updateCounters();
     const meta = card.querySelector('.chunk-meta small');
     if (meta) meta.textContent = `예상 ${estimateSeconds(chunk.text)}초 · ${chunk.text.length}자 · 실제 생성 후 길이 재계산`;
@@ -464,9 +952,12 @@
     }
   });
 
-  exportAll.addEventListener('click', () => {
-    window.alert('모든 청크의 최종 버전이 선택되면 WAV/MP3와 SRT를 함께 생성하도록 연결할 예정입니다.');
-  });
+  generateAll?.addEventListener('click', generateAllSequentially);
+  generateAllBottom?.addEventListener('click', generateAllSequentially);
+  mergeAndSave?.addEventListener('click', mergeSelectedChunksAndSave);
+  exportAll?.addEventListener('click', mergeSelectedChunksAndSave);
+  silenceMs?.addEventListener('change', () => updateBatchUi());
+
   playAll.addEventListener('click', async () => {
     const queue = chunks
       .map(chunk => chunk.versions.find(version => version.id === chunk.selectedVersion))
@@ -487,6 +978,21 @@
       playAll.textContent = '전체 연속 재생';
       updateCounters();
     }
+  });
+
+  document.getElementById('open-voice-clone')?.addEventListener('click', openVoiceCloneModal);
+  document.querySelectorAll('[data-clone-close]').forEach(button => {
+    button.addEventListener('click', closeVoiceCloneModal);
+  });
+  voiceCloneForm?.addEventListener('submit', handleVoiceCloneSubmit);
+  voiceProfile?.addEventListener('change', () => {
+    const option = voiceProfile.selectedOptions?.[0];
+    const engine = option?.dataset.engine;
+    if (engine && [...voiceEngine.options].some(item => item.value === engine)) voiceEngine.value = engine;
+    updateBatchUi();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && voiceCloneModal && !voiceCloneModal.hidden) closeVoiceCloneModal();
   });
 
   Promise.resolve()
