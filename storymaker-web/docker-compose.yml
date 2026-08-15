@@ -29,6 +29,7 @@ services:
       - /home/bourne/StoryMaker_1/supertonic/music:/data/music:ro
     environment:
       - STORYMAKER_ENV=production
+      - STORYMAKER_VOICEBOX_URL=http://100.117.206.9:17493
       - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
       - STORYMAKER_DB_PATH=/data/storymaker.db
       - STORYMAKER_PROMPT_DB_PATH=/prompt_data/storymaker_prompts.db
