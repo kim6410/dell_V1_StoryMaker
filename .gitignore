@@ -106,8 +106,9 @@ patch_*.py
 # Third-party font runtime payloads are restored outside Git
 supertonic/slid_refactored/fonts/
 
-# Editor and OS files
+# Editor, local AI tool and OS files
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+.claude/
