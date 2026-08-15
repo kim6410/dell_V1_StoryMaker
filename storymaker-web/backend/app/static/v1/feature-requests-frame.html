@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>문의하기</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#07111f;color:#e2e8f0;font-family:Inter,"Pretendard","Noto Sans KR",system-ui,sans-serif}
+    *{box-sizing:border-box}
+    #feature-requests-frame-host{min-height:100vh;padding:22px 24px 34px}
+    @media(max-width:760px){#feature-requests-frame-host{padding:14px 12px 24px}}
+  </style>
+  <script>
+    window.StoryMakerV1InlinePanels={
+      open:function(){return document.getElementById('feature-requests-frame-host');}
+    };
+  </script>
+</head>
+<body>
+  <main id="feature-requests-frame-host" aria-live="polite"></main>
+  <script src="/static/v1/v1-feature-request-panel.js"></script>
+  <script>
+    (function openWhenReady(attempt){
+      if(window.StoryMakerV1FeatureRequests&&window.StoryMakerV1FeatureRequests.open){
+        window.StoryMakerV1FeatureRequests.open();
+        return;
+      }
+      if(attempt<80)setTimeout(function(){openWhenReady(attempt+1);},50);
+    })(0);
+  </script>
+</body>
+</html>

@@ -80,6 +80,32 @@ supertonic/**/*.ttf
 supertonic/**/*.pyc
 Git_추가_비공개_백업/__pycache__/
 
+# Generated V1 frontend bundles and browser runtime packages
+storymaker-web/backend/app/static/v1/assets/BrowserMp4TestPage-*.js
+storymaker-web/backend/app/static/v1/assets/browserPodcast.worker-*.js
+storymaker-web/backend/app/static/v1/assets/index-*.js
+storymaker-web/backend/app/static/v1/assets/index-*.css
+storymaker-web/backend/app/static/v1/assets/ort-wasm-*
+storymaker-web/backend/app/static/v1/assets/staged-renderer-*.js
+storymaker-web/backend/app/static/v1/browser-tts/
+storymaker-web/backend/app/static/v1/ort/
+
+# Beta inspection/generated/private runtime artifacts
+StoryMaker_beta/WORK_LOGS/storage_stats.json
+StoryMaker_beta/data/media/
+StoryMaker_beta/data/content_reference/history/
+StoryMaker_beta/data/*_excerpt.txt
+StoryMaker_beta/data/*scan*.json
+StoryMaker_beta/data/renderer-push-check.mjs
+StoryMaker_beta/data/served-beta-production.js
+StoryMaker_beta/data/inspect_html.py
+StoryMaker_beta/data/patch_*.py
+StoryMaker_beta/patch.js
+patch_*.py
+
+# Third-party font runtime payloads are restored outside Git
+supertonic/slid_refactored/fonts/
+
 # Editor and OS files
 .DS_Store
 Thumbs.db

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <title>StoryMaker 단계별 제작</title>
+  <style>
+    :root{--bg:#08101f;--panel:#111a2e;--panel2:#0b1426;--line:#263655;--text:#f4f7ff;--muted:#9eb0d4;--accent:#79a7ff;--ok:#52d39a;--warn:#f0bd65;--danger:#ff7474}
+    *{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#070d1b,#0a1324);color:var(--text);font-family:Arial,"Noto Sans KR",sans-serif}.wrap{max-width:1380px;margin:auto;padding:32px}.top{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.top h1{font-size:42px;margin:0 0 10px}.top p{margin:5px 0;color:#c2d0ec}.badge{border:1px solid #33476d;border-radius:999px;padding:11px 18px;color:#c9d7f4;white-space:nowrap}.flow{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin:28px 0}.step-tab{padding:16px 12px;border:1px solid var(--line);background:#0e172a;border-radius:14px;min-height:88px}.step-tab.active{border-color:var(--accent);box-shadow:0 0 0 1px rgba(121,167,255,.25)}.step-tab b{display:block;font-size:13px;color:var(--accent);margin-bottom:8px}.step-tab span{font-size:15px}.panel{background:rgba(17,26,46,.95);border:1px solid var(--line);border-radius:20px;padding:26px;margin:18px 0}.panel h2{margin:0 0 8px;font-size:28px}.panel .sub{color:var(--muted);margin-bottom:22px}.grid2{display:grid;grid-template-columns:1.35fr .65fr;gap:18px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.card{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:18px}.card h3{margin:0 0 12px}.label{display:block;font-weight:700;margin:15px 0 8px}input,textarea,select{width:100%;background:#091225;color:var(--text);border:1px solid #2b3b5d;border-radius:12px;padding:14px;font-size:16px}textarea{min-height:180px;resize:vertical}.editor{min-height:310px}.btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.btn{border:0;border-radius:12px;padding:13px 18px;font-weight:700;background:#24314f;color:#eaf0ff}.btn.primary{background:var(--accent);color:#071020}.btn.good{background:var(--ok);color:#071b12}.btn:disabled{opacity:.45;cursor:not-allowed}.muted{color:var(--muted)}.preview-only{display:inline-block;border:1px solid #675a31;background:#2a2415;color:#f3cf78;border-radius:999px;padding:7px 11px;font-size:12px}.progress{height:12px;background:#091225;border:1px solid var(--line);border-radius:999px;overflow:hidden}.progress>div{height:100%;width:0;background:linear-gradient(90deg,#6d9dff,#64d6b0);transition:.3s}.timeline{display:grid;gap:9px;margin-top:16px}.timeline div{display:flex;align-items:center;gap:10px;color:#9fb0d2}.dot{width:11px;height:11px;border-radius:50%;background:#394a69}.channel{display:flex;justify-content:space-between;align-items:center;padding:13px;border:1px solid var(--line);border-radius:12px;margin:9px 0}.thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.thumb{aspect-ratio:1/1;background:linear-gradient(135deg,#162441,#0c1529);border:1px dashed #40547a;border-radius:14px;display:flex;align-items:center;justify-content:center;text-align:center;color:#8fa3c8;padding:12px}.export-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.check{display:flex;gap:9px;align-items:flex-start;margin:10px 0;color:#cbd6eb}.jobbox{font-family:monospace;white-space:pre-wrap;min-height:100px}.footer-note{text-align:center;color:#8295bb;padding:24px}.locked{opacity:.78}@media(max-width:1000px){.flow{grid-template-columns:repeat(2,1fr)}.grid2,.grid3,.export-grid{grid-template-columns:1fr}.thumbs{grid-template-columns:repeat(2,1fr)}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div><h1>단계별 제작</h1><p>자료 입력부터 검토, 채널별 변환, 이미지, 저장과 발행 준비까지 단계별로 진행합니다.</p><p>기존 딸깍 제작과 API 및 실행 경로를 공유하지 않는 관리자 전용 독립 화면입니다.</p></div>
+    <div class="badge" id="accessBadge">관리자 전용 · 확인 중</div>
+  </header>
+
+  <nav class="flow">
+    <div class="step-tab active"><b>1단계</b><span>자료·목표 입력</span></div><div class="step-tab"><b>2단계</b><span>AI 초안 생성</span></div><div class="step-tab"><b>3단계</b><span>검토·수정</span></div><div class="step-tab"><b>4단계</b><span>채널별 변환</span></div><div class="step-tab"><b>5단계</b><span>이미지·카드뉴스</span></div><div class="step-tab"><b>6단계</b><span>저장·내보내기</span></div><div class="step-tab"><b>7단계</b><span>발행 준비</span></div>
+  </nav>
+
+  <section class="panel">
+    <h2>1단계 · 자료와 제작 목표 입력</h2><div class="sub">현재 Gate 5C에서 실제 staged Job 생성에 연결되는 영역입니다.</div>
+    <div class="grid2"><div>
+      <label class="label" for="title">프로젝트 제목</label><input id="title" placeholder="예: 울산 욕실 누전 수리 후기" />
+      <label class="label" for="prompt">단계별 제작 프롬프트</label><textarea id="prompt" placeholder="업체 정보, 작업 내용, 고객에게 전달할 핵심 메시지, 원하는 문체와 채널을 입력하세요."></textarea>
+      <div class="btns"><button class="btn primary" id="startBtn">단계별 제작 시작</button><button class="btn" id="resetBtn">입력 초기화</button></div>
+    </div><aside class="card"><h3>제작 설정</h3><label class="label">기본 목적</label><select><option>지역 고객 유입</option><option>작업 후기 홍보</option><option>브랜드 신뢰 강화</option></select><label class="label">기본 문체</label><select><option>친절한 전문가형</option><option>생활 밀착형</option><option>정보 중심형</option></select><p class="muted">고급 설정과 자료 업로드는 이후 Gate에서 연결합니다.</p></aside></div>
+  </section>
+
+  <section class="panel">
+    <h2>2단계 · AI 초안 생성</h2><div class="sub">Gate 2C Worker가 Job을 가져가 생성하고, 구조 검증을 거쳐 초안을 완성하는 흐름입니다.</div>
+    <div class="grid2"><div class="card"><h3>실시간 생성 진행</h3><div class="progress"><div id="progressBar"></div></div><div class="timeline" id="timeline"><div><i class="dot"></i>작업 대기</div><div><i class="dot"></i>Worker 수신</div><div><i class="dot"></i>AI 콘텐츠 생성</div><div><i class="dot"></i>결과 수신</div><div><i class="dot"></i>13개 블록 구조 검증</div><div><i class="dot"></i>초안 생성 완료</div></div></div>
+      <div class="card"><h3>생성 예정 콘텐츠</h3><div class="channel"><span>블로그 제목·본문</span><span>생성</span></div><div class="channel"><span>네이버 플레이스 소식</span><span>생성</span></div><div class="channel"><span>구글 비즈니스 게시물</span><span>생성</span></div><div class="channel"><span>인스타그램 본문·해시태그</span><span>생성</span></div><div class="channel"><span>당근 제목·본문</span><span>생성</span></div><div class="channel"><span>7장 카드뉴스·팟캐스트</span><span>생성</span></div></div></div>
+    <div class="card jobbox" id="jobStatus">아직 시작한 작업이 없습니다.</div>
+  </section>
+
+  <section class="panel locked">
+    <div style="display:flex;justify-content:space-between;gap:12px"><div><h2>3단계 · 검토와 수정</h2><div class="sub">AI 초안을 사람이 확인하고 제목, 본문, 표현과 사실관계를 수정합니다.</div></div><span class="preview-only">다음 Gate 연결</span></div>
+    <div class="grid2"><div><div class="card"><h3>제목 후보 선택</h3><label class="check"><input type="radio" disabled /> 지역명과 작업 내용을 강조한 SEO 제목</label><label class="check"><input type="radio" disabled /> 고객 문제와 해결 과정을 강조한 제목</label><label class="check"><input type="radio" disabled /> 생활 상식을 포함한 신뢰형 제목</label></div><label class="label">본문 편집기</label><textarea class="editor" disabled>AI가 생성한 블로그 본문이 여기에 표시됩니다. 문단을 직접 수정하고, 소제목과 CTA를 다듬는 영역입니다.</textarea><div class="btns"><button class="btn" disabled>되돌리기</button><button class="btn" disabled>맞춤법 검사</button><button class="btn good" disabled>수정 저장</button></div></div>
+      <aside class="card"><h3>검토 체크리스트</h3><label class="check"><input type="checkbox" disabled /> 사실관계와 작업 위치 확인</label><label class="check"><input type="checkbox" disabled /> 과장·단정 표현 확인</label><label class="check"><input type="checkbox" disabled /> 지역 및 핵심 키워드 확인</label><label class="check"><input type="checkbox" disabled /> 연락처와 CTA 확인</label><label class="check"><input type="checkbox" disabled /> 저작권 안내 문구 확인</label><div class="btns"><button class="btn" disabled>재생성 요청</button><button class="btn primary" disabled>검토 완료</button></div></aside></div>
+  </section>
+
+  <section class="panel locked">
+    <div style="display:flex;justify-content:space-between"><div><h2>4단계 · 채널별 콘텐츠 변환</h2><div class="sub">검토가 끝난 원문을 각 플랫폼 규격과 문체에 맞춰 분리합니다.</div></div><span class="preview-only">껍데기</span></div>
+    <div class="grid3"><div class="card"><h3>블로그</h3><p class="muted">제목 후보, 본문, 메타 설명, 해시태그</p><button class="btn" disabled>내용 열기</button></div><div class="card"><h3>플레이스·구글</h3><p class="muted">짧은 소식과 방문·문의 CTA</p><button class="btn" disabled>내용 열기</button></div><div class="card"><h3>인스타그램</h3><p class="muted">피드 문구, 릴스 설명, 해시태그</p><button class="btn" disabled>내용 열기</button></div><div class="card"><h3>당근</h3><p class="muted">지역 중심 제목과 생활 밀착형 본문</p><button class="btn" disabled>내용 열기</button></div><div class="card"><h3>카드뉴스</h3><p class="muted">7장 슬라이드 문구와 이미지 지시문</p><button class="btn" disabled>내용 열기</button></div><div class="card"><h3>팟캐스트</h3><p class="muted">50초·80초 음성 대본</p><button class="btn" disabled>내용 열기</button></div></div>
+  </section>
+
+  <section class="panel locked">
+    <div style="display:flex;justify-content:space-between"><div><h2>5단계 · 이미지와 카드뉴스 제작</h2><div class="sub">업로드 사진을 선택하거나 AI 이미지를 생성하고 채널별 비율을 지정합니다.</div></div><span class="preview-only">껍데기</span></div>
+    <div class="grid2"><div><div class="thumbs"><div class="thumb">대표 이미지<br>16:9</div><div class="thumb">인스타 피드<br>1:1</div><div class="thumb">릴스·쇼츠<br>9:16</div><div class="thumb">카드뉴스<br>1~7장</div></div><div class="btns"><button class="btn" disabled>사진 업로드</button><button class="btn" disabled>AI 이미지 생성</button><button class="btn" disabled>썸네일 편집</button></div></div><aside class="card"><h3>이미지 안전 확인</h3><label class="check"><input type="checkbox" disabled /> 개인정보·차량번호 가림</label><label class="check"><input type="checkbox" disabled /> 저작권 사용 가능 확인</label><label class="check"><input type="checkbox" disabled /> 작업 전후 이미지 순서 확인</label><label class="check"><input type="checkbox" disabled /> 브랜드 로고·연락처 확인</label></aside></div>
+  </section>
+
+  <section class="panel locked">
+    <div style="display:flex;justify-content:space-between"><div><h2>6단계 · 저장과 내보내기</h2><div class="sub">프로젝트를 보관하고 필요한 채널 결과만 복사하거나 파일로 받습니다.</div></div><span class="preview-only">껍데기</span></div>
+    <div class="export-grid"><div class="card"><h3>프로젝트 저장</h3><p class="muted">초안·수정 이력 포함</p><button class="btn" disabled>저장</button></div><div class="card"><h3>채널별 복사</h3><p class="muted">선택 콘텐츠 클립보드 복사</p><button class="btn" disabled>전체 복사</button></div><div class="card"><h3>문서 다운로드</h3><p class="muted">TXT·DOCX·PDF 묶음</p><button class="btn" disabled>다운로드</button></div><div class="card"><h3>이미지 묶음</h3><p class="muted">ZIP 파일로 저장</p><button class="btn" disabled>ZIP 만들기</button></div></div>
+  </section>
+
+  <section class="panel locked">
+    <div style="display:flex;justify-content:space-between"><div><h2>7단계 · 발행 준비와 최종 확인</h2><div class="sub">직접 게시하거나 향후 연동될 예약 발행을 준비하는 마지막 단계입니다.</div></div><span class="preview-only">껍데기</span></div>
+    <div class="grid2"><div class="card"><h3>게시 준비 상태</h3><div class="channel"><span>네이버 블로그</span><span>대기</span></div><div class="channel"><span>네이버 플레이스</span><span>대기</span></div><div class="channel"><span>구글 비즈니스</span><span>대기</span></div><div class="channel"><span>인스타그램</span><span>대기</span></div><div class="channel"><span>당근</span><span>대기</span></div></div><aside class="card"><h3>최종 승인</h3><label class="check"><input type="checkbox" disabled /> 최종 문구 승인</label><label class="check"><input type="checkbox" disabled /> 이미지 승인</label><label class="check"><input type="checkbox" disabled /> 게시 채널 선택</label><label class="check"><input type="checkbox" disabled /> 게시 일시 확인</label><div class="btns"><button class="btn" disabled>예약 저장</button><button class="btn good" disabled>발행 준비 완료</button></div></aside></div>
+  </section>
+
+  <div class="footer-note">현재는 전체 흐름을 확인하는 관리자용 설계 화면이며, 실제 기능은 Gate별 검증 후 순차 연결됩니다.</div>
+</div>
+<script>
+const $=id=>document.getElementById(id);let currentJob=null,poller=null;
+function statusText(d){return JSON.stringify(d,null,2)}
+async function loadAccess(){try{const r=await fetch('/api/staged-access/status',{credentials:'include',cache:'no-store'});const d=await r.json();const enabled=!!(d.enable_stage_ui||d.ui_enabled||d.stage_ui_enabled);$('accessBadge').textContent=enabled?'관리자 전용 · 활성':'관리자 전용 · 제한';}catch(e){$('accessBadge').textContent='관리자 전용 · 상태 확인 실패';}}
+function setProgress(status){const map={article_pending:8,article_claimed:25,processing:48,article_result_received:68,article_validating:82,article_completed:100,failed:100,cancelled:100};$('progressBar').style.width=(map[status]||8)+'%'}
+async function refreshJob(){if(!currentJob)return;try{const r=await fetch('/api/staged/jobs/'+encodeURIComponent(currentJob),{credentials:'include',cache:'no-store'});const d=await r.json();$('jobStatus').textContent=statusText(d);const s=d?.data?.status||d?.status;setProgress(s);if(['article_completed','failed','cancelled'].includes(s)){clearInterval(poller);poller=null}}catch(e){$('jobStatus').textContent='상태 조회 실패: '+e.message}}
+$('startBtn').addEventListener('click',async()=>{const title=$('title').value.trim(),prompt=$('prompt').value.trim();if(!title||!prompt){alert('프로젝트 제목과 프롬프트를 모두 입력해 주세요.');return}$('startBtn').disabled=true;$('jobStatus').textContent='staged Job 생성 요청 중...';try{const r=await fetch('/api/staged/jobs',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({project_title:title,prompt})});const d=await r.json();$('jobStatus').textContent=statusText(d);currentJob=d?.data?.job_id;if(currentJob){setProgress(d?.data?.status);poller=setInterval(refreshJob,2500)}}catch(e){$('jobStatus').textContent='생성 요청 실패: '+e.message}finally{$('startBtn').disabled=false}});
+$('resetBtn').addEventListener('click',()=>{$('title').value='';$('prompt').value='';});loadAccess();
+</script>
+</body></html>

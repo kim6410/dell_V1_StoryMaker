@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>StoryMaker V1 단계별 제작</title>
+  <style>
+    :root{--bg:#071126;--panel:#0c1830;--panel2:#101d38;--line:rgba(125,211,252,.2);--text:#f7fbff;--muted:#9fb2d5;--cyan:#67e8f9;--blue:#38bdf8;--violet:#7c3aed;--green:#57d6a3;--warn:#f4c56a}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 20% 0,#102a4f 0,#071126 38%,#050b18 100%);color:var(--text);font-family:Arial,"Noto Sans KR",sans-serif;line-height:1.5}
+    button,input,textarea,select{font:inherit}.page{width:min(1480px,100%);margin:0 auto;padding:28px}.hero{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:28px;border:1px solid var(--line);border-radius:26px;background:linear-gradient(135deg,rgba(15,23,42,.98),rgba(8,47,73,.82));padding:34px;box-shadow:0 22px 70px rgba(0,0,0,.28)}.hero:after{content:"";position:absolute;right:-90px;top:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(56,189,248,.25),transparent 66%)}.eyebrow{color:var(--cyan);font-size:13px;font-weight:900;letter-spacing:.22em}.hero h1{margin:8px 0 10px;font-size:clamp(34px,4vw,58px);letter-spacing:-.055em}.hero p{margin:0;color:#c8d8f3;font-size:18px}.hero-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}.pill{border:1px solid rgba(148,163,184,.28);border-radius:999px;padding:9px 13px;background:rgba(2,6,23,.4);color:#d8e5fa;font-size:13px;font-weight:800}
+    .quicknav{position:sticky;top:0;z-index:20;display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:18px 0;padding:10px;border:1px solid var(--line);border-radius:18px;background:rgba(5,11,24,.88);backdrop-filter:blur(18px)}.quicknav a{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:12px;color:#bed0ee;text-decoration:none;font-weight:900;font-size:13px}.quicknav a:hover{background:#132442;color:white}.quicknav b{color:var(--cyan);margin-right:6px}
+    .stage{margin:18px 0;border:1px solid var(--line);border-radius:24px;background:linear-gradient(180deg,rgba(12,24,48,.97),rgba(8,17,36,.98));overflow:hidden}.stage-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;padding:25px 28px;border-bottom:1px solid rgba(148,163,184,.14)}.stage1-company-summary{display:grid;grid-template-columns:repeat(4,minmax(135px,1fr));gap:10px;min-width:min(720px,58%)}.stage1-company-item{border:1px solid rgba(103,232,249,.18);border-radius:16px;background:rgba(5,14,31,.72);padding:12px 14px;min-height:76px}.stage1-company-item span{display:block;color:#8fa8cf;font-size:12px;font-weight:800;margin-bottom:6px}.stage1-company-item strong{display:block;color:#f7fbff;font-size:16px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.stage1-company-item.is-accent strong{color:#67e8f9}.stage1-selector{display:flex;align-items:center;gap:12px;min-width:min(560px,46%)}.stage1-selector .label{margin:0;white-space:nowrap}.stage1-selector .control{min-width:320px}.step{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,var(--blue),var(--violet));font-weight:950}.stage-title{display:flex;gap:15px}.stage h2{margin:0;font-size:27px;letter-spacing:-.035em}.stage-head p{margin:5px 0 0;color:var(--muted)}.status{border:1px solid rgba(103,232,249,.25);border-radius:999px;padding:8px 12px;color:#8feaf5;background:rgba(8,47,73,.35);font-size:12px;font-weight:900;white-space:nowrap}.stage-body{padding:26px 28px}.grid2{display:grid;grid-template-columns:1.4fr .6fr;gap:18px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.card{border:1px solid rgba(148,163,184,.16);border-radius:18px;background:rgba(8,17,36,.72);padding:19px}.card h3{margin:0 0 12px;font-size:18px}.settings-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.settings-card-head h3{margin:0}.settings-gear{width:42px;height:42px;border:1px solid rgba(103,232,249,.28);border-radius:13px;background:rgba(8,47,73,.42);color:#8ff3ff;font-size:21px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .18s ease,background .18s ease,border-color .18s ease}.settings-gear:hover{transform:rotate(20deg);background:rgba(14,165,233,.18);border-color:#67e8f9}.settings-gear:focus-visible{outline:2px solid #67e8f9;outline-offset:2px}.label{display:block;margin:15px 0 7px;color:#dce8f9;font-size:14px;font-weight:900}.control{width:100%;border:1px solid #2b4269;border-radius:13px;background:#071126;color:white;padding:13px 14px;outline:none}.control:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(103,232,249,.1)}textarea.control{min-height:160px;resize:vertical}.small{font-size:13px;color:var(--muted)}.option-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.option{position:relative}.option input{position:absolute;opacity:0}.option label{display:block;border:1px solid #2b4269;border-radius:14px;background:#09152b;padding:13px;text-align:center;color:#b9c9e5;font-weight:800;cursor:pointer}.option input:checked+label{border-color:var(--cyan);background:rgba(8,145,178,.18);color:white}.upload{min-height:180px;border:1px dashed #3d5b88;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#9fb2d5;background:linear-gradient(135deg,#0b1830,#081126)}.upload strong{color:#eaf6ff;font-size:18px}.thumbs{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:13px}.thumb{aspect-ratio:1/1;border:1px dashed #36527d;border-radius:13px;background:#09152a;display:flex;align-items:center;justify-content:center;color:#7f95ba;font-size:12px}.media-card{position:relative;overflow:hidden;cursor:grab}.media-card.dragging{opacity:.45}.media-card img,.media-card video{width:100%;height:100%;object-fit:cover}.media-badge{position:absolute;left:7px;bottom:7px;border-radius:999px;padding:4px 8px;background:#04101dcc;color:#fff;font-size:11px;font-weight:900}.media-remove{position:absolute;right:7px;top:7px;width:28px;height:28px;border:0;border-radius:50%;background:#08111ddd;color:#fff;cursor:pointer}.media-name{position:absolute;left:0;right:0;bottom:0;padding:28px 7px 6px;background:linear-gradient(transparent,#020617e8);font-size:10px;color:#dce8f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.toolbar{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}.btn{border:1px solid rgba(148,163,184,.22);border-radius:13px;padding:12px 16px;background:#152644;color:#eaf3ff;font-weight:900;cursor:pointer}.btn.primary{border:0;background:linear-gradient(120deg,#0ea5e9,#6d28d9)}.btn.light{background:#f8fafc;color:#0876c9}.btn:disabled{opacity:.48;cursor:not-allowed}.preview{min-height:245px;border-radius:16px;border:1px solid rgba(148,163,184,.16);background:#050d1d;padding:18px;color:#9fb2d5}.preview strong{color:white}.voice-card{display:flex;gap:14px;align-items:center}.avatar{width:54px;height:54px;border-radius:16px;background:linear-gradient(135deg,#35c8f2,#5fe2b3);display:flex;align-items:center;justify-content:center;color:#061526;font-weight:950}.range{width:100%}.switches{display:grid;gap:10px}.switch{display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(148,163,184,.16);border-radius:14px;padding:12px 14px;background:#081429}.switch input{width:20px;height:20px}.scene-list{display:grid;gap:10px}.scene{display:grid;grid-template-columns:74px 1fr 120px;gap:12px;align-items:center;border:1px solid rgba(148,163,184,.16);border-radius:14px;padding:11px;background:#081429}.scene-img{aspect-ratio:9/16;border-radius:10px;background:linear-gradient(180deg,#24466e,#09152b)}.summary{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}.summary .card strong{display:block;font-size:23px;margin-top:5px;color:white}.footer-actions{position:sticky;bottom:12px;z-index:15;display:flex;justify-content:flex-end;gap:12px;align-items:center;margin-top:20px;padding:14px;border:0;border-radius:18px;background:transparent;backdrop-filter:none;pointer-events:none}.footer-actions .toolbar{margin:0;pointer-events:auto}.footer-actions p{display:none}.notice{border-left:4px solid var(--warn);background:rgba(244,197,106,.09);padding:13px 15px;border-radius:12px;color:#e9d8aa}
+    @media(max-width:1100px){.hero{align-items:flex-start;flex-direction:column}.stage1-company-summary{width:100%;min-width:0}.quicknav{grid-template-columns:repeat(3,1fr)}.grid2,.grid3,.summary{grid-template-columns:1fr 1fr}.option-row{grid-template-columns:repeat(2,1fr)}.thumbs{grid-template-columns:repeat(4,1fr)}}
+    @media(max-width:720px){.page{padding:14px}.hero,.stage-head,.stage-body{padding:20px}.stage1-company-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.stage1-company-item{min-height:70px;padding:11px 12px}.quicknav{grid-template-columns:repeat(2,1fr)}.grid2,.grid3,.summary{grid-template-columns:1fr}.thumbs{grid-template-columns:repeat(3,1fr)}.scene{grid-template-columns:58px 1fr}.scene select{grid-column:1/-1}.footer-actions{align-items:stretch;flex-direction:column}.footer-actions .toolbar{margin:0}.btn{width:100%}}
+
+    .thumb.sortable{position:relative;overflow:hidden;cursor:grab;border-style:solid;min-height:118px;background:#071126}
+    .thumb.sortable:active{cursor:grabbing}
+    .thumb.sortable.dragging{opacity:.42;transform:scale(.96)}
+    .thumb.sortable.drag-over{outline:2px solid var(--cyan);outline-offset:2px}
+    .thumb.sortable img{width:100%;height:100%;object-fit:cover;pointer-events:none}
+    .thumb-order{position:absolute;left:7px;bottom:7px;min-width:27px;height:27px;padding:0 7px;border-radius:999px;background:rgba(6,21,38,.9);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:950;font-size:12px}
+    .thumb-remove{position:absolute;right:7px;top:7px;width:29px;height:29px;border:1px solid rgba(255,255,255,.35);border-radius:10px;background:rgba(2,6,23,.86);color:#fff;font-size:17px;font-weight:900;cursor:pointer;line-height:1}
+    .thumb-name{position:absolute;left:0;right:0;bottom:0;padding:30px 8px 6px;background:linear-gradient(transparent,rgba(2,6,23,.9));font-size:11px;color:#dbeafe;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;pointer-events:none}
+    .sort-guide{margin-top:10px;color:#8fa8cf;font-size:12px}
+
+    @media(max-width:1100px){.stage-head{flex-wrap:wrap}.stage1-selector{min-width:100%;width:100%}.stage1-selector .control{min-width:0}}
+    @media(max-width:720px){.stage1-selector{display:grid;grid-template-columns:1fr}.stage1-selector .label{margin-bottom:-4px}}
+    .stage1-result-wrap{margin-top:18px;border:1px solid rgba(103,232,249,.18);border-radius:20px;background:rgba(5,14,31,.72);padding:18px}
+    .stage1-result-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.stage1-result-head h3{margin:0;font-size:18px}.stage1-result-status{color:#8fa8cf;font-size:13px;font-weight:800}
+    .stage1-result-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.result-accordion{border:1px solid rgba(148,163,184,.18);border-radius:16px;background:linear-gradient(180deg,#314862,#24374f);overflow:hidden}.result-accordion.is-ready{border-color:rgba(103,232,249,.42)}
+    .result-accordion-button{width:100%;min-height:84px;border:0;background:transparent;color:#f7fbff;padding:16px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer}.result-accordion-button strong{display:block;font-size:15px}.result-accordion-button small{display:block;margin-top:5px;color:#c9d9ef;font-size:12px}.result-accordion-toggle{color:#8feaf5;font-size:12px;font-weight:900;white-space:nowrap}
+    .result-accordion-panel{display:none;border-top:1px solid rgba(148,163,184,.14);padding:15px 16px 17px;color:#dce8f9;white-space:pre-wrap;line-height:1.65;font-size:13px;max-height:420px;overflow:auto}.result-accordion.open .result-accordion-panel{display:block}
+    @media(max-width:1150px){.stage1-result-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:720px){.stage1-result-grid{grid-template-columns:1fr}}
+
+  
+    .stage3-editor-grid{grid-template-columns:minmax(0,1fr) 330px;align-items:start}
+    .stage3-toolbar{align-items:center;gap:10px;flex-wrap:wrap}
+    .stage3-toolbar>strong{font-size:20px;margin-right:auto;color:#eaf4ff}
+    .stage3-tabs-card{position:sticky;top:18px}
+    .stage3-content-tabs{display:grid;gap:10px;margin-top:14px}
+    .stage3-content-tab{width:100%;border:1px solid #233c61;background:#0b1930;color:#cbd9ef;border-radius:14px;padding:14px 16px;text-align:left;cursor:pointer;font-size:15px;font-weight:750;transition:.18s}
+    .stage3-content-tab:hover{border-color:#3d79b8;transform:translateY(-1px)}
+    .stage3-content-tab.active{background:linear-gradient(135deg,#159ee8,#7138e8);border-color:transparent;color:#fff;box-shadow:0 8px 22px rgba(41,112,225,.25)}
+    .stage3-content-tab small{display:block;margin-top:4px;font-size:12px;font-weight:500;opacity:.76}
+    @media(max-width:900px){.stage3-editor-grid{grid-template-columns:1fr}.stage3-tabs-card{position:static}.stage3-content-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+    #stage5SceneList{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+    #stage5SceneList .scene{display:flex;flex-direction:column;align-items:stretch;gap:10px;min-width:0;padding:12px}
+    #stage5SceneList .scene-img{width:100%;aspect-ratio:9/16;min-height:0;border-radius:12px;overflow:hidden}
+    #stage5SceneList .scene-img img{width:100%;height:100%;object-fit:cover;display:block}
+    #stage5SceneList .scene>div:not(.scene-img){min-width:0}
+    #stage5SceneList .scene strong{display:block;font-size:15px;line-height:1.35;margin-bottom:4px}
+    #stage5SceneList .scene .small{font-size:11px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #stage5SceneList .scene>span,#stage5SceneList .scene>div:last-child{align-self:flex-start}
+    @media(max-width:1100px){#stage5SceneList{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:720px){#stage5SceneList{grid-template-columns:1fr}#stage5SceneList .scene{display:grid;grid-template-columns:92px 1fr;align-items:center}#stage5SceneList .scene-img{width:92px}#stage5SceneList .scene select{grid-column:1/-1}}
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow">STORYMAKER V1 · STAGED PRODUCTION</div>
+        <h1>단계별 제작</h1>
+      </div>
+      <div class="stage1-company-summary" id="stage1CompanySummary">
+        <div class="stage1-company-item is-accent"><span>상호</span><strong id="summaryCompany">업체 선택 대기</strong></div>
+        <div class="stage1-company-item"><span>지역</span><strong id="summaryRegion">-</strong></div>
+        <div class="stage1-company-item"><span>전화번호</span><strong id="summaryPhone">-</strong></div>
+        <div class="stage1-company-item"><span>업종</span><strong id="summaryIndustry">-</strong></div>
+        <div class="stage1-company-item"><span>날씨</span><strong id="summaryWeather">조회 중</strong></div>
+        <div class="stage1-company-item"><span>기온</span><strong id="summaryTemp">-</strong></div>
+        <div class="stage1-company-item"><span>체감</span><strong id="summaryFeels">-</strong></div>
+        <div class="stage1-company-item"><span>습도</span><strong id="summaryHumidity">-</strong></div>
+      </div>
+    </section>
+
+    <nav class="quicknav">
+      <a href="#stage1"><b>01</b>기본 설정</a><a href="#stage2"><b>02</b>자료·이미지</a><a href="#stage3"><b>03</b>원고</a><a href="#stage4"><b>04</b>팟캐스트</a><a href="#stage5"><b>05</b>쇼츠·릴스</a><a href="#stage6"><b>06</b>최종 제작</a>
+    </nav>
+
+    <section class="stage" id="stage1"><header class="stage-head"><div class="stage-title"><span class="step">01</span><div><h2>콘텐츠 자료 입력</h2></div></div><div class="stage1-selector"><label class="label" for="personaSelect">업체 선택</label><select class="control" id="personaSelect"><option value="">업체 정보를 불러오는 중...</option></select></div></header><div class="stage-body"><div class="grid2"><div class="card"><label class="label" for="projectTitle">제작 제목</label><input class="control" id="projectTitle" placeholder="예: 울산 욕실 누전 수리 작업 후기"><label class="label" for="workMemo">콘텐츠 기초 내용입력</label><textarea class="control" id="workMemo" placeholder="작업 위치, 고객 문제, 해결 과정, 사용 자재와 전달할 생활 정보를 10자 이상 입력합니다."></textarea><label class="label" for="keywordInput">핵심 키워드</label><input class="control" id="keywordInput" placeholder="업체 DB 키워드를 자동으로 불러옵니다"></div><aside class="card"><div class="settings-card-head"><h3>기본 설정</h3><button class="settings-gear" id="openMyPageBtn" type="button" aria-label="마이페이지 설정 열기" title="마이페이지 설정 열기">⚙</button></div><label class="label">기본 채널</label><input class="control" id="defaultStyle" readonly><label class="label">블로그 분량</label><input class="control" id="blogLength" readonly><label class="label">기본 문체</label><input class="control" id="defaultTones" readonly><div class="toolbar"><button class="btn primary" id="saveStage1Btn" type="button">1단계 확인</button></div></aside></div><div class="stage1-result-wrap" id="stage1ResultWrap" hidden><div class="stage1-result-head"><h3>채널별 생성 결과</h3><span class="stage1-result-status" id="stage1ResultStatus">생성 준비</span></div><div class="stage1-result-grid" id="stage1ResultGrid"></div></div></div></section>
+
+    <section class="stage" id="stage2"><header class="stage-head"><div class="stage-title"><span class="step">02</span><div><h2>사진·동영상 입력</h2><p>사진과 동영상을 함께 선택하고 실제 제작 순서를 드래그로 정합니다.</p></div></div><span class="status" id="stage2Status">미디어 미선택</span></header><div class="stage-body"><div class="grid2"><div><label class="upload" id="uploadZone" for="mediaInput"><strong>사진·동영상을 선택하거나 이 영역에 끌어다 놓기</strong><span>이미지 JPG·PNG·WEBP·GIF 최대 12장 / 동영상 MP4·MOV·WEBM 최대 4개</span><div class="toolbar"><span class="btn light">탐색기에서 선택</span></div></label><input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm,.mov" multiple hidden><div class="thumbs" id="mediaPreview"><div class="thumb">선택한 사진과 동영상이 여기에 표시됩니다.</div></div></div><aside class="card"><h3>실제 저장 기준</h3><p class="small">사진은 기존 <strong>images</strong> 폴더, 동영상은 단계별 제작 전용 <strong>videos</strong> 폴더에 저장됩니다.</p><label class="label">현재 선택</label><input class="control" id="mediaCountText" value="이미지 0장 · 동영상 0개" readonly><button class="btn primary" id="stage2Confirm" type="button" style="width:100%;margin-top:15px">숏폼/쇼츠 생성</button></aside></div></div></section>
+
+    <section class="stage" id="stage3"><header class="stage-head"><div class="stage-title"><span class="step">03</span><div><h2>콘텐츠 초안 검토/수정</h2><p>우측 콘텐츠 탭을 선택해 수정하고 같은 작업과 보관함 DB에 저장합니다.</p></div></div><span class="status" id="stage3Status">검토 대기</span></header><div class="stage-body"><div class="grid2 stage3-editor-grid"><div><div class="toolbar stage3-toolbar" style="margin:0 0 12px"><strong id="activeContentTitle">네이버 블로그</strong><button class="btn primary" id="createDraftBtn" type="button">수정 내용 저장</button><button class="btn" id="refreshDraftBtn" type="button" disabled>저장본 다시 불러오기</button><button class="btn" id="copyDraftBtn" type="button" disabled>내용 복사</button></div><textarea class="control" id="draftEditor" style="min-height:520px" placeholder="우측에서 콘텐츠를 선택하면 초안이 표시됩니다. 수정 후 저장 버튼을 눌러 보관함에 반영하세요."></textarea><div class="small" id="draftSaveInfo" style="margin-top:10px">콘텐츠를 선택한 뒤 수정할 수 있습니다.</div></div><aside class="card stage3-tabs-card"><h3>콘텐츠 선택</h3><div class="stage3-content-tabs" id="stage3ContentTabs"></div><input id="currentJobId" type="hidden"><div id="jobMonitor" hidden></div></aside></div></div></section>
+
+    <section class="stage" id="stage4"><header class="stage-head"><div class="stage-title"><span class="step">04</span><div><h2>팟캐스트 대본 선택·제작 승인</h2><p>50초 또는 80초 대본을 선택하고 최종 검토한 뒤 브라우저 음성 제작을 승인합니다.</p></div></div><span class="status" id="stage4Status">대본 선택 대기</span></header><div class="stage-body"><div class="grid2"><div><div class="toolbar" style="margin:0 0 12px"><button class="btn primary" id="podcast50Btn" type="button">팟캐스트 50초</button><button class="btn" id="podcast80Btn" type="button">팟캐스트 80초</button><button class="btn" id="reloadPodcastScriptBtn" type="button">저장본 불러오기</button></div><textarea class="control" id="podcastScriptEditor" style="min-height:360px" placeholder="3단계에서 생성·수정한 팟캐스트 대본이 표시됩니다."></textarea><div class="small" id="podcastScriptInfo" style="margin-top:10px">3단계 콘텐츠가 준비되면 50초 또는 80초 대본을 선택하세요.</div></div><aside class="card"><h3>팟캐스트 제작</h3><button class="btn" id="savePodcastScriptBtn" type="button" style="width:100%">대본 수정 저장</button><button class="btn primary" id="approvePodcastBtn" type="button" style="width:100%;margin-top:10px">팟캐스트 생성</button></aside></div></div></section>
+
+    <section class="stage" id="stage5"><header class="stage-head"><div class="stage-title"><span class="step">05</span><div><h2>썸네일·쇼츠·릴스 설정</h2><p>2단계에서 저장한 미디어와 완성된 MP3·SRT를 사용해 영상 구성을 승인합니다.</p></div></div><span class="status" id="stage5Status">영상 설정 대기</span></header><div class="stage-body"><div class="grid2"><div><div class="card" style="margin-bottom:14px"><h3>사용 미디어 순서</h3><div class="small">이미지는 다시 업로드하지 않습니다. 2단계 저장 순서를 그대로 사용합니다.</div><div class="scene-list" id="stage5SceneList" style="margin-top:12px"><div class="scene"><div class="scene-img"></div><div><strong>미디어 준비 중</strong><div class="small">2단계 결과를 불러옵니다.</div></div></div></div></div><div class="card"><h3>썸네일 확인</h3><div id="stage5ThumbnailPreview" style="min-height:220px;border:1px dashed rgba(255,255,255,.16);border-radius:16px;display:grid;place-items:center;overflow:hidden;background:rgba(0,0,0,.16)"><span class="small">생성된 썸네일이 자동 표시됩니다.</span></div></div></div><aside class="card"><h3>상단 제목 문구</h3><label class="label">상단 보조문구</label><input class="control" id="stage5Eyebrow" value="스토리메이커 연구소"><label class="label">상단 제목</label><input class="control" id="stage5Title" value="오박사 만능인테리어"><h3 style="margin-top:18px">하단 워터마크</h3><label class="label">상호명</label><input class="control" id="stage5Brand" value="오박사 만능인테리어"><label class="label">전화번호</label><input class="control" id="stage5Phone" value="010-8284-5584"><div class="option-row" style="grid-template-columns:1fr 1fr"><div><label class="label">상호 크기</label><input class="control" id="stage5BrandSize" type="number" min="20" max="72" value="34"></div><div><label class="label">전화 크기</label><input class="control" id="stage5PhoneSize" type="number" min="20" max="72" value="30"></div></div><label class="label">하단 여백</label><input class="control" id="stage5MarginBottom" type="number" min="20" max="300" value="80"><div class="toolbar" style="margin:12px 0"><label class="small"><input id="stage5BoxEnabled" type="checkbox" checked> 배경박스</label><label class="small"><input id="stage5StrokeEnabled" type="checkbox" checked> 테두리</label><label class="small"><input id="stage5ShadowEnabled" type="checkbox" checked> 그림자</label></div><h3 style="margin-top:18px">영상 설정</h3><label class="label">렌더링 장비</label><select class="control" id="stage5RenderTarget"><option value="browser">이 PC 브라우저 GPU</option></select><label class="small" style="display:block;margin:10px 0"><input id="stage5FastDraft" type="checkbox" checked> 빠른 초안 모드</label><div class="option-row" style="grid-template-columns:1fr 1fr"><div><label class="label">해상도</label><select class="control" id="stage5Resolution"><option value="1080x1920">1080 × 1920</option><option value="720x1280" selected>720 × 1280</option></select></div><div><label class="label">FPS</label><select class="control" id="stage5Fps"><option value="30">30 FPS</option><option value="24">24 FPS</option><option value="18" selected>18 FPS</option></select></div></div><div class="option-row" style="grid-template-columns:1fr 1fr"><div><label class="label">이미지당 초</label><input class="control" id="stage5ImageSec" type="number" step="0.5" min="1" max="8" value="4.5"></div><div><label class="label">전환 초</label><input class="control" id="stage5TransitionSec" type="number" step="0.1" min="0.2" max="2" value="2.0"></div></div><label class="label">줌 강도</label><input class="control" id="stage5ZoomIntensity" type="number" step="0.001" min="0" max="0.02" value="0.004"><label class="small" style="display:block;margin:10px 0"><input id="stage5SubtitleEnabled" type="checkbox" checked> SRT 자막 사용</label><div class="option-row" style="grid-template-columns:1fr 1fr"><div><label class="label">자막 크기</label><input class="control" id="stage5SubtitleSize" type="number" min="8" max="40" value="10"></div><div><label class="label">자막 여백</label><input class="control" id="stage5SubtitleMargin" type="number" min="10" max="200" value="40"></div></div><button class="btn primary" id="approveStage5Btn" type="button" style="width:100%;margin-top:16px;padding:13px">썸네일·MP4 제작 설정 승인</button><div class="small" id="stage5SaveInfo" style="margin-top:10px">승인 후 기존 V1 브라우저 MP4 엔진을 사용합니다.</div></aside></div></div></section>
+
+    <section class="stage" id="stage6"><header class="stage-head"><div class="stage-title"><span class="step">06</span><div><h2>최종 영상 제작</h2><p>설정을 확인한 뒤 사용자 브라우저에서 MP4를 제작합니다.</p></div></div><span class="status" id="stage6Status">최종 제작 대기</span></header><div class="stage-body"><button class="btn primary" id="finalProductionBtn" type="button" style="width:100%">최종 제작 시작</button></div></section>
+
+    <div class="footer-actions"><div class="toolbar"><button class="btn" id="topBtn">맨 위로</button><button class="btn primary" disabled>최종 제작 시작</button></div></div>
+  </main>
+  <script>
+    const state={personas:[],persona:null,mediaItems:[],stage1:false,stage2:false,jobId:'',poller:null,dragIndex:null,stage1Generating:false,stage1Persisted:false,restoring:false,activeContentKey:'blog',contentOutputs:{},podcastLength:50,podcastApproved:false,podcastWorker:null,podcastRequestId:'',podcastAudioUrl:''};
+    const $=id=>document.getElementById(id);
+    const esc=value=>String(value??'').replace(/[&<>\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[ch]));
+    const apiPath=path=>path.startsWith('/v1-api/')?path:'/v1-api'+path.replace(/^\/api/,'');
+    const weatherValue=(item,keys,fallback='-')=>{for(const key of keys){const value=item?.[key];if(value!==undefined&&value!==null&&String(value).trim()!=='')return value;}return fallback;};
+    async function loadPersonaWeather(region){$('summaryWeather').textContent='조회 중';$('summaryTemp').textContent='-';$('summaryFeels').textContent='-';$('summaryHumidity').textContent='-';try{const response=await fetch(`/api/weather/snapshots?page=1&page_size=1&region=${encodeURIComponent(region||'서울')}`,{credentials:'include',cache:'no-store'});const payload=await response.json().catch(()=>({}));if(!response.ok||payload?.ok===false)throw new Error(payload?.detail||`HTTP ${response.status}`);const item=Array.isArray(payload?.items)?payload.items[0]||{}:payload?.data?.items?.[0]||payload?.data||{};const temp=weatherValue(item,['temperature','temp','temperature_c','current_temp']);const feels=weatherValue(item,['feels_like','feelslike','apparent_temperature','feels_like_c']);const humidity=weatherValue(item,['humidity','humidity_percent']);$('summaryWeather').textContent=weatherValue(item,['weather','condition','summary'],'정보 없음');$('summaryTemp').textContent=temp==='-'?'-':`${temp}°C`;$('summaryFeels').textContent=feels==='-'?'-':`${feels}°C`;$('summaryHumidity').textContent=humidity==='-'?'-':`${humidity}%`;}catch(error){$('summaryWeather').textContent='조회 실패';}}
+    function setStatus(id,text,ok=false){const el=$(id);if(!el)return;el.textContent=text;el.style.color=ok?'#7cf3bd':'#8feaf5';}
+    function selectedPersona(){return state.personas.find(item=>String(item.id)===String($('personaSelect')?.value))||null;}
+    function applyPersona(persona){state.persona=persona||null;$('defaultStyle').value=persona?.default_style||'네이버 블로그';$('blogLength').value=(persona?.blog_content_length||1500)+'자';$('defaultTones').value=(persona?.default_tones||[]).join(', ')||'따뜻함, 전문가';$('keywordInput').value=(persona?.keywords||[]).join(', ');$('summaryCompany').textContent=persona?.company_name||'업체 선택 대기';$('summaryRegion').textContent=persona?.region||'-';$('summaryPhone').textContent=persona?.phone_number||'-';const industryLabels={home_repair:'집수리',boiler_facility:'보일러·설비',appliance_clean:'가전 청소',general_cleaning:'종합 청소',window_screen:'방충망',key_doorlock:'열쇠·도어락',lighting_electric:'조명·전기',drain_unclog:'하수구·배관',restaurant:'음식점',cafe:'카페',logistics:'물류',general:'일반'};$('summaryIndustry').textContent=industryLabels[persona?.industry_key]||persona?.industry_key||'일반';if(!$('projectTitle').value&&persona?.company_name)$('projectTitle').value=persona.company_name+' 콘텐츠 제작';loadPersonaWeather(persona?.region||'서울');}
+    async function loadPersonas(){try{const res=await fetch(apiPath('/api/auth/personas'),{credentials:'include',cache:'no-store'});if(!res.ok)throw new Error('업체 DB 응답 '+res.status);const payload=await res.json();state.personas=Array.isArray(payload.data)?payload.data:[];const select=$('personaSelect');select.innerHTML=state.personas.length?state.personas.map(p=>`<option value="${p.id}">${esc(p.company_name)}${p.is_default?' · 기본':''}</option>`).join(''):'<option value="">등록된 업체가 없습니다</option>';const first=state.personas.find(p=>p.is_default)||state.personas[0]||null;if(first){select.value=String(first.id);applyPersona(first);setStatus('stage1Status','DB 연결 완료',true);}else setStatus('stage1Status','업체 정보 없음');}catch(error){setStatus('stage1Status','DB 연결 실패');console.warn('[staged] persona load failed',error);}}
+    function validateStage1(show=true){const persona=selectedPersona();const title=$('projectTitle').value.trim();const memo=$('workMemo').value.trim();if(!persona||!title||memo.length<10){if(show)alert('업체를 선택하고 제작 제목과 10자 이상의 핵심 작업 내용을 입력해 주세요.');return false;}state.stage1=true;setStatus('stage1Status','1단계 확인 완료',true);return true;}
+    function mediaCounts(){return {images:state.mediaItems.filter(x=>x.kind==='image').length,videos:state.mediaItems.filter(x=>x.kind==='video').length};}
+    function renderMedia(){const box=$('mediaPreview');const counts=mediaCounts();$('mediaCountText').value=`이미지 ${counts.images}장 · 동영상 ${counts.videos}개`;setStatus('stage2Status',state.mediaItems.length?`미디어 ${state.mediaItems.length}개 저장됨`:'미디어 미선택',state.mediaItems.length>0);box.innerHTML=state.mediaItems.length?state.mediaItems.map((item,index)=>{const url=item.file?URL.createObjectURL(item.file):(item.url||'');const name=item.file?.name||item.name||item.stored_name||`미디어 ${index+1}`;const preview=item.kind==='video'?`<video src="${esc(url)}" muted preload="metadata"></video>`:`<img alt="미디어 ${index+1}" src="${esc(url)}">`;return `<div class="thumb media-card" draggable="true" data-media-index="${index}">${preview}<button type="button" class="media-remove" data-remove-media="${index}" aria-label="삭제">×</button><span class="media-badge">${index+1} · ${item.kind==='video'?'동영상':'사진'}</span><span class="media-name">${esc(name)}</span></div>`}).join(''):'<div class="thumb">선택한 사진과 동영상이 여기에 표시됩니다.</div>';}
+    function addMedia(files){for(const file of files){const isImage=['image/jpeg','image/png','image/webp','image/gif'].includes(file.type);const isVideo=['video/mp4','video/quicktime','video/webm'].includes(file.type)||/\.(mp4|mov|webm)$/i.test(file.name);if(!isImage&&!isVideo)continue;const counts=mediaCounts();if(isImage&&counts.images>=12)continue;if(isVideo&&counts.videos>=4)continue;if(state.mediaItems.some(x=>x.file.name===file.name&&x.file.size===file.size))continue;state.mediaItems.push({kind:isVideo?'video':'image',file});}renderMedia();}
+    function validateStage2(show=true){const counts=mediaCounts();if(state.mediaItems.length<=5){if(show)alert('사진과 동영상을 합쳐 최소 6개 이상 선택해 주세요. 현재 선택된 미디어는 '+state.mediaItems.length+'개입니다.');return false;}if(!counts.images){if(show)alert('사진을 1장 이상 포함해 주세요. 동영상만으로는 원고와 썸네일 제작을 시작할 수 없습니다.');return false;}state.stage2=true;setStatus('stage2Status',`2단계 확인 완료 · 이미지 ${counts.images}장 · 동영상 ${counts.videos}개`,true);return true;}
+    function mixedOrderPayload(){let imageIndex=0,videoIndex=0;return state.mediaItems.map(item=>item.kind==='video'?{kind:'video',index:videoIndex++}:{kind:'image',index:imageIndex++});}
+    async function uploadStagedVideos(jobId){const videos=state.mediaItems.filter(x=>x.kind==='video'&&x.file).map(x=>x.file);if(!videos.length)return null;const form=new FormData();videos.forEach(file=>form.append('videos',file,file.name));form.append('media_order',JSON.stringify(mixedOrderPayload()));const response=await fetch(apiPath(`/api/mobile/one-shot/jobs/${encodeURIComponent(jobId)}/staged-videos`),{method:'POST',credentials:'include',body:form});const payload=await response.json().catch(()=>({}));if(!response.ok||payload.ok===false)throw new Error(payload.detail||payload.message||'동영상 저장에 실패했습니다.');return payload;}
+    async function uploadStagedImages(jobId){const images=state.mediaItems.filter(x=>x.kind==='image'&&x.file).map(x=>x.file);if(!images.length)return null;const form=new FormData();images.forEach(file=>form.append('images',file,file.name));const response=await fetch(apiPath(`/api/mobile/one-shot/jobs/${encodeURIComponent(jobId)}/staged-images`),{method:'POST',credentials:'include',body:form});const payload=await response.json().catch(()=>({}));if(!response.ok||payload.ok===false)throw new Error(payload.detail||payload.message||'사진 저장에 실패했습니다.');return payload;}
+    async function saveStagedSession(currentStep,stageStatus){if(!state.jobId)return null;const persona=selectedPersona();const response=await fetch(apiPath(`/api/mobile/one-shot/jobs/${encodeURIComponent(state.jobId)}/staged-session`),{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({project_title:$('projectTitle').value.trim(),work_memo:$('workMemo').value.trim(),keyword_input:$('keywordInput').value.trim(),persona_id:persona?.id||null,current_step:currentStep,stage_status:stageStatus})});const payload=await response.json().catch(()=>({}));if(!response.ok||payload.ok===false)throw new Error(payload.detail||payload.message||'단계별 작업 저장에 실패했습니다.');return payload;}
+    function restoredMediaItems(data){const images=Array.isArray(data.images)?data.images.map(item=>({kind:'image',url:item.url||item.public_url||'',name:item.name||item.original_name||item.stored_name||'',stored_name:item.stored_name||'',server:true})):[];const videos=Array.isArray(data.videos)?data.videos.map(item=>({kind:'video',url:item.url||item.public_url||'',name:item.name||item.original_name||item.stored_name||'',stored_name:item.stored_name||'',server:true})):[];const order=data?.pipeline?.staged_media_order;if(!Array.isArray(order)||!order.length)return [...images,...videos];return order.map(entry=>entry?.kind==='video'?videos[Number(entry.index)]:images[Number(entry.index)]).filter(Boolean);}
+    async function restoreLatestStagedSession(){if(state.restoring)return;state.restoring=true;try{const response=await fetch(apiPath('/api/mobile/one-shot/staged-session/latest'),{credentials:'include',cache:'no-store'});const payload=await response.json().catch(()=>({}));if(!response.ok||payload.ok===false)throw new Error(payload.detail||payload.message||'최근 작업 조회 실패');const data=normalizeData(payload);if(!data?.job_id)return;const saved=data.staged_session||{};state.jobId=String(data.job_id||payload.job_id||'');const finalButton=$('finalProductionBtn');if(finalButton&&['shortform_settings_approved','final_production_requested'].includes(String(saved.stage_status||'')))finalButton.disabled=false;state.stage1Persisted=Boolean(data.outputs&&Object.keys(data.outputs).length);$('currentJobId').value=state.jobId;$('refreshDraftBtn').disabled=false;if(saved.persona_id&&state.personas.some(p=>String(p.id)===String(saved.persona_id))){$('personaSelect').value=String(saved.persona_id);applyPersona(selectedPersona());}if(saved.project_title)$('projectTitle').value=saved.project_title;if(saved.work_memo)$('workMemo').value=saved.work_memo;if(saved.keyword_input)$('keywordInput').value=saved.keyword_input;renderResultSlots('최근 작업 복원 중');state.contentOutputs=data.outputs||{};const ready=fillResultSlots(state.contentOutputs,data.raw_result||'');if(ready){state.stage1=true;setStatus('stage1Status',`최근 콘텐츠 ${ready}개 복원`,true);$('saveStage1Btn').textContent='1단계 다시 생성';}state.mediaItems=restoredMediaItems(data);renderMedia();if(state.mediaItems.length){state.stage2=true;setStatus('stage2Status',`저장된 미디어 ${state.mediaItems.length}개 복원`,true);$('stage2Confirm').textContent='썸네일 생성';}state.activeContentKey=saved.active_content_key||'blog';selectStage3Content(state.activeContentKey);const media=data.media||{};renderStage5Media(data);$('jobMonitor').innerHTML=`<strong>최근 단계별 작업 복원</strong><br>${esc(state.jobId)}<br>${esc(media.message||saved.stage_status||'저장된 작업을 이어서 진행할 수 있습니다.')}`;if(media.thumbnail_url)setStatus('stage2Status','썸네일 생성 완료',true);}catch(error){console.warn('[staged] latest restore skipped',error);}finally{state.restoring=false;}}
+    async function requestStagedThumbnail(jobId){const response=await fetch(apiPath(`/api/mobile/one-shot/jobs/${encodeURIComponent(jobId)}/staged-thumbnail`),{method:'POST',credentials:'include'});const payload=await response.json().catch(()=>({}));if(!response.ok||payload.ok===false)throw new Error(payload.detail||payload.message||'썸네일 프롬프트 전달에 실패했습니다.');return payload;}
+    function stage2Ms(value){const n=Number(value||0);return Number.isFinite(n)?`${n.toFixed(0)}ms`:'-';}
+    function stage2TimingSummary(data={},client={}){const m=data?.pipeline?.stage2_metrics||{};return [
+      `브라우저 사진 ${stage2Ms(client.images)} · 서버 ${stage2Ms(m.images?.total_ms)}`,
+      `브라우저 동영상 ${stage2Ms(client.videos)} · 서버 ${stage2Ms(m.videos?.total_ms)}`,
+      `브라우저 썸네일 요청 ${stage2Ms(client.thumbnail)} · 서버 ${stage2Ms(m.thumbnail?.total_ms)}`,
+      `전체 ${stage2Ms(client.total)}`
+    ].join('<br>');}
+    async function handleStage2Confirm(){if(!validateStage2())return;if(!state.jobId){alert('먼저 1단계 확인을 눌러 콘텐츠 생성을 완료해 주세요.');return;}const button=$('stage2Confirm');button.disabled=true;button.textContent='2단계 처리 중';const client={};const totalStart=performance.now();setStatus('stage2Status','사진 저장 중');try{let started=performance.now();await uploadStagedImages(state.jobId);client.images=performance.now()-started;setStatus('stage2Status',`사진 저장 완료 ${stage2Ms(client.images)} · 동영상 저장 중`,true);started=performance.now();await uploadStagedVideos(state.jobId);client.videos=performance.now()-started;setStatus('stage2Status',`동영상 저장 완료 ${stage2Ms(client.videos)} · 썸네일 요청 중`,true);started=performance.now();const payload=await requestStagedThumbnail(state.jobId);client.thumbnail=performance.now()-started;client.total=performance.now()-totalStart;const data=payload?.data||{};const media=data.media||{};state.stage2=true;await saveStagedSession(2,'thumbnail_requested');button.textContent='썸네일 생성';setStatus('stage2Status',`2단계 완료 · 전체 ${stage2Ms(client.total)}`,true);$('jobMonitor').innerHTML=`<strong>2단계 저장·요청 완료</strong><br>${esc(state.jobId)}<br>${stage2TimingSummary(data,client)}<br>${esc(media.message||payload.message||'썸네일 프롬프트를 Worker에 전달했습니다.')}`;startPolling();document.querySelector('#stage3')?.scrollIntoView({behavior:'smooth'});}catch(error){client.total=performance.now()-totalStart;state.stage2=false;setStatus('stage2Status',`2단계 실패 · ${stage2Ms(client.total)}`);alert(error.message);button.textContent='2단계 확인';}finally{button.disabled=false;}}
+
+
+    const RESULT_SLOT_DEFS=[
+      {key:'blog',title:'네이버 블로그',desc:'제목 · 본문 · 해시태그'},
+      {key:'naver_place',title:'네이버 플레이스',desc:'플레이스 소식'},
+      {key:'google_business',title:'구글 비즈니스',desc:'비즈니스 포스트'},
+      {key:'instagram',title:'인스타그램',desc:'본문 · 해시태그'},
+      {key:'carrot',title:'당근마켓',desc:'제목 · 본문 · 해시태그'},
+      {key:'carousel',title:'카드뉴스',desc:'7장 구성안'},
+      {key:'podcast_50',title:'팟캐스트 50초',desc:'짧은 음성 대본'},
+      {key:'podcast_80',title:'팟캐스트 80초',desc:'긴 음성 대본'}
+    ];
+    function stage3ContentValues(outputs={}){return resultMap(outputs);}
+    function renderStage3Tabs(){const box=$('stage3ContentTabs');if(!box)return;box.innerHTML=RESULT_SLOT_DEFS.map(slot=>`<button type="button" class="stage3-content-tab ${state.activeContentKey===slot.key?'active':''}" data-stage3-key="${slot.key}">${slot.title}<small>${slot.desc}</small></button>`).join('');}
+    function selectStage3Content(key,{preserve=false}={}){const slot=RESULT_SLOT_DEFS.find(item=>item.key===key)||RESULT_SLOT_DEFS[0];state.activeContentKey=slot.key;renderStage3Tabs();$('activeContentTitle').textContent=slot.title;const values=stage3ContentValues(state.contentOutputs||{});if(!preserve)$('draftEditor').value=values[slot.key]||'';$('copyDraftBtn').disabled=!$('draftEditor').value.trim();$('draftSaveInfo').textContent=`${slot.title} 수정 후 ‘수정 내용 저장’을 누르면 보관함 DB에 반영됩니다.`;}
+    function outputValue(outputs,...keys){for(const key of keys){const value=outputs?.[key];if(value!==undefined&&value!==null&&String(value).trim())return String(value).trim();}return '';}
+    function resultMap(outputs={}){return {
+      blog:[outputValue(outputs,'blog_titles','BLOG_TITLES'),outputValue(outputs,'blog_post','BLOG_POST','blog'),outputValue(outputs,'blog_hashtags','BLOG_HASHTAGS')].filter(Boolean).join('\n\n'),
+      naver_place:outputValue(outputs,'place','naver_place_news','NAVER_PLACE_NEWS'),
+      google_business:outputValue(outputs,'google_business','google_business_post','GOOGLE_BUSINESS_POST'),
+      instagram:outputValue(outputs,'instagram','instagram_post','INSTAGRAM_POST')||[outputValue(outputs,'instagram_post','INSTAGRAM_POST'),outputValue(outputs,'instagram_hashtags','INSTAGRAM_HASHTAGS')].filter(Boolean).join('\n\n'),
+      carrot:outputValue(outputs,'carrot','carrot_post','CARROT_POST')||[outputValue(outputs,'carrot_titles','CARROT_TITLES'),outputValue(outputs,'carrot_post','CARROT_POST'),outputValue(outputs,'carrot_hashtags','CARROT_HASHTAGS')].filter(Boolean).join('\n\n'),
+      carousel:outputValue(outputs,'carousel_7','CAROUSEL_7'),
+      podcast_50:outputValue(outputs,'podcast50','podcast_50','PODCAST_50'),
+      podcast_80:outputValue(outputs,'podcast80','podcast_80','PODCAST_80')
+    };}
+    function renderResultSlots(status='제미나이 결과를 기다리는 중'){const wrap=$('stage1ResultWrap'),grid=$('stage1ResultGrid');if(!wrap||!grid)return;wrap.hidden=false;$('stage1ResultStatus').textContent=status;grid.innerHTML=RESULT_SLOT_DEFS.map(slot=>`<div class="result-accordion" id="result-slot-${slot.key}"><button type="button" class="result-accordion-button" data-result-toggle="${slot.key}"><span><strong>${slot.title}</strong><small>${slot.desc}</small></span><span class="result-accordion-toggle">대기</span></button><div class="result-accordion-panel" id="result-panel-${slot.key}">아직 생성 전입니다.</div></div>`).join('');}
+    function rawBlockMap(raw=''){const text=String(raw||'');const found={};const re=/\[BLOCK:([A-Z0-9_]+)\]\s*([\s\S]*?)(?=\n\s*\[BLOCK:[A-Z0-9_]+\]|$)/g;let match;while((match=re.exec(text))){const key=String(match[1]||'').trim();const value=String(match[2]||'').trim();if(key&&value&&!found[key])found[key]=value;}return found;}
+    function fillResultSlots(outputs={},rawResult=''){const merged={...(state.contentOutputs||{}),...(outputs||{}),...rawBlockMap(rawResult)};state.contentOutputs=merged;renderStage3Tabs();const values=resultMap(merged);let ready=0;for(const slot of RESULT_SLOT_DEFS){const value=values[slot.key]||'';const box=$(`result-slot-${slot.key}`),panel=$(`result-panel-${slot.key}`),toggle=box?.querySelector('.result-accordion-toggle');if(panel)panel.textContent=value||'아직 생성 전입니다.';if(value){ready+=1;box?.classList.add('is-ready');if(toggle)toggle.textContent='펼치기';}else{box?.classList.remove('is-ready');if(toggle)toggle.textContent='대기';}}$('stage1ResultStatus').textContent=ready?`결과 ${ready}개 정리 완료`:'제미나이 결과를 기다리는 중';return ready;}
+    async function createStage1Draft(){if(state.stage1Generating)return;if(!validateStage1())return;state.stage1Generating=true;const button=$('saveStage1Btn');button.disabled=true;button.textContent='콘텐츠 생성 중';renderResultSlots();$('stage1ResultWrap')?.scrollIntoView({behavior:'smooth',block:'nearest'});try{const form=new FormData();form.append('memo',buildMemo());form.append('persona_id',String(selectedPersona().id));form.append('browser_podcast','true');const response=await fetch(apiPath('/api/mobile/one-shot/jobs'),{method:'POST',credentials:'include',body:form});const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.detail||payload.message||'1단계 작업 생성 실패');state.jobId=payload.job_id||payload.data?.job_id||'';await saveStagedSession(1,'step1_requested');$('currentJobId').value=state.jobId;$('refreshDraftBtn').disabled=!state.jobId;setStatus('stage3Status','AI 원고 생성 중',true);$('jobMonitor').innerHTML=`<strong>1단계 작업 등록 완료</strong><br>${esc(state.jobId)}<br>Gemini Worker 결과를 기다리고 있습니다.`;startPolling();}catch(error){$('stage1ResultStatus').textContent='생성 실패';alert(error.message);state.stage1Generating=false;button.disabled=false;button.textContent='1단계 확인';}}
+    function buildMemo(){const persona=selectedPersona();const parts=[$('projectTitle').value.trim(),$('workMemo').value.trim(),$('keywordInput').value.trim()&&'핵심 키워드: '+$('keywordInput').value.trim(),persona?.default_style&&'기본 채널: '+persona.default_style,persona?.blog_content_length&&'블로그 분량: '+persona.blog_content_length+'자',(persona?.default_tones||[]).length&&'기본 문체: '+persona.default_tones.join(', ')];return parts.filter(Boolean).join('\n\n');}
+    async function createDraft(){if(!validateStage1()||!validateStage2())return;const button=$('createDraftBtn');button.disabled=true;setStatus('stage3Status','작업 등록 중');$('jobMonitor').innerHTML='<strong>기존 딸깍 제작 DB에 작업을 등록하고 있습니다.</strong>';try{const form=new FormData();form.append('memo',buildMemo());form.append('persona_id',String(selectedPersona().id));form.append('browser_podcast','true');state.mediaItems.filter(x=>x.kind==='image').forEach(item=>form.append('images',item.file,item.file.name));const res=await fetch(apiPath('/api/mobile/one-shot/jobs'),{method:'POST',credentials:'include',body:form});const payload=await res.json().catch(()=>({}));if(!res.ok)throw new Error(payload.detail||payload.message||'작업 생성 실패');state.jobId=payload.job_id||payload.data?.job_id||'';if(state.jobId)await uploadStagedVideos(state.jobId);$('currentJobId').value=state.jobId;$('refreshDraftBtn').disabled=!state.jobId;setStatus('stage3Status','AI 원고 생성 중',true);$('jobMonitor').innerHTML=`<strong>작업 등록 완료</strong><br>${esc(state.jobId)}<br>Gemini Worker 결과를 기다리고 있습니다.`;startPolling();}catch(error){setStatus('stage3Status','생성 실패');$('jobMonitor').innerHTML='<strong>작업 생성 실패</strong><br>'+esc(error.message);button.disabled=false;}}
+    async function saveEditedDraft(){
+      if(!state.jobId){alert('저장할 단계별 작업이 없습니다. 먼저 1단계를 완료해 주세요.');return;}
+      const contentText=$('draftEditor').value.trim();
+      if(!contentText){alert('저장할 콘텐츠가 비어 있습니다.');return;}
+      const button=$('createDraftBtn');
+      const slot=RESULT_SLOT_DEFS.find(item=>item.key===state.activeContentKey)||RESULT_SLOT_DEFS[0];
+      button.disabled=true;button.textContent='보관함 저장 중';setStatus('stage3Status',`${slot.title} 저장 중`);
+      try{
+        const response=await fetch(apiPath(`/api/mobile/one-shot/jobs/${encodeURIComponent(state.jobId)}/staged-draft`),{
+          method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({content_key:slot.key,content_text:contentText})
+        });
+        const payload=await response.json().catch(()=>({}));
+        if(!response.ok||payload.ok===false)throw new Error(payload.detail||payload.message||'수정 콘텐츠 저장 실패');
+        const data=normalizeData(payload);state.contentOutputs=data.outputs||state.contentOutputs;if(data?.outputs)fillResultSlots(data.outputs);
+        selectStage3Content(slot.key);setStatus('stage3Status',`${slot.title} 저장 완료`,true);
+        $('draftSaveInfo').textContent=`${slot.title} 수정본이 현재 작업과 보관함 DB에 저장되었습니다.`;
+        button.textContent='수정 내용 다시 저장';await saveStagedSession(3,'content_edited');
+      }catch(error){setStatus('stage3Status','수정 콘텐츠 저장 실패');alert(error.message);button.textContent='수정 내용 저장';}
+      finally{button.disabled=false;}
+    }
+    function selectPodcastLength(seconds,{preserve=false}={}){
+      const length=Number(seconds)===80?80:50;state.podcastLength=length;
+      $('podcast50Btn')?.classList.toggle('primary',length===50);$('podcast80Btn')?.classList.toggle('primary',length===80);
+      $('podcastLengthText').value=length+'초';
+      const key=length===80?'podcast_80':'podcast_50';
+      const values=resultMap(state.contentOutputs||{});
+      if(!preserve)$('podcastScriptEditor').value=values[key]||'';
+      $('podcastScriptInfo').textContent=`팟캐스트 ${length}초 대본을 검토하고 필요하면 수정한 뒤 저장하세요.`;
+      setStatus('stage4Status',values[key]?'대본 검토 가능':'대본 생성 대기',!!values[key]);
+    }
+    async function loadPodcastScript(){
+      if(!state.jobId){alert('먼저 1단계 콘텐츠 생성을 완료해 주세요.');return;}
+      await refreshDraft();selectPodcastLength(state.podcastLength);
+      $('stage4')?.scrollIntoView({behavior:'smooth',block:'start'});
+    }
+    async function savePodcastScript(){
+      if(!state.jobId){alert('저장할 단계별 작업이 없습니다.');return false;}
+      const text=$('podcastScriptEditor').value.trim();if(!text){alert('팟캐스트 대본이 비어 있습니다.');return false;}
+      const key=state.podcastLength===80?'podcast_80':'podcast_50';
+      const response=await fetch(apiPath(`/api/mobile/one-shot/jobs/${encodeURIComponent(state.jobId)}/staged-draft`),{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({content_key:key,content_text:text})});
+      const payload=await response.json().catch(()=>({}));if(!response.ok||payload.ok===false)throw new Error(payload.detail||payload.message||'팟캐스트 대본 저장 실패');
+      const data=normalizeData(payload);state.contentOutputs=data.outputs||state.contentOutputs;fillResultSlots(state.contentOutputs);selectPodcastLength(state.podcastLength);
+      $('podcastScriptInfo').textContent=`팟캐스트 ${state.podcastLength}초 수정 대본이 현재 작업에 저장되었습니다.`;setStatus('stage4Status','대본 저장 완료',true);return true;
+    }
+    function podcastWorkerInstance(){
+      if(state.podcastWorker)return state.podcastWorker;
+      const worker=new Worker('/static/v1/assets/browserPodcast.worker-nPEw1MVN.js',{type:'module',name:'storymaker-staged-browser-podcast'});
+      worker.onerror=event=>{setStatus('stage4Status','브라우저 음성 엔진 오류');$('podcastResultInfo').textContent=event.message||'브라우저 음성 Worker 오류';};
+      state.podcastWorker=worker;return worker;
+    }
+    function generateBrowserPodcast(script){
+      return new Promise((resolve,reject)=>{
+        const worker=podcastWorkerInstance();
+        const id=`staged-podcast-${Date.now()}-${Math.random().toString(16).slice(2)}`;state.podcastRequestId=id;
+        const timeout=window.setTimeout(()=>{worker.removeEventListener('message',onMessage);reject(new Error('음성 생성이 90초 동안 진행되지 않았습니다.'));},90000);
+        function finish(){window.clearTimeout(timeout);worker.removeEventListener('message',onMessage);}
+        function onMessage(event){const msg=event.data||{};if(msg.id!==id)return;
+          if(msg.type==='progress'){const p=msg.progress||{};$('podcastProgress').value=Math.max(0,Math.min(100,Number(p.percent||0)));$('podcastProgressText').textContent=[p.stage,p.detail].filter(Boolean).join(' · ')||'음성 생성 중';return;}
+          finish();if(msg.type==='result')resolve(msg.result);else{const error=new Error(msg.message||'브라우저 음성 생성 실패');error.name=msg.name||'Error';reject(error);}
+        }
+        worker.addEventListener('message',onMessage);
+        worker.postMessage({id,type:'generate',options:{script,maleVoice:'M1',femaleVoice:'F1',speed:1.05,voiceVolume:1,pauseSeconds:.47,inferenceSteps:navigator.gpu?6:8,preferredProvider:'auto'}});
+      });
+    }
+    async function uploadBrowserPodcast(result){
+      const form=new FormData();form.append('mp3',result.mp3Blob,'browser_podcast.mp3');form.append('srt',result.srtBlob,'browser_podcast.srt');form.append('provider',result.provider||'browser');form.append('duration_seconds',String(result.durationSeconds||0));
+      const response=await fetch(apiPath(`/api/mobile/one-shot/jobs/${encodeURIComponent(state.jobId)}/browser-podcast`),{method:'POST',credentials:'include',body:form});
+      const payload=await response.json().catch(()=>({}));if(!response.ok||payload.ok===false)throw new Error(payload.detail||payload.message||'생성된 MP3/SRT 저장 실패');return normalizeData(payload);
+    }
+    async function approvePodcastProduction(){
+      if(!state.jobId){alert('먼저 단계별 작업을 생성해 주세요.');return;}
+      const button=$('approvePodcastBtn');button.disabled=true;button.textContent='음성 생성 중';$('podcastProgressWrap').hidden=false;$('podcastProgress').value=1;$('podcastProgressText').textContent='선택 대본 저장 중';$('podcastResultInfo').textContent='';
+      try{
+        if(!await savePodcastScript())return;
+        await saveStagedSession(4,state.podcastLength===80?'podcast_80_generating':'podcast_50_generating');
+        const script=$('podcastScriptEditor').value.trim();setStatus('stage4Status',`팟캐스트 ${state.podcastLength}초 생성 중`,true);
+        const result=await generateBrowserPodcast(script);$('podcastProgress').value=96;$('podcastProgressText').textContent='MP3와 SRT를 현재 작업에 저장 중';
+        const saved=await uploadBrowserPodcast(result);
+        if(state.podcastAudioUrl)URL.revokeObjectURL(state.podcastAudioUrl);state.podcastAudioUrl=URL.createObjectURL(result.mp3Blob);
+        const audio=$('podcastAudio');audio.src=saved?.media?.mp3_url||state.podcastAudioUrl;audio.hidden=false;audio.volume=.8;audio.load();audio.play().catch(()=>{});
+        state.podcastApproved=true;await saveStagedSession(4,state.podcastLength===80?'podcast_80_completed':'podcast_50_completed');
+        $('podcastProgress').value=100;$('podcastProgressText').textContent='음성 생성 및 저장 완료';setStatus('stage4Status',`팟캐스트 ${state.podcastLength}초 생성 완료`,true);
+        $('podcastResultInfo').textContent=`${String(result.provider||'browser').toUpperCase()} · 약 ${Number(result.durationSeconds||0).toFixed(1)}초 · MP3/SRT 저장 완료`;
+        button.textContent='다시 생성';
+      }catch(error){setStatus('stage4Status','음성 생성 실패');$('podcastProgressText').textContent='생성 실패';$('podcastResultInfo').textContent=error.message;alert(error.message);button.textContent='팟캐스트 생성';}
+      finally{button.disabled=false;}
+    }
+    function stage5Settings(){const fastDraft=Boolean($("stage5FastDraft")?.checked);return {eyebrow:$("stage5Eyebrow")?.value.trim()||"스토리메이커 연구소",title:$("stage5Title")?.value.trim()||"",brand:$("stage5Brand")?.value.trim()||"",phone:$("stage5Phone")?.value.trim()||"",brand_size:Number($("stage5BrandSize")?.value||46),phone_size:Number($("stage5PhoneSize")?.value||43),margin_bottom:Number($("stage5MarginBottom")?.value||80),box_enabled:Boolean($("stage5BoxEnabled")?.checked),stroke_enabled:Boolean($("stage5StrokeEnabled")?.checked),shadow_enabled:Boolean($("stage5ShadowEnabled")?.checked),render_target:"browser",fast_draft:fastDraft,resolution:fastDraft?"720x1280":($("stage5Resolution")?.value||"720x1280"),fps:fastDraft?18:Number($("stage5Fps")?.value||18),image_sec:Number($("stage5ImageSec")?.value||4.5),transition_sec:Number($("stage5TransitionSec")?.value||2),zoom_intensity:Number($("stage5ZoomIntensity")?.value||.004),subtitle_enabled:Boolean($("stage5SubtitleEnabled")?.checked),subtitle_size:Number($("stage5SubtitleSize")?.value||10),subtitle_margin:Number($("stage5SubtitleMargin")?.value||40)}}
+    function renderStage5Media(data={}){const list=$("stage5SceneList");if(list){const items=state.mediaItems||[];list.innerHTML=items.length?items.map((item,index)=>`<div class="scene"><div class="scene-img" style="background-image:url('${esc(item.url||"")}');background-size:cover;background-position:center"></div><div><strong>장면 ${index+1}</strong><div class="small">${esc(item.name||item.stored_name||item.kind||"미디어")}</div></div><span class="small">${item.kind==="video"?"동영상":"이미지"}</span></div>`).join(""):`<div class="scene"><div class="scene-img"></div><div><strong>미디어 없음</strong><div class="small">2단계 미디어를 먼저 저장해 주세요.</div></div></div>`;}const media=data.media||{};const thumb=media.thumbnail_url||"";const box=$("stage5ThumbnailPreview");if(box)box.innerHTML=thumb?`<img src="${esc(thumb)}" alt="썸네일" style="width:100%;height:100%;object-fit:cover">`:`<span class="small">생성된 썸네일이 자동 표시됩니다.</span>`;}
+    async function approveStage5(){if(!state.jobId){alert("먼저 단계별 작업을 불러오거나 생성해 주세요.");return;}const button=$("approveStage5Btn");button.disabled=true;try{localStorage.setItem("storymaker_v1_staged_stage5_settings",JSON.stringify(stage5Settings()));await saveStagedSession(5,"shortform_settings_approved");const finalButton=$("finalProductionBtn");if(finalButton)finalButton.disabled=false;setStatus("stage5Status","영상 설정 승인 완료",true);$("stage5SaveInfo").textContent="설정 저장 완료 · 기존 V1 브라우저 MP4 엔진 연결 준비 완료";button.textContent="설정 다시 저장";}catch(error){setStatus("stage5Status","설정 저장 실패");alert(error.message);}finally{button.disabled=false;}}
+    function normalizeData(payload){return payload?.data||payload||{};}
+    async function refreshDraft(){if(!state.jobId)return;try{const res=await fetch(apiPath('/api/mobile/one-shot/jobs/'+encodeURIComponent(state.jobId)),{credentials:'include',cache:'no-store'});const payload=await res.json().catch(()=>({}));if(!res.ok)throw new Error(payload.detail||'상태 확인 실패');const data=normalizeData(payload);const outputs=data.outputs||{};state.contentOutputs=outputs;const readySlots=fillResultSlots(outputs,data.raw_result||'');if(!$('podcastScriptEditor')?.value.trim())selectPodcastLength(state.podcastLength);const draft=data?.staged_session?.edited_draft||outputs.blog||[outputs.blog_titles||outputs.BLOG_TITLES,outputs.blog_post||outputs.BLOG_POST,outputs.blog_hashtags||outputs.BLOG_HASHTAGS].filter(Boolean).join('\n\n')||data.preview_text||'';const status=data.status||payload.status||'확인 중';const media=data.media||{};$('jobMonitor').innerHTML=`<strong>${esc(status)}</strong><br>이미지 ${Number(data.image_count||0)}장 · 원고 ${draft?'완료':'생성 중'}<br>${esc(media.message||'AI 결과를 확인하고 있습니다.')}`;if(draft||readySlots){if(!state.stage1Persisted){state.stage1Persisted=true;saveStagedSession(2,'step1_completed').catch(error=>console.warn('[staged] step1 save failed',error));}if(draft){$('draftEditor').value=draft;$('copyDraftBtn').disabled=false;}setStatus('stage3Status','원고 생성 완료',true);$('createDraftBtn').disabled=false;state.stage1Generating=false;const stage1Button=$('saveStage1Btn');if(stage1Button){stage1Button.disabled=false;stage1Button.textContent='1단계 다시 생성';}clearInterval(state.poller);state.poller=null;}else setStatus('stage3Status','AI 원고 생성 중',true);}catch(error){$('jobMonitor').innerHTML='<strong>상태 확인 실패</strong><br>'+esc(error.message);}}
+    function startPolling(){clearInterval(state.poller);refreshDraft();state.poller=setInterval(refreshDraft,3000);}
+    $('podcast50Btn')?.addEventListener('click',()=>selectPodcastLength(50));
+    $('podcast80Btn')?.addEventListener('click',()=>selectPodcastLength(80));
+    $('reloadPodcastScriptBtn')?.addEventListener('click',loadPodcastScript);
+    $('savePodcastScriptBtn')?.addEventListener('click',()=>savePodcastScript().catch(error=>{setStatus('stage4Status','대본 저장 실패');alert(error.message);}));
+    $('approvePodcastBtn')?.addEventListener('click',approvePodcastProduction);
+    $('stage1ResultGrid')?.addEventListener('click',event=>{const button=event.target.closest('[data-result-toggle]');if(!button)return;const key=button.dataset.resultToggle;const box=$(`result-slot-${key}`);if(!box||!box.classList.contains('is-ready'))return;box.classList.toggle('open');const toggle=button.querySelector('.result-accordion-toggle');if(toggle)toggle.textContent=box.classList.contains('open')?'접기':'펼치기';});
+    $('personaSelect')?.addEventListener('change',()=>{applyPersona(selectedPersona());state.stage1=false;setStatus('stage1Status','업체 선택됨',true);});
+    function openExistingMyPage(){
+      try{
+        const doc=window.parent&&window.parent!==window?window.parent.document:document;
+        const candidates=[...doc.querySelectorAll('button,a,[role="button"]')];
+        const target=candidates.find(node=>String(node.textContent||'').replace(/\s+/g,' ').trim()==='마이페이지')||candidates.find(node=>/마이페이지/.test(String(node.textContent||'')));
+        if(target){target.click();return;}
+      }catch(error){console.warn('[staged] parent mypage open failed',error);}
+      try{window.top.location.href='/storymaker?action=mypage';}catch(error){window.location.href='/storymaker?action=mypage';}
+    }
+    $('openMyPageBtn')?.addEventListener('click',openExistingMyPage);
+    $('saveStage1Btn')?.addEventListener('click',createStage1Draft);
+    $('mediaInput')?.addEventListener('change',event=>{addMedia(event.target.files||[]);event.target.value='';});
+    $('uploadZone')?.addEventListener('dragover',event=>{event.preventDefault();event.currentTarget.style.borderColor='#67e8f9';});
+    $('uploadZone')?.addEventListener('dragleave',event=>{event.currentTarget.style.borderColor='';});
+    $('uploadZone')?.addEventListener('drop',event=>{event.preventDefault();event.currentTarget.style.borderColor='';addMedia(event.dataTransfer.files||[]);});
+    async function startFinalProduction(){
+      const button=$('finalProductionBtn');
+      if(!state.jobId){alert('현재 단계별 작업을 먼저 불러와 주세요.');return;}
+      try{
+        button.disabled=true;
+        button.textContent='MP4 제작 화면 여는 중';
+        await saveStagedSession(6,'final_production_requested');
+        sessionStorage.setItem('storymaker_v1_staged_job_id',state.jobId);
+        sessionStorage.setItem('storymaker_current_job_id',state.jobId);
+        sessionStorage.setItem('storymaker_v1_staged_stage5_settings',JSON.stringify(stage5Settings()));
+        const target=`/static/v1/staged-browser-mp4.html?v=20260723-2&browser_mp4_test=1&job_id=${encodeURIComponent(state.jobId)}&staged=1&inline=1`;
+        const stage6Body=$('stage6')?.querySelector('.stage-body');
+        if(!stage6Body) throw new Error('6단계 인라인 표시 영역을 찾지 못했습니다.');
+        let host=$('stage6Mp4InlineHost');
+        if(!host){
+          host=document.createElement('div');
+          host.id='stage6Mp4InlineHost';
+          host.style.marginTop='22px';
+          host.style.border='1px solid rgba(103,232,249,.24)';
+          host.style.borderRadius='22px';
+          host.style.overflow='hidden';
+          host.style.background='#020617';
+          host.innerHTML='<iframe id="stage6Mp4InlineFrame" title="StoryMaker V1 MP4 제작" allow="autoplay; clipboard-read; clipboard-write" style="display:block;width:100%;height:calc(100vh - 120px);min-height:780px;border:0;background:#020617"></iframe>';
+          stage6Body.appendChild(host);
+        }
+        const frame=$('stage6Mp4InlineFrame');
+        frame.onload=()=>{
+          button.disabled=false;
+          button.textContent='MP4 제작 화면 다시 열기';
+          host.scrollIntoView({behavior:'smooth',block:'start'});
+        };
+        frame.src=target;
+        host.hidden=false;
+        host.scrollIntoView({behavior:'smooth',block:'start'});
+      }catch(error){
+        button.disabled=false;
+        button.textContent='최종 제작 시작';
+        alert(error.message||'최종 제작 화면 연결에 실패했습니다.');
+      }
+    }
+    $('stage2Confirm')?.addEventListener('click',()=>{$('stage5')?.scrollIntoView({behavior:'smooth',block:'start'});});$('approveStage5Btn')?.addEventListener('click',approveStage5);$('reloadStage5MediaBtn')?.addEventListener('click',refreshDraft);$('finalProductionBtn')?.addEventListener('click',startFinalProduction);
+    $('stage3ContentTabs')?.addEventListener('click',event=>{const button=event.target.closest('[data-stage3-key]');if(button)selectStage3Content(button.dataset.stage3Key);});
+    $('createDraftBtn')?.addEventListener('click',saveEditedDraft);
+    $('refreshDraftBtn')?.addEventListener('click',refreshDraft);
+    $('copyDraftBtn')?.addEventListener('click',async()=>{await navigator.clipboard.writeText($('draftEditor').value);$('copyDraftBtn').textContent='복사 완료';setTimeout(()=>$('copyDraftBtn').textContent='원고 복사',1200);});
+    $('topBtn')?.addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
+    document.querySelectorAll('.quicknav a').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();document.querySelector(a.getAttribute('href'))?.scrollIntoView({behavior:'smooth',block:'start'});}));
+    window.addEventListener('beforeunload',()=>clearInterval(state.poller));
+    renderMedia();
+    $('mediaPreview')?.addEventListener('click',event=>{const button=event.target.closest('[data-remove-media]');if(!button)return;const index=Number(button.dataset.removeMedia);if(Number.isInteger(index)){state.mediaItems.splice(index,1);renderMedia();}});
+    $('mediaPreview')?.addEventListener('dragstart',event=>{const card=event.target.closest('[data-media-index]');if(!card)return;state.dragIndex=Number(card.dataset.mediaIndex);card.classList.add('dragging');event.dataTransfer.effectAllowed='move';});
+    $('mediaPreview')?.addEventListener('dragend',event=>{event.target.closest('[data-media-index]')?.classList.remove('dragging');state.dragIndex=null;});
+    $('mediaPreview')?.addEventListener('dragover',event=>event.preventDefault());
+    $('mediaPreview')?.addEventListener('drop',event=>{event.preventDefault();const target=event.target.closest('[data-media-index]');if(!target||state.dragIndex===null)return;const to=Number(target.dataset.mediaIndex);const [moved]=state.mediaItems.splice(state.dragIndex,1);state.mediaItems.splice(to,0,moved);state.dragIndex=null;renderMedia();});
+
+    renderStage3Tabs();selectStage3Content('blog');renderStage5Media();
+    loadPersonas().then(restoreLatestStagedSession);
+  </script>
+</body>
+</html>

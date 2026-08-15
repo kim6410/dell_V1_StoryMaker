@@ -1,0 +1,2 @@
+ea165e672a4f86fd7a583d243b185c3de47d752c23fda10ea4377e5d8e2540ad  /home/bourne/StoryMaker_1/deploy/systemd/storymaker-v1-podcast-api.service
+83783de0e12e0d56463d65688cb4b4769cf75c08f8e2f14371c34b3876053da7  /home/bourne/StoryMaker_1/deploy/systemd/storymaker-v1-supertonic3.service

@@ -1,0 +1,16 @@
+[Unit]
+Description=StoryMaker V1 Supertonic3 TTS Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bourne
+WorkingDirectory=/home/bourne/StoryMaker_1/Supertonic3
+Environment="PATH=/home/bourne/StoryMaker_1/Supertonic3/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/home/bourne/StoryMaker_1/Supertonic3/.venv/bin/supertonic serve --host 0.0.0.0 --port 7789
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

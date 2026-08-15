@@ -1,0 +1,16 @@
+[Unit]
+Description=StoryMaker V1 Podcast API (isolated port 8003)
+After=network.target storymaker-v1-supertonic3.service
+Wants=storymaker-v1-supertonic3.service
+
+[Service]
+Type=simple
+User=bourne
+WorkingDirectory=/home/bourne/StoryMaker_1/supertonic
+EnvironmentFile=/home/bourne/StoryMaker_1/supertonic/.env.v1-podcast
+ExecStart=/home/bourne/StoryMaker_1/Supertonic3/.venv/bin/python app.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

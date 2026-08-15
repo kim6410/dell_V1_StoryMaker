@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b132b">
+  <title>StoryMaker AI Workspace · Nemotron 2.0</title>
+  <link rel="stylesheet" href="/static/v1/nemotron-lab/styles.css?v=20260725-chat-final-2">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <div class="chat-app">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <a class="brand" href="/v1/">
+          <span class="brand-mark">N</span>
+          <span class="brand-text"><b>StoryMaker AI</b><small>Nemotron 3 Ultra</small></span>
+        </a>
+        <button class="btn-icon" id="newChatSidebarBtn" title="새 대화">✎</button>
+      </div>
+
+      <div class="search-box">
+        <input type="search" id="chatSearchInput" placeholder="대화 제목 검색...">
+      </div>
+
+      <div class="conversations-list" id="conversationsList">
+        <div class="list-section">
+          <small class="list-title">오늘</small>
+          <div id="convToday"></div>
+        </div>
+        <div class="list-section">
+          <small class="list-title">어제 및 이전 대화</small>
+          <div id="convPrevious"></div>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="btn-persona" id="openPersonaModalBtn">
+          <i>🎭</i> <span>내 전담 페르소나 설정</span>
+        </button>
+        <div class="user-info">
+          <span id="currentUser">로그인 사용자</span>
+          <a href="/v1/" class="back-link">V1 메인</a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Chat Area -->
+    <main class="chat-main">
+      <!-- Header -->
+      <header class="top-nav">
+        <div class="top-left">
+          <button class="btn-icon sidebar-toggle" id="sidebarToggleBtn" title="메뉴 열기/닫기">☰</button>
+          <h1 class="chat-title" id="currentChatTitle">AI 비서</h1>
+        </div>
+
+        <div class="top-right">
+          <select id="modelSelector" class="model-select">
+            <option value="nvidia/nemotron-3-ultra-550b-a55b" selected>Nemotron 3 Ultra (550B)</option>
+          </select>
+          <button class="btn-secondary" id="newChatBtn">＋ 새 대화</button>
+          <button class="btn-icon" id="openSettingsBtn" title="고급 설정">⚙ 설정</button>
+        </div>
+      </header>
+
+      <!-- Messages Stream (occupies >80% screen space) -->
+      <div class="messages-container" id="messagesContainer">
+        <!-- Personalized Warm Welcome Screen -->
+        <div class="welcome-screen" id="welcomeScreen">
+          <div class="welcome-badge">StoryMaker AI Workspace</div>
+          <h2 id="welcomeGreeting">안녕하세요! 오늘 어떤 콘텐츠를 만들어볼까요?</h2>
+          <p class="welcome-sub">블로그, 쇼츠 대본, SNS 홍보, 번역 등 무엇이든 편하게 말씀해 주세요.</p>
+        </div>
+
+        <div class="messages-list" id="messagesList"></div>
+      </div>
+
+      <!-- Input Bar (Bottom) -->
+      <div class="input-container">
+        <!-- StoryMaker Unique Feature Chips -->
+        <div class="storymaker-chips" id="storymakerChips">
+          <button data-sample="blog">📄 블로그</button>
+          <button data-sample="shorts">🎬 쇼츠</button>
+          <button data-sample="sns">📱 SNS</button>
+          <button data-sample="podcast">🎙 팟캐스트</button>
+          <button data-sample="trans_en">🌍 번역</button>
+          <button data-sample="rewrite">✨ 문장 다듬기</button>
+        </div>
+
+        <div class="input-box">
+          <textarea id="chatInput" placeholder="블로그, 쇼츠, 번역, 마케팅 문구... 무엇이든 입력해보세요. (Enter 전송 · Shift+Enter 줄바꿈)" rows="1" autofocus></textarea>
+
+          <div class="input-actions">
+            <div class="actions-left">
+              <button class="btn-input-opt" id="attachBtn" title="프리셋 문구">＋ 프리셋</button>
+              <button class="btn-input-opt" id="inlinePersonaBtn">🎭 페르소나</button>
+            </div>
+
+            <div class="actions-right">
+              <button class="btn-send" id="sendBtn" title="전송">
+                <span id="sendBtnIcon">↑</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="input-footnote">
+          <span>Nemotron 3 Ultra · NVIDIA API Catalog</span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Advanced Settings Modal (Debug & Control Metrics) -->
+  <div class="modal-overlay hidden" id="settingsModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>⚙ 고급 설정 및 시스템 관제</h3>
+        <button class="modal-close" id="closeSettingsBtn">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="debug-panel">
+          <div class="metric-chip"><span>연결 상태:</span> <strong id="statStatus" style="color:#10b981;">ONLINE</strong></div>
+          <div class="metric-chip"><span>오늘 요청:</span> <strong id="statRequests">0건</strong></div>
+          <div class="metric-chip"><span>누적 토큰:</span> <strong id="statTokens">0</strong></div>
+          <div class="metric-chip"><span>평균 응답:</span> <strong id="statLatency">0.00초</strong></div>
+        </div>
+        <div class="form-group" style="margin-top:14px;">
+          <label>실행 모드</label>
+          <select id="settingMode">
+            <option value="chat" selected>대화하기 (Chat)</option>
+            <option value="translate">번역하기 (Translate)</option>
+            <option value="prompt">프롬프트 테스트 (Prompt Test)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>창의성 (Temperature): <b id="settingTempVal">0.35</b></label>
+          <input type="range" id="settingTemp" min="0" max="100" value="35">
+        </div>
+        <div class="form-group">
+          <label>최대 출력 토큰</label>
+          <select id="settingMaxTokens">
+            <option value="1024">1,024 토큰</option>
+            <option value="2048" selected>2,048 토큰</option>
+            <option value="4096">4,096 토큰</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Persona Modal -->
+  <div class="modal-overlay hidden" id="personaModal">
+    <div class="modal-dialog large">
+      <div class="modal-header">
+        <h3>🎭 내 전담 페르소나 설정</h3>
+        <button class="modal-close" id="closePersonaBtn">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">내 업체 정보 및 답변 스타일을 정의하여 네모트론이 나만의 전담 마케터처럼 답변하게 합니다.</p>
+        
+        <div id="personaStep1">
+          <h4>1단계: 수집된 프로필 검토 및 승인</h4>
+          <div class="profile-preview-box" id="profilePreviewBox">
+            <p>프로필 정보를 불러오는 중...</p>
+          </div>
+          <div class="modal-actions">
+            <button class="btn-primary" id="generatePersonaBtn">✨ 네모트론 페르소나 생성하기</button>
+          </div>
+        </div>
+
+        <div id="personaStep2" class="hidden">
+          <h4>2단계: 생성된 페르소나 검토 및 수정</h4>
+          <div class="persona-form">
+            <label>주요 역할 & 브랜딩<input type="text" id="pRole" placeholder="예: 오박사만능인테리어 대표"></label>
+            <label>사업 분야<input type="text" id="pBusiness" placeholder="예: 울산 생활밀착형 집수리 및 리모델링"></label>
+            <label>주요 서비스 목록<input type="text" id="pServices" placeholder="예: 욕실리모델링, 누수, 수전교체, 도어락"></label>
+            <label>타깃 고객층<input type="text" id="pAudience" placeholder="예: 울산 및 인근 가정, 아파트 주민"></label>
+            <label>활동 및 시공 지역<input type="text" id="pRegion" placeholder="예: 울산광역시 북구 및 인근"></label>
+            <label>브랜드 핵심 강점<input type="text" id="pStrengths" placeholder="예: 30년 현장 경험, 정직한 사례중심 시공"></label>
+            <label>답변 말투 및 어조<input type="text" id="pTone" placeholder="예: 친근하고 허술하지 않으며 예의 바른 어조"></label>
+            <label>콘텐츠 제작 방향<input type="text" id="pContentDirection" placeholder="예: 현장 전후 사례형, 네이버 SEO 최적화"></label>
+            <label>피해야 할 표현<input type="text" id="pAvoidPhrases" placeholder="예: 지나친 과장 광고, 허위 견적 표현"></label>
+            <label>필수 준수 지침<input type="text" id="pGuideline" placeholder="예: 지역명과 실제 문제 해결 사례를 자연스럽게 반영"></label>
+          </div>
+          <div class="modal-actions">
+            <button class="btn-secondary" id="reGeneratePersonaBtn">↻ 다시 생성</button>
+            <button class="btn-primary" id="savePersonaBtn">💾 페르소나 저장 및 적용</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/static/v1/nemotron-lab/app.js?v=20260725-public-api-fix-4"></script>
+</body>
+</html>
