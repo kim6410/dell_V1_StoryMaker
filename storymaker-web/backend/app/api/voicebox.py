@@ -103,19 +103,61 @@ async def voicebox_health(_: User = Depends(get_admin_user)) -> dict[str, Any]:
 
 @router.get("/profiles")
 async def voicebox_profiles(_: User = Depends(get_admin_user)) -> dict[str, Any]:
-    """Voicebox에 등록된 음성 프로필 목록을 관리자 UI에 전달한다."""
+    """Voicebox 프로필을 전달하고 Qwen CustomVoice 공식 9개 프리셋을 보장한다."""
+    official_voices = [
+        ("Sohee", "StoryMaker Sohee KO", "Warm Korean female voice with rich emotion"),
+        ("Serena", "StoryMaker Serena", "Warm, gentle young female voice"),
+        ("Vivian", "StoryMaker Vivian", "Bright, slightly edgy young female voice"),
+        ("Ono_Anna", "StoryMaker Ono Anna", "Playful Japanese female voice with a light, nimble timbre"),
+        ("Aiden", "StoryMaker Aiden", "Sunny American male voice with a clear midrange"),
+        ("Ryan", "StoryMaker Ryan", "Dynamic male voice with strong rhythmic drive"),
+        ("Dylan", "StoryMaker Dylan", "Youthful male voice with a clear, natural timbre"),
+        ("Eric", "StoryMaker Eric", "Lively male voice with a slightly husky brightness"),
+        ("Uncle_Fu", "StoryMaker Uncle Fu", "Seasoned male voice with a low, mellow timbre"),
+    ]
+
     try:
         timeout = httpx.Timeout(8.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(f"{VOICEBOX_BASE_URL}/profiles")
+            if not response.is_success:
+                raise HTTPException(status_code=502, detail=_upstream_error_detail(response))
+
+            payload = response.json()
+            profiles = payload if isinstance(payload, list) else []
+            existing_voice_ids = {
+                str(profile.get("preset_voice_id") or "").strip()
+                for profile in profiles
+                if isinstance(profile, dict)
+                and profile.get("voice_type") == "preset"
+                and profile.get("preset_engine") == "qwen_custom_voice"
+            }
+
+            for voice_id, name, description in official_voices:
+                if voice_id in existing_voice_ids:
+                    continue
+                create_response = await client.post(
+                    f"{VOICEBOX_BASE_URL}/profiles",
+                    json={
+                        "name": name,
+                        "description": description,
+                        "language": "ko",
+                        "voice_type": "preset",
+                        "preset_engine": "qwen_custom_voice",
+                        "preset_voice_id": voice_id,
+                        "default_engine": "qwen_custom_voice",
+                    },
+                )
+                if create_response.is_success:
+                    created = create_response.json()
+                    if isinstance(created, dict):
+                        profiles.append(created)
+                        existing_voice_ids.add(voice_id)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Voicebox 엔진 연결 대기: {type(exc).__name__}") from exc
 
-    if not response.is_success:
-        raise HTTPException(status_code=502, detail=_upstream_error_detail(response))
-
-    payload = response.json()
-    profiles = payload if isinstance(payload, list) else []
     return {"ok": True, "profiles": profiles, "count": len(profiles)}
 
 

@@ -10,6 +10,7 @@
   const chunkList = document.getElementById('chunk-list');
   const emptyState = document.getElementById('empty-state');
   const targetSeconds = document.getElementById('chunk-seconds');
+  const voiceGender = document.getElementById('voice-gender');
   const voiceProfile = document.getElementById('voice-profile');
   const voiceEngine = document.getElementById('voice-engine');
   const voiceModelSize = document.getElementById('voice-model-size');
@@ -40,6 +41,19 @@
   let engineOnline = false;
   let batchGenerating = false;
   let batchStoppedByError = false;
+  let availableVoiceProfiles = [];
+
+  const OFFICIAL_VOICE_META = {
+    Sohee: { gender: 'female', label: 'Sohee · 한국 여성 · 따뜻함' },
+    Serena: { gender: 'female', label: 'Serena · 부드러운 여성' },
+    Vivian: { gender: 'female', label: 'Vivian · 밝은 여성' },
+    Ono_Anna: { gender: 'female', label: 'Ono Anna · 발랄한 여성' },
+    Aiden: { gender: 'male', label: 'Aiden · 밝고 또렷한 남성' },
+    Ryan: { gender: 'male', label: 'Ryan · 힘 있고 리듬감 있는 남성' },
+    Dylan: { gender: 'male', label: 'Dylan · 젊고 자연스러운 남성' },
+    Eric: { gender: 'male', label: 'Eric · 활기 있는 허스키 남성' },
+    Uncle_Fu: { gender: 'male', label: 'Uncle Fu · 묵직한 중년 남성' },
+  };
 
   // Studio 껍데기는 인증 응답과 무관하게 즉시 표시한다.
   // 실제 생성/저장 API는 서버의 관리자 권한 검사에서 다시 보호한다.
@@ -134,7 +148,52 @@
     }
   }
 
-  async function loadVoiceProfiles() {
+  function voiceCategoryForProfile(profile) {
+    const voiceId = String(profile?.preset_voice_id || '').trim();
+    const official = OFFICIAL_VOICE_META[voiceId];
+    if (profile?.voice_type === 'preset' && profile?.preset_engine === 'qwen_custom_voice' && official) {
+      return official.gender;
+    }
+    return 'custom';
+  }
+
+  function syncEngineFromSelectedProfile() {
+    const selectedOption = voiceProfile.selectedOptions?.[0];
+    if (selectedOption?.dataset.engine && [...voiceEngine.options].some(option => option.value === selectedOption.dataset.engine)) {
+      voiceEngine.value = selectedOption.dataset.engine;
+    }
+    updateBatchUi();
+  }
+
+  function renderVoiceProfileOptions(preferredProfileId = '') {
+    const category = voiceGender?.value || 'female';
+    const filtered = availableVoiceProfiles.filter(profile => voiceCategoryForProfile(profile) === category);
+    if (!filtered.length) {
+      const emptyLabel = category === 'custom' ? '등록된 내 목소리 없음' : '사용 가능한 공식 보이스 없음';
+      voiceProfile.innerHTML = `<option value="">${emptyLabel}</option>`;
+      syncEngineFromSelectedProfile();
+      return;
+    }
+
+    voiceProfile.innerHTML = filtered.map((profile, index) => {
+      const id = escapeHtml(profile.id || '');
+      const voiceId = String(profile.preset_voice_id || '').trim();
+      const official = OFFICIAL_VOICE_META[voiceId];
+      const name = escapeHtml(official?.label || profile.name || `내 목소리 ${index + 1}`);
+      const defaultEngine = escapeHtml(profile.default_engine || profile.preset_engine || 'qwen');
+      return `<option value="${id}" data-engine="${defaultEngine}">${name}</option>`;
+    }).join('');
+
+    if (preferredProfileId && filtered.some(profile => profile.id === preferredProfileId)) {
+      voiceProfile.value = preferredProfileId;
+    } else if (category === 'female') {
+      const sohee = filtered.find(profile => profile.preset_voice_id === 'Sohee');
+      if (sohee?.id) voiceProfile.value = sohee.id;
+    }
+    syncEngineFromSelectedProfile();
+  }
+
+  async function loadVoiceProfiles(preferredProfileId = '') {
     voiceProfile.innerHTML = '<option value="">Voice 프로필 불러오는 중...</option>';
     try {
       const response = await fetch('/v1-api/voicebox/profiles', {
@@ -144,22 +203,14 @@
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.detail || 'Voice 프로필을 불러오지 못했습니다.');
-      const profiles = Array.isArray(payload.profiles) ? payload.profiles : [];
-      if (!profiles.length) {
+      availableVoiceProfiles = Array.isArray(payload.profiles) ? payload.profiles : [];
+      if (!availableVoiceProfiles.length) {
         voiceProfile.innerHTML = '<option value="">등록된 Voice 프로필 없음</option>';
         return;
       }
-      voiceProfile.innerHTML = profiles.map((profile, index) => {
-        const id = escapeHtml(profile.id || '');
-        const name = escapeHtml(profile.name || `Voice ${index + 1}`);
-        const defaultEngine = escapeHtml(profile.default_engine || profile.preset_engine || 'qwen');
-        return `<option value="${id}" data-engine="${defaultEngine}">${name}</option>`;
-      }).join('');
-      const selectedOption = voiceProfile.selectedOptions?.[0];
-      if (selectedOption?.dataset.engine && [...voiceEngine.options].some(option => option.value === selectedOption.dataset.engine)) {
-        voiceEngine.value = selectedOption.dataset.engine;
-      }
+      renderVoiceProfileOptions(preferredProfileId);
     } catch (_) {
+      availableVoiceProfiles = [];
       voiceProfile.innerHTML = '<option value="">엔진 연결 후 프로필 선택</option>';
     }
   }
@@ -245,12 +296,8 @@
       cloneUploadPercent.textContent = '100%';
       cloneUploadLabel.textContent = '내 목소리 프로필 등록 완료';
       cloneFormMessage.textContent = '등록이 완료됐습니다. 지금 바로 이 목소리로 청크를 생성할 수 있습니다.';
-      await loadVoiceProfiles();
-      if (createdProfile?.id) voiceProfile.value = createdProfile.id;
-      const selectedOption = voiceProfile.selectedOptions?.[0];
-      if (selectedOption?.dataset.engine && [...voiceEngine.options].some(option => option.value === selectedOption.dataset.engine)) {
-        voiceEngine.value = selectedOption.dataset.engine;
-      }
+      if (voiceGender) voiceGender.value = 'custom';
+      await loadVoiceProfiles(createdProfile?.id || '');
       window.setTimeout(() => {
         voiceCloneForm.reset();
         voiceCloneModal.hidden = true;
@@ -305,34 +352,8 @@
     return parts.length ? parts : [normalize(cleaned)];
   }
 
-  function smartChunk(text, seconds) {
-    const sentences = splitSentences(text);
-    const targetChars = Math.max(70, Math.round(Number(seconds || 30) * 4.4));
-    const minChars = Math.round(targetChars * 0.58);
-    const maxChars = Math.round(targetChars * 1.38);
-    const result = [];
-    let current = '';
-
-    for (const sentence of sentences) {
-      if (!current) {
-        current = sentence;
-        continue;
-      }
-      const candidate = `${current} ${sentence}`.trim();
-      if (candidate.length <= maxChars || current.length < minChars) {
-        current = candidate;
-      } else {
-        result.push(current);
-        current = sentence;
-      }
-    }
-    if (current) result.push(current);
-
-    if (result.length > 1 && result[result.length - 1].length < minChars * 0.55) {
-      const tail = result.pop();
-      result[result.length - 1] = `${result[result.length - 1]} ${tail}`.trim();
-    }
-    return result;
+  function sentenceChunks(text) {
+    return splitSentences(text);
   }
 
   function makeChunk(text, index) {
@@ -589,7 +610,7 @@
   async function generateAllSequentially() {
     if (batchGenerating) return;
     if (!chunks.length) {
-      window.alert('먼저 대본을 30초 청크로 분할해 주세요.');
+      window.alert('먼저 대본을 문장 기준 청크로 분할해 주세요.');
       return;
     }
     if (!engineOnline) {
@@ -604,35 +625,40 @@
 
     batchGenerating = true;
     batchStoppedByError = false;
-    updateBatchUi('전체 순차 생성을 시작합니다. 첫 번째 미완료 청크를 준비하고 있습니다.');
+    let shouldAutoMerge = false;
+    updateBatchUi('전체 음성 자동 생성을 시작합니다. 첫 번째 미완료 문장을 준비하고 있습니다.');
 
     try {
       for (let index = 0; index < chunks.length; index += 1) {
         const chunk = chunks[index];
         if (selectedVersionForChunk(chunk)) {
-          updateBatchUi(`Chunk #${index + 1}은 이미 완료되어 건너뜁니다.`);
+          updateBatchUi(`문장 #${index + 1}은 이미 완료되어 건너뜁니다.`);
           continue;
         }
 
-        updateBatchUi(`Chunk #${index + 1} 생성 중 · 완료되면 자동으로 다음 청크를 시작합니다.`);
+        updateBatchUi(`문장 #${index + 1} 음성 생성 중 · 완료 상태를 확인한 뒤 다음 문장으로 넘어갑니다.`);
         const success = await generateChunkAudio(index, false);
         if (!success || chunk.status !== 'COMPLETED' || !selectedVersionForChunk(chunk)) {
           batchStoppedByError = true;
-          updateBatchUi(`Chunk #${index + 1} 생성 오류로 순차 작업을 중지했습니다. 해당 청크를 확인해 주세요.`);
+          updateBatchUi(`문장 #${index + 1} 생성 오류로 자동 작업을 중지했습니다. 해당 문장을 확인해 주세요.`);
           break;
         }
-        updateBatchUi(`Chunk #${index + 1} 완료 · 다음 청크 상태를 확인하고 있습니다.`);
+        updateBatchUi(`문장 #${index + 1} 완료 · 다음 문장 상태를 확인하고 있습니다.`);
+      }
+
+      shouldAutoMerge = chunks.length > 0 && chunks.every(chunk => Boolean(selectedVersionForChunk(chunk)));
+      if (shouldAutoMerge) {
+        batchStoppedByError = false;
+        updateBatchUi(`전체 ${chunks.length}개 문장 음성 생성 완료 · 최종 WAV 자동 합치기를 시작합니다.`);
       }
     } finally {
       batchGenerating = false;
-      const allReady = chunks.length > 0 && chunks.every(chunk => Boolean(selectedVersionForChunk(chunk)));
-      if (allReady) {
-        batchStoppedByError = false;
-        updateBatchUi(`전체 ${chunks.length}개 청크 생성 완료 · 최종 WAV 합치기가 준비됐습니다.`);
-      } else if (!batchStoppedByError) {
-        updateBatchUi();
-      }
+      if (!shouldAutoMerge && !batchStoppedByError) updateBatchUi();
       updateCounters();
+    }
+
+    if (shouldAutoMerge) {
+      await mergeSelectedChunksAndSave();
     }
   }
 
@@ -861,7 +887,7 @@
       return;
     }
     chunks.forEach(revokeChunkAudio);
-    chunks = smartChunk(source, Number(targetSeconds.value)).map(makeChunk);
+    chunks = sentenceChunks(source).map(makeChunk);
     renderChunks();
   }
 
@@ -985,12 +1011,8 @@
     button.addEventListener('click', closeVoiceCloneModal);
   });
   voiceCloneForm?.addEventListener('submit', handleVoiceCloneSubmit);
-  voiceProfile?.addEventListener('change', () => {
-    const option = voiceProfile.selectedOptions?.[0];
-    const engine = option?.dataset.engine;
-    if (engine && [...voiceEngine.options].some(item => item.value === engine)) voiceEngine.value = engine;
-    updateBatchUi();
-  });
+  voiceGender?.addEventListener('change', () => renderVoiceProfileOptions());
+  voiceProfile?.addEventListener('change', syncEngineFromSelectedProfile);
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && voiceCloneModal && !voiceCloneModal.hidden) closeVoiceCloneModal();
   });

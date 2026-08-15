@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="google" content="notranslate" />
   <title>VoiceBox Studio | StoryMaker V1</title>
-  <link rel="stylesheet" href="/static/v1/voicebox-studio.css?v=20260813-batch-merge-1" />
+  <link rel="stylesheet" href="/static/v1/voicebox-studio.css?v=20260815-sentence-voices-automerge-1" />
 </head>
 <body>
   <div id="voicebox-auth-gate" class="auth-gate" hidden>
@@ -23,7 +23,7 @@
         <div>
           <p class="eyebrow">STORYMAKER ADMIN LAB</p>
           <h1>VoiceBox Studio</h1>
-          <p class="subtitle">긴 원고를 약 30초 단위로 나누고, 청크별 음성을 검수한 뒤 하나의 음성과 SRT로 합치는 관리자 제작실</p>
+          <p class="subtitle">긴 원고를 문장 끝 기준으로 나누고, 선택한 보이스로 순차 생성한 뒤 하나의 최종 음성으로 자동 합치는 관리자 제작실</p>
         </div>
       </div>
       <div class="engine-panel">
@@ -38,13 +38,13 @@
     <section class="welcome-strip" aria-label="VoiceBox 작업 순서">
       <div class="welcome-copy">
         <span class="welcome-badge">처음 사용해도 4단계면 끝</span>
-        <strong>대본을 넣고 → 30초로 나누고 → 마음에 드는 목소리만 고르고 → 한 번에 합치세요.</strong>
+        <strong>대본을 넣고 → 문장 끝으로 나누고 → 목소리를 고르고 → 한 번 눌러 끝까지 자동으로 만드세요.</strong>
         <p>한 청크가 마음에 안 들면 그 부분만 다시 만들 수 있습니다. 전체를 처음부터 다시 만들 필요가 없습니다.</p>
       </div>
       <div class="step-flow">
         <div class="step-item active"><span>1</span><b>대본 입력</b><small>전체 원고 붙여넣기</small></div>
         <div class="step-arrow">→</div>
-        <div class="step-item"><span>2</span><b>자동 분할</b><small>약 30초씩 나누기</small></div>
+        <div class="step-item"><span>2</span><b>자동 분할</b><small>문장 끝 기준 나누기</small></div>
         <div class="step-arrow">→</div>
         <div class="step-item"><span>3</span><b>듣고 선택</b><small>청크별 재생성</small></div>
         <div class="step-arrow">→</div>
@@ -57,10 +57,18 @@
         <span>프로젝트명</span>
         <input id="project-name" type="text" value="새 VoiceBox 프로젝트" maxlength="80" />
       </label>
-      <div class="quick-tip"><strong>추천</strong><span>처음에는 30초 · 무음 0.3초 설정이 가장 무난합니다.</span></div>
+      <div class="quick-tip"><strong>추천</strong><span>문장 끝 기준 자동 분할 · 무음 0.3초 설정이 가장 자연스럽습니다.</span></div>
     </section>
 
     <section class="toolbar">
+      <label class="control-field">
+        <span>보이스 구분</span>
+        <select id="voice-gender">
+          <option value="female" selected>여성 보이스</option>
+          <option value="male">남성 보이스</option>
+          <option value="custom">내 목소리</option>
+        </select>
+      </label>
       <label class="control-field profile-field">
         <span>Voice 프로필</span>
         <select id="voice-profile">
@@ -86,11 +94,9 @@
         </select>
       </label>
       <label class="control-field">
-        <span>목표 청크</span>
+        <span>분할 기준</span>
         <select id="chunk-seconds">
-          <option value="20">약 20초</option>
-          <option value="30" selected>약 30초</option>
-          <option value="40">약 40초</option>
+          <option value="sentence" selected>문장 끝 (. ! ?)</option>
         </select>
       </label>
       <label class="control-field">
@@ -102,9 +108,9 @@
           <option value="800">0.8초</option>
         </select>
       </label>
-      <button id="generate-all" class="primary-button batch-generate-button" type="button" disabled>전체 청크 순차 생성</button>
+      <button id="generate-all" class="primary-button batch-generate-button" type="button" disabled>전체 음성 자동 생성·합치기</button>
       <button id="play-all" class="secondary-button" type="button" disabled>전체 연속 재생</button>
-      <button id="export-all" class="secondary-button" type="button" disabled>최종 WAV 합치기·저장</button>
+      <button id="export-all" class="secondary-button" type="button" disabled>최종 WAV 다시 합치기·저장</button>
     </section>
 
     <section class="workspace-grid">
@@ -120,11 +126,11 @@
         <div class="script-actions">
           <button id="load-demo" class="ghost-button" type="button">예시 대본</button>
           <button id="clear-script" class="ghost-button" type="button">비우기</button>
-          <button id="split-script" class="primary-button" type="button">30초 기준 자동 분할</button>
+          <button id="split-script" class="primary-button" type="button">문장 기준 자동 분할</button>
         </div>
         <div class="helper-card">
-          <strong>Smart Chunker 기본 규칙</strong>
-          <p>마침표, 물음표, 느낌표, 줄바꿈을 우선 경계로 사용합니다. 목표 시간에 가까운 문장 끝을 선택하고 너무 짧거나 긴 청크는 이웃 문장과 자동 조정합니다.</p>
+          <strong>문장 기준 자동 청크</strong>
+          <p>마침표, 물음표, 느낌표와 줄바꿈을 문장 끝으로 인식해 한 문장씩 청크를 만듭니다. 전체 음성 자동 생성 버튼을 한 번 누르면 각 청크 완료를 확인한 뒤 다음 청크로 넘어가고, 마지막에는 최종 WAV까지 자동으로 합칩니다.</p>
         </div>
       </article>
 
@@ -137,8 +143,8 @@
           <span id="chunk-summary" class="counter">0개</span>
         </div>
         <div id="empty-state" class="empty-state">
-          <div class="empty-icon">30s</div>
-          <h3>대본을 자동 분할해 주세요.</h3>
+          <div class="empty-icon">문장</div>
+          <h3>대본을 문장 기준으로 자동 분할해 주세요.</h3>
           <p>분할 후 각 청크를 독립적으로 수정하고, 생성·재생성·버전 선택을 할 수 있는 카드가 만들어집니다.</p>
         </div>
         <div id="chunk-list" class="chunk-list"></div>
@@ -157,8 +163,8 @@
         <small id="finalize-ready-text">모든 청크가 생성되면 최종 합치기 버튼이 활성화됩니다.</small>
       </div>
       <div class="finalize-actions">
-        <button id="generate-all-bottom" class="secondary-button" type="button" disabled>전체 청크 순차 생성</button>
-        <button id="merge-and-save" class="primary-button final-save-button" type="button" disabled>최종 WAV 합치기·자동저장</button>
+        <button id="generate-all-bottom" class="secondary-button" type="button" disabled>전체 음성 자동 생성·합치기</button>
+        <button id="merge-and-save" class="primary-button final-save-button" type="button" disabled>최종 WAV 다시 합치기·자동저장</button>
       </div>
     </section>
 
@@ -214,6 +220,6 @@
     </section>
   </div>
 
-  <script src="/static/v1/voicebox-studio.js?v=20260813-batch-merge-1"></script>
+  <script src="/static/v1/voicebox-studio.js?v=20260815-sentence-voices-automerge-1"></script>
 </body>
 </html>
