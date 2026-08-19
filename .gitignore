@@ -111,4 +111,5 @@ supertonic/slid_refactored/fonts/
 Thumbs.db
 .vscode/
 .idea/
-.claude/
+.claude/*
+!.claude/CLAUDE.md
