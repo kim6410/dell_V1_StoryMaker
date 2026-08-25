@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <title>네이버 블로그 AI | StoryMaker</title>
+  <style>
+    :root{color-scheme:dark;font-family:Pretendard,"Noto Sans KR",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#020617;color:#e5eefc}body{padding:18px}
+    .wrap{max-width:1500px;margin:0 auto}.hero{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:22px;border:1px solid rgba(34,211,238,.2);border-radius:24px;background:linear-gradient(135deg,#071126,#0b1d3a);box-shadow:0 18px 55px rgba(0,0,0,.24)}
+    .eyebrow{margin:0 0 8px;color:#67e8f9;font-size:12px;font-weight:900;letter-spacing:.12em}.hero h1{margin:0;font-size:28px;letter-spacing:-.04em}.hero p{margin:10px 0 0;color:#94a3b8;font-size:14px;line-height:1.65}.badge{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;border:1px solid rgba(74,222,128,.35);background:rgba(22,101,52,.18);color:#bbf7d0;border-radius:999px;padding:9px 12px;font-size:12px;font-weight:900}.dot{width:8px;height:8px;border-radius:999px;background:#22c55e;box-shadow:0 0 0 5px rgba(34,197,94,.12)}
+    .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:14px 0}.card{padding:16px;border:1px solid rgba(148,163,184,.17);border-radius:18px;background:#071126}.card small{display:block;color:#64748b;font-size:11px;font-weight:800}.card strong{display:block;margin-top:7px;color:#f8fafc;font-size:15px}.card span{display:block;margin-top:6px;color:#94a3b8;font-size:11px;line-height:1.5}
+    .pipeline{display:flex;gap:8px;align-items:center;overflow:auto;padding:14px 2px 2px}.step{flex:0 0 auto;border:1px solid rgba(56,189,248,.2);background:#07182f;border-radius:14px;padding:10px 12px;color:#bae6fd;font-size:12px;font-weight:800}.arrow{color:#334155;font-weight:900}
+    .studio{margin-top:16px;border:1px solid rgba(34,211,238,.18);border-radius:22px;overflow:hidden;background:#fff;min-height:900px}.studio-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:#071126;border-bottom:1px solid rgba(148,163,184,.14)}.studio-head strong{font-size:14px}.studio-head span{font-size:11px;color:#94a3b8}.studio iframe{display:block;width:100%;height:920px;border:0;background:#fff}
+    .locked{display:none;max-width:620px;margin:18vh auto 0;padding:28px;border:1px solid rgba(248,113,113,.25);border-radius:22px;background:#111827;text-align:center}.locked h2{margin:0 0 10px}.locked p{margin:0;color:#94a3b8;line-height:1.7}.loading{padding:48px 20px;text-align:center;color:#94a3b8;font-weight:800}
+    @media(max-width:900px){body{padding:10px}.hero{flex-direction:column}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.studio iframe{height:1100px}}
+    @media(max-width:520px){.cards{grid-template-columns:1fr}.hero h1{font-size:23px}}
+  </style>
+</head>
+<body>
+  <div id="loading" class="loading">관리자 권한을 확인하고 있습니다.</div>
+  <section id="locked" class="locked">
+    <h2>관리자 전용 화면</h2>
+    <p>이 화면은 StoryMaker 관리자 계정에서만 사용할 수 있습니다.</p>
+  </section>
+  <main id="app" class="wrap" hidden>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">STORYMAKER ADMIN LAB</p>
+        <h1>네이버 블로그 AI</h1>
+        <p>기존 StoryMaker 네이버 블로그 복사형 스튜디오를 기반으로 AI 검수, 계정 세션, 예약 발행, 자동 발행을 단계적으로 연결하는 관리자 실험실입니다.</p>
+      </div>
+      <div class="badge"><span class="dot"></span>AI 모델 · ChatGPT Luna 준비</div>
+    </section>
+
+    <section class="cards" aria-label="구현 상태">
+      <article class="card"><small>콘텐츠 원본</small><strong>기존 자산 재사용</strong><span>프로젝트·블로그 본문·이미지·해시태그</span></article>
+      <article class="card"><small>AI 편집 엔진</small><strong>ChatGPT Luna</strong><span>헤르메스 방식 참고 · 연결 예정</span></article>
+      <article class="card"><small>네이버 발행기</small><strong>Playwright 검토 중</strong><span>blogauto-naver 구조 분석 후 연결</span></article>
+      <article class="card"><small>운영 정책</small><strong>관리자 전용</strong><span>초기에는 사람 확인 후 발행</span></article>
+    </section>
+
+    <section class="pipeline" aria-label="예정 파이프라인">
+      <div class="step">StoryMaker 원고</div><div class="arrow">→</div>
+      <div class="step">Luna 검수</div><div class="arrow">→</div>
+      <div class="step">이미지·태그 정리</div><div class="arrow">→</div>
+      <div class="step">발행 미리보기</div><div class="arrow">→</div>
+      <div class="step">네이버 발행</div><div class="arrow">→</div>
+      <div class="step">발행 로그</div>
+    </section>
+
+    <section class="studio">
+      <div class="studio-head"><strong>기존 네이버 블로그 스튜디오</strong><span>현재 기능 그대로 사용 · 자동화 기능은 다음 단계에서 연결</span></div>
+      <iframe src="/static/naver-blog-copy.html?embed=1" title="StoryMaker 네이버 블로그 복사형 스튜디오" loading="eager" referrerpolicy="same-origin"></iframe>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+      const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      const isAdmin = (user) => {
+        if (!user || typeof user !== 'object') return false;
+        const role = normalize(user.role || user.user_role || user.type);
+        return user.is_admin === true || user.is_admin === 1 || user.admin === true || user.admin === 1 || role === 'admin' || role === 'administrator';
+      };
+      fetch('/v1-api/auth/me', {credentials:'include',cache:'no-store',headers:{Accept:'application/json'}})
+        .then((response) => response.ok ? response.json() : Promise.reject(new Error('auth')))
+        .then((payload) => {
+          const user = payload?.data?.user || payload?.user || payload?.data || null;
+          document.getElementById('loading').hidden = true;
+          if (isAdmin(user)) document.getElementById('app').hidden = false;
+          else document.getElementById('locked').style.display = 'block';
+        })
+        .catch(() => {
+          document.getElementById('loading').hidden = true;
+          document.getElementById('locked').style.display = 'block';
+        });
+    })();
+  </script>
+</body>
+</html>
