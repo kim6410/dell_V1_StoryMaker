@@ -41,3 +41,10 @@
 .chunk-delete{margin-left:auto}
 @media(max-width:1050px){.workflow-action-dock{grid-template-columns:1fr}.workflow-action-dock .finalize-actions{justify-content:flex-end}}
 @media(max-width:640px){.workflow-action-dock .finalize-actions{flex-wrap:wrap}.chunk-actions{flex-wrap:wrap}.chunk-text{max-height:62px}}
+
+/* 2026-08-30 VoiceBox whole-page frame */
+html,body{background:#020617!important}
+body{padding:18px!important}
+.app-shell{width:min(1760px,calc(100% - 2px))!important;margin:0 auto!important;padding:22px!important;border:1px solid rgba(103,232,249,.30)!important;border-radius:30px!important;background:linear-gradient(180deg,rgba(8,15,31,.98),rgba(3,9,24,.98))!important;box-shadow:0 24px 70px rgba(0,0,0,.42),inset 0 0 0 1px rgba(139,92,246,.10)!important;overflow:hidden!important}
+.app-shell::before{content:"";display:block;height:4px;margin:-22px -22px 18px;background:linear-gradient(90deg,#67e8f9,#8b5cf6,#22d3ee);opacity:.9}
+@media(max-width:640px){body{padding:8px!important}.app-shell{width:100%!important;padding:12px!important;border-radius:20px!important}.app-shell::before{margin:-12px -12px 12px}}
