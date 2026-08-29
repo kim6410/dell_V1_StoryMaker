@@ -821,6 +821,27 @@ async function loadBetaRenderBrowserShortform() {
     ui.audio.removeAttribute('src'); ui.video.removeAttribute('src');
     ui.audio.hidden = true; ui.video.hidden = true; ui.upload.disabled = true; ui.mp4.disabled = true;
 
+    const externalAudio = settings?.external_narration_audio || null;
+    const externalSrt = settings?.external_narration_srt || null;
+    if (externalAudio || externalSrt) {
+      if (!externalAudio || !externalSrt) throw new Error('외부 나레이션은 TTS 음성과 SRT를 함께 선택해야 합니다.');
+      const form = new FormData();
+      form.append('browser_mp3', externalAudio, externalAudio.name || 'external_narration.mp3');
+      form.append('browser_srt', externalSrt, externalSrt.name || 'external_narration.srt');
+      form.append('script', String(settings?.script || ''));
+      form.append('podcast_version', String(settings?.podcast_version || '50'));
+      form.append('diagnostics', JSON.stringify({ source: 'voicebox-external-narration', audio_name: externalAudio.name || '', srt_name: externalSrt.name || '' }));
+      ui.status.textContent = 'VoiceBox TTS·SRT를 현재 작업에 연결하는 중...';
+      onProgress(85, 'VoiceBox TTS·SRT 업로드 중...');
+      await request(`/beta-api/browser/jobs/${encodeURIComponent(currentJobId)}/upload`, { method: 'POST', body: form });
+      lastPodcastProvider = 'voicebox-external';
+      lastPodcastSeconds = 0;
+      lastPodcastPerf = { source: 'external-upload' };
+      await loadJob();
+      onProgress(100, 'VoiceBox TTS·SRT 연결 완료');
+      return;
+    }
+
     const context = await request(`/beta-api/shortform/jobs/${encodeURIComponent(currentJobId)}/context`);
     const submittedScript = String(settings?.script || '').trim();
     const script = submittedScript || String(context?.context?.script || '').trim();

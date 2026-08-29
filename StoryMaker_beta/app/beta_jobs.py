@@ -831,6 +831,8 @@ def beta_render_job(
     music_volume: float = Form(0.16),
     script: str = Form(""),
     podcast_version: str = Form("50"),
+    narration_audio: UploadFile | None = File(None),
+    narration_srt: UploadFile | None = File(None),
 ) -> JSONResponse:
     enforce_monthly_limit(current_user_id(request), current_user_role(request), beta_job_id, "archive")
     job_dir = beta_job_dir(beta_job_id)
@@ -865,15 +867,38 @@ def beta_render_job(
         beta_write_json(job_dir / "result.json", result)
         script = selected_script
         voice_wav = canonical_audio_path(job_dir)
+        subtitle = output_dir / "subtitle.srt"
+        has_external_audio = bool(narration_audio and narration_audio.filename)
+        has_external_srt = bool(narration_srt and narration_srt.filename)
+        if has_external_audio != has_external_srt:
+            raise HTTPException(status_code=400, detail="외부 나레이션은 TTS 음성과 SRT를 함께 업로드해야 합니다.")
+
         voice_wav.unlink(missing_ok=True)
-        (output_dir / "subtitle.srt").unlink(missing_ok=True)
-        beta_make_tts(script, voice_wav, job_dir)
+        subtitle.unlink(missing_ok=True)
+        if has_external_audio and has_external_srt:
+            audio_ext = Path(narration_audio.filename or "").suffix.lower()
+            if audio_ext not in {".mp3", ".wav", ".m4a"} or Path(narration_srt.filename or "").suffix.lower() != ".srt":
+                raise HTTPException(status_code=400, detail="TTS는 MP3/WAV/M4A, 자막은 SRT 파일만 사용할 수 있습니다.")
+            external_audio = output_dir / f"external_narration{audio_ext}"
+            with external_audio.open("wb") as stream:
+                shutil.copyfileobj(narration_audio.file, stream)
+            with subtitle.open("wb") as stream:
+                shutil.copyfileobj(narration_srt.file, stream)
+            if external_audio.stat().st_size < 128 or subtitle.stat().st_size < 16:
+                raise HTTPException(status_code=400, detail="업로드한 TTS 또는 SRT 파일이 비어 있습니다.")
+            beta_run_ffmpeg(["-i", str(external_audio), "-ar", "44100", "-ac", "1", str(voice_wav)], job_dir)
+            result.setdefault("shortform", {})["narration_source"] = "external"
+            result["shortform"]["narration_audio_name"] = narration_audio.filename
+            result["shortform"]["narration_srt_name"] = narration_srt.filename
+            beta_write_json(job_dir / "result.json", result)
+        else:
+            beta_make_tts(script, voice_wav, job_dir)
+
         duration = beta_probe_duration(voice_wav, job_dir)
         voice_mp3 = output_dir / "voice.mp3"
         beta_run_ffmpeg(["-i", str(voice_wav), "-c:a", "libmp3lame", "-q:a", "3", str(voice_mp3)], job_dir)
 
         beta_update_job(beta_job_id, status="creating_subtitles", progress=40)
-        subtitle = output_dir / "subtitle.srt"
         if not subtitle.exists() or subtitle.stat().st_size < 32:
             beta_write_srt(script, duration, subtitle)
         render_subtitle = beta_prepare_render_srt(subtitle, output_dir / "subtitle_render.srt")

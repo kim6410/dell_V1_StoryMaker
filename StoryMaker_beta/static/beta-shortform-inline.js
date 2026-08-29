@@ -10,7 +10,7 @@
   const fields = {
     title1: q('sf-title-1'), title2: q('sf-title-2'), business: q('sf-business'), phone: q('sf-phone'),
     script: q('sf-script'), scriptLabel: q('sf-script-label'), podcast50: q('sf-podcast-50'), podcast80: q('sf-podcast-80'), media: q('sf-media-summary'), imageInput: q('sf-images'), videoInput: q('sf-videos'),
-    femaleVoice: q('sf-female-voice'), maleVoice: q('sf-male-voice'), voiceSpeed: q('sf-voice-speed'), voiceVolume: q('sf-voice-volume'),
+    femaleVoice: q('sf-female-voice'), maleVoice: q('sf-male-voice'), voiceSpeed: q('sf-voice-speed'), voiceVolume: q('sf-voice-volume'), narrationAudio: q('sf-narration-audio'), narrationSrt: q('sf-narration-srt'), narrationStatus: q('sf-narration-status'),
     brandSize: q('sf-brand-size'), phoneSize: q('sf-phone-size'), bottomMargin: q('sf-bottom-margin'),
     fps: q('sf-fps'), transition: q('sf-transition'), transitionDuration: q('sf-transition-duration'), bgmMode: q('sf-bgm-mode'), bgmFile: q('sf-bgm-file'), bgmUpload: q('sf-bgm-upload'), bgmVolume: q('sf-bgm-volume'),
     subtitleSize: q('sf-subtitle-size'), subtitlePosition: q('sf-subtitle-position'),
@@ -37,6 +37,32 @@
     const stamp = new Date().toLocaleTimeString('ko-KR', { hour12: false });
     fields.log.textContent += `[${stamp}] ${message}\n`;
     fields.log.scrollTop = fields.log.scrollHeight;
+  }
+
+  function externalNarrationFiles() {
+    const audio = fields.narrationAudio?.files?.[0] || null;
+    const srt = fields.narrationSrt?.files?.[0] || null;
+    return { audio, srt };
+  }
+
+  function validateExternalNarration({ alertOnError = false } = {}) {
+    const { audio, srt } = externalNarrationFiles();
+    if (!audio && !srt) return true;
+    if (!audio || !srt) {
+      const message = 'VoiceBox 나레이션은 TTS 음성과 SRT를 함께 선택해야 합니다.';
+      if (fields.narrationStatus) fields.narrationStatus.textContent = message;
+      if (alertOnError) window.alert(message);
+      return false;
+    }
+    const audioExt = (audio.name.split('.').pop() || '').toLowerCase();
+    if (!['mp3', 'wav', 'm4a'].includes(audioExt) || !srt.name.toLowerCase().endsWith('.srt')) {
+      const message = 'TTS는 MP3/WAV/M4A, 자막은 SRT 파일을 선택해 주세요.';
+      if (fields.narrationStatus) fields.narrationStatus.textContent = message;
+      if (alertOnError) window.alert(message);
+      return false;
+    }
+    if (fields.narrationStatus) fields.narrationStatus.textContent = `외부 나레이션 적용 · ${audio.name} + ${srt.name}`;
+    return true;
   }
 
   function setProgress(value, message) {
@@ -471,6 +497,7 @@
 
   async function makeVideo() {
     if (!state.jobId || state.rendering || state.enginePreparing) return;
+    if (!validateExternalNarration({ alertOnError: true })) return;
     if (!state.engineReady) {
       await prepareRendererForJob(state.jobId);
       if (!state.engineReady) return;
@@ -503,6 +530,10 @@
       const renderer = await waitForRenderer();
       const currentValues = values();
       currentValues.one_time_music_file = fields.bgmMode.value === 'one_time' ? fields.bgmUpload.files?.[0] || null : null;
+      const externalNarration = externalNarrationFiles();
+      currentValues.external_narration_audio = externalNarration.audio;
+      currentValues.external_narration_srt = externalNarration.srt;
+      if (externalNarration.audio && externalNarration.srt) appendLog(`외부 나레이션 사용 · ${externalNarration.audio.name} + ${externalNarration.srt.name}`);
       stopHeartbeat = startWorkingHeartbeat('TTS·SRT·MP3 준비', 12, 36);
       let lastProgressLog = '';
       const result = await renderer.createVideoOnly(state.jobId, currentValues, (percent, message, detail) => {
@@ -567,6 +598,11 @@
         fallbackBody.append('music_volume', String(Number(fields.bgmVolume?.value || 0.1)));
         fallbackBody.append('script', stripSpeakerLabels(fields.script?.value || ''));
         fallbackBody.append('podcast_version', state.selectedPodcast);
+        const externalNarration = externalNarrationFiles();
+        if (externalNarration.audio && externalNarration.srt) {
+          fallbackBody.append('narration_audio', externalNarration.audio, externalNarration.audio.name);
+          fallbackBody.append('narration_srt', externalNarration.srt, externalNarration.srt.name);
+        }
         const fallback = await request(`/beta-api/jobs/${encodeURIComponent(state.jobId)}/render`, {
           method: 'POST',
           body: fallbackBody
@@ -645,6 +681,8 @@
 
   fields.podcast50?.addEventListener('click', () => selectPodcast('50'));
   fields.podcast80?.addEventListener('click', () => selectPodcast('80'));
+  fields.narrationAudio?.addEventListener('change', () => validateExternalNarration());
+  fields.narrationSrt?.addEventListener('change', () => validateExternalNarration());
   fields.script?.addEventListener('input', () => {
     state.scriptDrafts[state.selectedPodcast] = fields.script.value;
   });
@@ -721,6 +759,9 @@
       dialog.style.transform = 'none';
       dialog.style.height = `${Math.max(520, visibleHeight - 12)}px`;
       dialog.style.maxHeight = `${Math.max(520, visibleHeight - 12)}px`;
+      modalBody.style.height = `${Math.max(320, visibleHeight - 142)}px`;
+      modalBody.style.maxHeight = `${Math.max(320, visibleHeight - 142)}px`;
+      modalBody.style.overflowY = 'scroll';
     };
 
     const closeModal = () => {
