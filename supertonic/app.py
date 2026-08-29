@@ -189,22 +189,79 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # 작업 상태 관리 (메모리 저장 - 간단 버전)
 # =============================================================================
 def _voice_readable_text(text: str):
-    """TTS용 전화번호 발음 변환.
+    """TTS용 전화번호·숫자·등급 발음 변환.
 
     중요:
     기존 구현은 split() 후 " ".join()을 사용해서 줄바꿈을 모두 없앴습니다.
     그 결과 [여성]/[남성] 또는 #F1/#M1 화자 태그가 대사와 한 줄에 붙어
     podcast_generator.pyw 세그먼트 파싱이 실패했습니다.
 
-    이 함수는 원본 줄바꿈을 보존하면서 전화번호만 발음형으로 바꿉니다.
+    이 함수는 원본 줄바꿈을 보존하면서 TTS에서 오독하기 쉬운 표현만 발음형으로 바꿉니다.
     """
     ko = "공일이삼사오육칠팔구"
 
     def rd(value: str) -> str:
         return "".join(ko[int(ch)] if ch.isdigit() else ch for ch in value)
 
+    def korean_integer(value: int) -> str:
+        digits = "영일이삼사오육칠팔구"
+        small_units = ("", "십", "백", "천")
+        big_units = ("", "만", "억", "조")
+        if value == 0:
+            return "영"
+
+        groups = []
+        while value > 0:
+            groups.append(value % 10000)
+            value //= 10000
+
+        parts = []
+        for group_index in range(len(groups) - 1, -1, -1):
+            group = groups[group_index]
+            if group == 0:
+                continue
+            group_parts = []
+            for pos in range(3, -1, -1):
+                divisor = 10 ** pos
+                digit = (group // divisor) % 10
+                if digit == 0:
+                    continue
+                if digit != 1 or pos == 0:
+                    group_parts.append(digits[digit])
+                group_parts.append(small_units[pos])
+            group_text = "".join(group_parts)
+            if group_index > 0:
+                group_text += big_units[group_index]
+            parts.append(group_text)
+        return "".join(parts)
+
     back = {}
     source = text or ""
+
+    def replace_grade(pattern: str, spoken: str) -> None:
+        nonlocal source
+        regex = re.compile(pattern)
+
+        def repl_grade(match: re.Match) -> str:
+            original = match.group(0)
+            back[spoken] = original
+            return spoken
+
+        source = regex.sub(repl_grade, source)
+
+    replace_grade(r"(?<!\d)1\+\+(?!\+)", "투플러스")
+    replace_grade(r"(?<!\d)1\+(?!\+)", "원플러스")
+
+    time_pattern = re.compile(r"(?<!\d)(\d{2,})\s*시간")
+
+    def repl_time(match: re.Match) -> str:
+        original = match.group(0)
+        number = int(match.group(1))
+        spoken = f"{korean_integer(number)}시간"
+        back[spoken] = original
+        return spoken
+
+    source = time_pattern.sub(repl_time, source)
     phone_pattern = re.compile(r"(?<!\d)(01[016789])[-.\s]?(\d{3,4})[-.\s]?(\d{4})(?!\d)")
 
     def repl(match: re.Match) -> str:
@@ -860,7 +917,7 @@ async def run_slideshow(
 
     job_id = f"slideshow_{uuid.uuid4().hex[:8]}"
     input_logs = []
-    
+
     # 외부 나레이션은 TTS + SRT 한 쌍으로만 적용합니다.
     has_external_audio = bool(narration_audio and narration_audio.filename)
     has_external_srt = bool(narration_srt and narration_srt.filename)

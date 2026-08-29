@@ -37,6 +37,17 @@ class VoiceboxChunkGenerateRequest(BaseModel):
     normalize: bool = True
 
 
+class VoiceboxBatchGenerateRequest(BaseModel):
+    profile_id: str = Field(..., min_length=1, max_length=160)
+    texts: list[str] = Field(..., min_length=1, max_length=4)
+    language: str = Field(default="ko", pattern="^(zh|en|ja|ko|de|fr|ru|pt|es|it|he|ar|da|el|fi|hi|ms|nl|no|pl|sv|sw|tr)$")
+    engine: str = Field(default="qwen_custom_voice", pattern="^qwen_custom_voice$")
+    model_size: str | None = Field(default="0.6B", pattern="^(1\\.7B|0\\.6B)$")
+    instruct: str | None = Field(default=None, max_length=500)
+    seed: int | None = Field(default=None, ge=0)
+    normalize: bool = True
+
+
 def _upstream_error_detail(response: httpx.Response) -> str:
     try:
         payload = response.json()
@@ -231,6 +242,35 @@ async def voicebox_create_clone_profile(
             except Exception:
                 pass
         raise HTTPException(status_code=503, detail=f"Voicebox 음성 등록 실패: {type(exc).__name__}") from exc
+
+
+@router.post("/generate/batch")
+async def voicebox_generate_batch(
+    req: VoiceboxBatchGenerateRequest,
+    _: User = Depends(get_admin_user),
+) -> dict[str, Any]:
+    """5800X VoiceBox에서 1~4개 문장을 한 번의 Qwen GPU 배치로 생성한다."""
+    payload = req.model_dump(exclude_none=True)
+    try:
+        timeout = httpx.Timeout(VOICEBOX_GENERATE_TIMEOUT, connect=5.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            await _free_gpu_for_engine(client, req.engine, req.model_size)
+            response = await client.post(f"{VOICEBOX_BASE_URL}/generate/batch", json=payload)
+    except httpx.TimeoutException as exc:
+        raise HTTPException(status_code=504, detail="Voicebox 배치 생성 시간이 초과되었습니다.") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Voicebox 배치 연결 대기: {type(exc).__name__}") from exc
+
+    if not response.is_success:
+        upstream_status = 507 if response.status_code == 507 else 502
+        raise HTTPException(status_code=upstream_status, detail=_upstream_error_detail(response))
+
+    data = response.json()
+    return {
+        "ok": True,
+        "count": data.get("count") or 0,
+        "items": data.get("items") or [],
+    }
 
 
 @router.post("/generate/start")

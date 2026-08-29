@@ -2708,6 +2708,13 @@ class PodcastGenerator:
         권장 방식은 /home/bourne/StoryMaker_1/Supertonic3/.venv에서 실행 중인 ``supertonic serve``를 HTTP로 호출하는 것입니다.
         서버가 꺼져 있으면 현재 Python 환경에 설치된 supertonic SDK 직접 호출로 자동 fallback합니다.
         """
+        # Supertonic3 직전 발음 정규화.
+        # 화면/SRT 원문은 건드리지 않고 실제 음성 입력만 교정한다.
+        # 1++/1+는 한우 등급 표기에서 각각 '투플러스'/'원플러스'로 읽게 한다.
+        # 숫자 내부의 11++ 같은 문자열은 건드리지 않는다.
+        text = re.sub(r"(?<!\d)1\s*[+＋]\s*[+＋](?![+＋])", "투플러스", text)
+        text = re.sub(r"(?<!\d)1\s*[+＋](?![+＋])", "원플러스", text)
+
         try:
             if len(text) < CONFIG.MIN_TEXT_LENGTH:
                 return None

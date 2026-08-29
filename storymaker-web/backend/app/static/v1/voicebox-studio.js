@@ -9,6 +9,7 @@
   const chunkSummary = document.getElementById('chunk-summary');
   const chunkList = document.getElementById('chunk-list');
   const emptyState = document.getElementById('empty-state');
+  const chunksPanel = document.getElementById('chunks-panel');
   const targetSeconds = document.getElementById('chunk-seconds');
   const voiceGender = document.getElementById('voice-gender');
   const voiceProfile = document.getElementById('voice-profile');
@@ -28,6 +29,9 @@
   const finalizeReadyText = document.getElementById('finalize-ready-text');
   const projectName = document.getElementById('project-name');
   const silenceMs = document.getElementById('silence-ms');
+  const ttsSpeed = document.getElementById('tts-speed');
+  const backgroundMusic = document.getElementById('background-music');
+  const musicVolume = document.getElementById('music-volume');
   const voiceCloneModal = document.getElementById('voice-clone-modal');
   const voiceCloneForm = document.getElementById('voice-clone-form');
   const cloneSubmit = document.getElementById('clone-submit');
@@ -42,6 +46,101 @@
   let batchGenerating = false;
   let batchStoppedByError = false;
   let availableVoiceProfiles = [];
+  let availableMusicTracks = [];
+
+  async function loadBackgroundMusicOptions() {
+    if (!backgroundMusic) return;
+    try {
+      const response = await fetch('/v1-api/podcast/public/music/manifest', { cache: 'no-store' });
+      if (!response.ok) throw new Error(`music manifest ${response.status}`);
+      const payload = await response.json();
+      availableMusicTracks = Array.isArray(payload.items)
+        ? payload.items.filter(item => item && item.download_url && item.name)
+        : [];
+      const current = backgroundMusic.value || 'random';
+      backgroundMusic.querySelectorAll('option[data-music-track]').forEach(option => option.remove());
+      availableMusicTracks.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.name;
+        option.textContent = item.name.replace(/\.[^.]+$/, '');
+        option.dataset.musicTrack = '1';
+        backgroundMusic.appendChild(option);
+      });
+      backgroundMusic.value = availableMusicTracks.some(item => item.name === current) ? current : 'random';
+    } catch (error) {
+      availableMusicTracks = [];
+      console.warn('VoiceBox BGM manifest load failed:', error);
+    }
+  }
+
+  function speedAdjustedChannels(buffer, speed) {
+    const safeSpeed = Math.max(0.9, Math.min(1.15, Number(speed) || 1));
+    if (Math.abs(safeSpeed - 1) < 0.001) {
+      return {
+        channels: Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel)),
+        length: buffer.length,
+      };
+    }
+    const targetLength = Math.max(1, Math.round(buffer.length / safeSpeed));
+    const channels = [];
+    for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+      const source = buffer.getChannelData(channel);
+      const target = new Float32Array(targetLength);
+      for (let i = 0; i < targetLength; i += 1) {
+        const sourcePos = i * safeSpeed;
+        const left = Math.min(source.length - 1, Math.floor(sourcePos));
+        const right = Math.min(source.length - 1, left + 1);
+        const frac = sourcePos - left;
+        target[i] = source[left] * (1 - frac) + source[right] * frac;
+      }
+      channels.push(target);
+    }
+    return { channels, length: targetLength };
+  }
+
+  async function mixBackgroundMusicIntoChannels(channels, sampleRate) {
+    const mode = backgroundMusic?.value || 'random';
+    if (mode === 'none' || !availableMusicTracks.length) return { channels, trackName: '' };
+    const track = mode === 'random'
+      ? availableMusicTracks[Math.floor(Math.random() * availableMusicTracks.length)]
+      : availableMusicTracks.find(item => item.name === mode);
+    if (!track) return { channels, trackName: '' };
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return { channels, trackName: '' };
+    const context = new AudioContextClass({ sampleRate });
+    try {
+      const musicUrl = String(track.download_url || '').startsWith('/api/')
+        ? `/v1-api/${String(track.download_url).slice('/api/'.length)}`
+        : track.download_url;
+      const response = await fetch(musicUrl, { cache: 'force-cache', credentials: 'include' });
+      if (!response.ok) throw new Error(`배경음악을 불러오지 못했습니다: ${track.name}`);
+      const musicBuffer = await context.decodeAudioData((await response.arrayBuffer()).slice(0));
+      const leftMusic = musicBuffer.getChannelData(0);
+      const rightMusic = musicBuffer.numberOfChannels > 1 ? musicBuffer.getChannelData(1) : leftMusic;
+      const musicRatio = musicBuffer.sampleRate / sampleRate;
+      const volume = Math.max(0, Math.min(0.5, Number(musicVolume?.value || 0.15)));
+      const fadeFrames = Math.min(Math.round(sampleRate * 1.2), Math.floor(channels[0].length / 4));
+      const output = channels.map(source => new Float32Array(source));
+      while (output.length < 2) output.push(new Float32Array(output[0]));
+      for (let i = 0; i < output[0].length; i += 1) {
+        const musicIndex = Math.floor(i * musicRatio) % leftMusic.length;
+        const fadeIn = fadeFrames ? Math.min(1, i / fadeFrames) : 1;
+        const fadeOut = fadeFrames ? Math.min(1, (output[0].length - 1 - i) / fadeFrames) : 1;
+        const gain = volume * Math.max(0, Math.min(fadeIn, fadeOut));
+        output[0][i] = Math.tanh(output[0][i] * 0.92 + leftMusic[musicIndex] * gain);
+        output[1][i] = Math.tanh(output[1][i] * 0.92 + rightMusic[musicIndex] * gain);
+      }
+      return { channels: output, trackName: track.name };
+    } finally {
+      await context.close().catch(() => {});
+    }
+  }
+  const GPU_BATCH_SIZE = 4;
+  const AUTO_PLAY_THRESHOLD = 0.7;
+  let batchAutoPlayContext = null;
+  let batchAutoPlaybackStarted = false;
+  let batchAutoPlaybackPromise = null;
 
   const OFFICIAL_VOICE_META = {
     Sohee: { gender: 'female', label: 'Sohee · 한국 여성 · 따뜻함' },
@@ -607,6 +706,166 @@
     if (exportAll) exportAll.disabled = !allReady || batchGenerating;
   }
 
+  async function unlockBatchAutoPlayback() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return false;
+    try {
+      if (!batchAutoPlayContext) batchAutoPlayContext = new AudioContextClass();
+      if (batchAutoPlayContext.state === 'suspended') await batchAutoPlayContext.resume();
+      const buffer = batchAutoPlayContext.createBuffer(1, 1, batchAutoPlayContext.sampleRate);
+      const source = batchAutoPlayContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(batchAutoPlayContext.destination);
+      source.start();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async function receiveBatchGeneration(index, item) {
+    const chunk = chunks[index];
+    if (!chunk || !item?.generation_id) return false;
+    setChunkProgress(chunk, 'receiving', '배치 생성 완료 · 오디오를 브라우저로 받고 있습니다.', { percent: 0 });
+    const response = await fetch(`/v1-api/voicebox/generate/${encodeURIComponent(item.generation_id)}/audio`, {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.detail || `오디오 수신 실패 (${response.status})`);
+    }
+    const blob = await response.blob();
+    if (!blob.size) throw new Error('배치에서 생성된 음성 파일이 비어 있습니다.');
+    const url = URL.createObjectURL(blob);
+    const durationSec = Number(item.duration || 0) || await audioDuration(url);
+    const version = {
+      id: `v-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      label: `V${chunk.versions.length + 1}`,
+      url,
+      blob,
+      durationSec,
+      generationId: item.generation_id,
+      createdAt: new Date().toISOString(),
+    };
+    chunk.versions.push(version);
+    chunk.selectedVersion = version.id;
+    chunk.status = 'COMPLETED';
+    chunk.error = '';
+    chunk.progress = {
+      phase: 'completed',
+      label: `배치 생성 완료 · ${durationSec.toFixed(1)}초`,
+      startedAt: chunk.progress?.startedAt || Date.now(),
+      bytesReceived: blob.size,
+      totalBytes: blob.size,
+      percent: 100,
+    };
+    renderChunks();
+    return true;
+  }
+
+  async function generateChunkBatch(indices) {
+    const validIndices = indices.filter(index => chunks[index] && !selectedVersionForChunk(chunks[index]));
+    if (!validIndices.length) return true;
+    validIndices.forEach(index => {
+      const chunk = chunks[index];
+      chunk.status = 'PROCESSING';
+      chunk.error = '';
+      chunk.progress = {
+        phase: 'generating',
+        label: `${validIndices.length}문장 GPU 배치 생성 중`,
+        startedAt: Date.now(),
+        bytesReceived: 0,
+        totalBytes: 0,
+        percent: null,
+      };
+    });
+    renderChunks();
+
+    try {
+      const headers = getAuthHeaders();
+      headers['Content-Type'] = 'application/json';
+      const response = await fetch('/v1-api/voicebox/generate/batch', {
+        method: 'POST',
+        credentials: 'include',
+        cache: 'no-store',
+        headers,
+        body: JSON.stringify({
+          profile_id: voiceProfile.value,
+          texts: validIndices.map(index => chunks[index].text),
+          language: 'ko',
+          engine: voiceEngine.value,
+          model_size: voiceModelSize.value || '0.6B',
+          normalize: true,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !Array.isArray(payload.items) || payload.items.length !== validIndices.length) {
+        throw new Error(payload.detail || `배치 생성 실패 (${response.status})`);
+      }
+      await Promise.all(validIndices.map((index, offset) => receiveBatchGeneration(index, payload.items[offset])));
+      return true;
+    } catch (error) {
+      if (validIndices.length > 1) {
+        const middle = Math.ceil(validIndices.length / 2);
+        updateBatchUi(`${validIndices.length}문장 배치가 맞지 않아 더 작은 배치로 자동 재시도합니다.`);
+        const first = await generateChunkBatch(validIndices.slice(0, middle));
+        const second = first ? await generateChunkBatch(validIndices.slice(middle)) : false;
+        return first && second;
+      }
+      const index = validIndices[0];
+      chunks[index].status = 'DRAFT';
+      updateBatchUi(`문장 #${index + 1}은 단일 생성으로 자동 재시도합니다.`);
+      return generateChunkAudio(index, false);
+    }
+  }
+
+  function buildGpuBatchGroups(indices) {
+    const groups = [];
+    for (let cursor = 0; cursor < indices.length; cursor += GPU_BATCH_SIZE) {
+      groups.push(indices.slice(cursor, cursor + GPU_BATCH_SIZE));
+    }
+    return groups;
+  }
+
+  async function playGeneratedChunksAsReady() {
+    if (!batchAutoPlayContext) return;
+    for (let index = 0; index < chunks.length; index += 1) {
+      let version = selectedVersionForChunk(chunks[index]);
+      while (!version && batchGenerating && chunks[index]?.status !== 'ERROR') {
+        await sleep(200);
+        version = selectedVersionForChunk(chunks[index]);
+      }
+      if (!version?.blob) break;
+      try {
+        if (batchAutoPlayContext.state === 'suspended') await batchAutoPlayContext.resume();
+        const arrayBuffer = await version.blob.arrayBuffer();
+        const audioBuffer = await batchAutoPlayContext.decodeAudioData(arrayBuffer.slice(0));
+        await new Promise(resolve => {
+          const source = batchAutoPlayContext.createBufferSource();
+          source.buffer = audioBuffer;
+          source.playbackRate.value = Math.max(0.9, Math.min(1.15, Number(ttsSpeed?.value || 1)));
+          source.connect(batchAutoPlayContext.destination);
+          source.onended = resolve;
+          source.start();
+        });
+      } catch (_) {
+        break;
+      }
+    }
+  }
+
+  function maybeStartBatchAutoPlayback() {
+    if (batchAutoPlaybackStarted || !chunks.length || !batchAutoPlayContext) return;
+    const completed = chunks.filter(chunk => Boolean(selectedVersionForChunk(chunk))).length;
+    const thresholdCount = Math.ceil(chunks.length * AUTO_PLAY_THRESHOLD);
+    if (completed < thresholdCount) return;
+    batchAutoPlaybackStarted = true;
+    updateBatchUi(`${completed}/${chunks.length} 완료 · 약 70% 준비되어 브라우저 자동 재생을 시작합니다. 남은 음성은 계속 생성합니다.`);
+    batchAutoPlaybackPromise = playGeneratedChunksAsReady();
+  }
+
   async function generateAllSequentially() {
     if (batchGenerating) return;
     if (!chunks.length) {
@@ -623,33 +882,35 @@
       return;
     }
 
+    await unlockBatchAutoPlayback();
+    batchAutoPlaybackStarted = false;
+    batchAutoPlaybackPromise = null;
     batchGenerating = true;
     batchStoppedByError = false;
     let shouldAutoMerge = false;
-    updateBatchUi('전체 음성 자동 생성을 시작합니다. 첫 번째 미완료 문장을 준비하고 있습니다.');
+    const pendingIndices = chunks
+      .map((chunk, index) => selectedVersionForChunk(chunk) ? -1 : index)
+      .filter(index => index >= 0);
+    const groups = buildGpuBatchGroups(pendingIndices);
+    updateBatchUi(`GPU 배치 생성을 시작합니다 · 최대 ${GPU_BATCH_SIZE}문장씩 묶어 처리합니다.`);
 
     try {
-      for (let index = 0; index < chunks.length; index += 1) {
-        const chunk = chunks[index];
-        if (selectedVersionForChunk(chunk)) {
-          updateBatchUi(`문장 #${index + 1}은 이미 완료되어 건너뜁니다.`);
-          continue;
-        }
-
-        updateBatchUi(`문장 #${index + 1} 음성 생성 중 · 완료 상태를 확인한 뒤 다음 문장으로 넘어갑니다.`);
-        const success = await generateChunkAudio(index, false);
-        if (!success || chunk.status !== 'COMPLETED' || !selectedVersionForChunk(chunk)) {
+      for (const group of groups) {
+        if (!group.length) continue;
+        updateBatchUi(`문장 ${group.map(index => `#${index + 1}`).join(', ')} GPU 배치 생성 중`);
+        const success = await generateChunkBatch(group);
+        if (!success) {
           batchStoppedByError = true;
-          updateBatchUi(`문장 #${index + 1} 생성 오류로 자동 작업을 중지했습니다. 해당 문장을 확인해 주세요.`);
+          updateBatchUi('배치 생성 오류로 자동 작업을 중지했습니다. 오류 문장을 확인해 주세요.');
           break;
         }
-        updateBatchUi(`문장 #${index + 1} 완료 · 다음 문장 상태를 확인하고 있습니다.`);
+        maybeStartBatchAutoPlayback();
       }
 
       shouldAutoMerge = chunks.length > 0 && chunks.every(chunk => Boolean(selectedVersionForChunk(chunk)));
       if (shouldAutoMerge) {
         batchStoppedByError = false;
-        updateBatchUi(`전체 ${chunks.length}개 문장 음성 생성 완료 · 최종 WAV 자동 합치기를 시작합니다.`);
+        updateBatchUi(`전체 ${chunks.length}개 문장 생성 완료 · 재생은 계속하면서 최종 WAV 자동 합치기를 시작합니다.`);
       }
     } finally {
       batchGenerating = false;
@@ -657,9 +918,7 @@
       updateCounters();
     }
 
-    if (shouldAutoMerge) {
-      await mergeSelectedChunksAndSave();
-    }
+    if (shouldAutoMerge) await mergeSelectedChunksAndSave();
   }
 
   function encodeMergedWav(channelData, sampleRate) {
@@ -706,6 +965,26 @@
       .slice(0, 80) || 'VoiceBox_나레이션';
   }
 
+  function formatSrtTime(seconds) {
+    const totalMs = Math.max(0, Math.round(Number(seconds || 0) * 1000));
+    const hours = Math.floor(totalMs / 3600000);
+    const minutes = Math.floor((totalMs % 3600000) / 60000);
+    const secs = Math.floor((totalMs % 60000) / 1000);
+    const ms = totalMs % 1000;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
+  }
+
+  function buildMergedSrt(adjusted, gapFrames, sampleRate) {
+    let frameOffset = 0;
+    return adjusted.map((item, index) => {
+      const start = frameOffset / sampleRate;
+      const end = (frameOffset + item.length) / sampleRate;
+      frameOffset += item.length;
+      if (index < adjusted.length - 1) frameOffset += gapFrames;
+      return `${index + 1}\n${formatSrtTime(start)} --> ${formatSrtTime(end)}\n${String(chunks[index]?.text || '').trim()}\n`;
+    }).join('\n');
+  }
+
   async function mergeSelectedChunksAndSave() {
     if (batchGenerating) return;
     const selectedVersions = chunks.map(selectedVersionForChunk);
@@ -738,21 +1017,25 @@
       }
 
       const sampleRate = context.sampleRate;
-      const channelCount = Math.max(1, ...decoded.map(buffer => buffer.numberOfChannels));
+      const speed = Math.max(0.9, Math.min(1.15, Number(ttsSpeed?.value || 1)));
+      const adjusted = decoded.map(buffer => speedAdjustedChannels(buffer, speed));
+      const channelCount = Math.max(1, ...adjusted.map(item => item.channels.length));
       const gapFrames = Math.max(0, Math.round(sampleRate * (Number(silenceMs?.value || 300) / 1000)));
-      const totalFrames = decoded.reduce((sum, buffer) => sum + buffer.length, 0) + gapFrames * Math.max(0, decoded.length - 1);
-      const merged = Array.from({ length: channelCount }, () => new Float32Array(totalFrames));
+      const totalFrames = adjusted.reduce((sum, item) => sum + item.length, 0) + gapFrames * Math.max(0, adjusted.length - 1);
+      let merged = Array.from({ length: channelCount }, () => new Float32Array(totalFrames));
 
       let writeOffset = 0;
-      decoded.forEach((buffer, bufferIndex) => {
+      adjusted.forEach((item, bufferIndex) => {
         for (let channel = 0; channel < channelCount; channel += 1) {
-          const source = buffer.getChannelData(Math.min(channel, buffer.numberOfChannels - 1));
+          const source = item.channels[Math.min(channel, item.channels.length - 1)];
           merged[channel].set(source, writeOffset);
         }
-        writeOffset += buffer.length;
-        if (bufferIndex < decoded.length - 1) writeOffset += gapFrames;
+        writeOffset += item.length;
+        if (bufferIndex < adjusted.length - 1) writeOffset += gapFrames;
       });
 
+      const mixed = await mixBackgroundMusicIntoChannels(merged, sampleRate);
+      merged = mixed.channels;
       const wavBlob = encodeMergedWav(merged, sampleRate);
       const downloadUrl = URL.createObjectURL(wavBlob);
       const anchor = document.createElement('a');
@@ -764,9 +1047,21 @@
       anchor.remove();
       window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 30000);
 
+      const srtText = buildMergedSrt(adjusted, gapFrames, sampleRate);
+      const srtBlob = new Blob([srtText], { type: 'application/x-subrip;charset=utf-8' });
+      const srtUrl = URL.createObjectURL(srtBlob);
+      const srtAnchor = document.createElement('a');
+      srtAnchor.href = srtUrl;
+      srtAnchor.download = `${safeFilename(projectName?.value)}_최종나레이션.srt`;
+      document.body.appendChild(srtAnchor);
+      srtAnchor.click();
+      srtAnchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(srtUrl), 30000);
+
       const totalSeconds = totalFrames / sampleRate;
-      if (batchStatusLabel) batchStatusLabel.textContent = `최종 WAV 저장 완료 · ${totalSeconds.toFixed(1)}초`;
-      if (finalizeReadyText) finalizeReadyText.textContent = `${filename} 파일을 자동 저장했습니다. 청크 ${chunks.length}개와 청크 간 ${Number(silenceMs?.value || 300) / 1000}초 무음을 합쳤습니다.`;
+      const bgmLabel = mixed.trackName ? ` · BGM ${mixed.trackName.replace(/\.[^.]+$/, '')}` : ' · BGM 없음';
+      if (batchStatusLabel) batchStatusLabel.textContent = `최종 WAV 저장 완료 · ${totalSeconds.toFixed(1)}초 · ${speed.toFixed(2)}x`;
+      if (finalizeReadyText) finalizeReadyText.textContent = `${filename} 자동 저장 완료 · TTS ${speed.toFixed(2)}x · 청크 간 ${Number(silenceMs?.value || 300) / 1000}초${bgmLabel}`;
     } catch (error) {
       const message = error instanceof Error ? error.message : '최종 WAV 병합 중 오류가 발생했습니다.';
       if (batchStatusLabel) batchStatusLabel.textContent = '최종 WAV 병합 실패';
@@ -785,7 +1080,8 @@
   function updateCounters() {
     scriptCounter.textContent = `${scriptInput.value.length.toLocaleString('ko-KR')}자`;
     chunkSummary.textContent = chunks.length ? `${chunks.length}개 청크` : '0개';
-    emptyState.hidden = chunks.length > 0;
+    emptyState.hidden = true;
+    if (chunksPanel) chunksPanel.hidden = chunks.length === 0;
     playAll.disabled = !chunks.some(chunk => chunk.selectedVersion);
     updateBatchUi();
   }
@@ -964,6 +1260,8 @@
       const selected = chunk.versions.find(version => version.id === chunk.selectedVersion);
       if (!selected?.url) return;
       const audio = new Audio(selected.url);
+      audio.playbackRate = Math.max(0.9, Math.min(1.15, Number(ttsSpeed?.value || 1)));
+      audio.preservesPitch = true;
       audio.play().catch(() => window.alert('브라우저에서 생성 음성을 재생하지 못했습니다.'));
       return;
     }
@@ -983,6 +1281,10 @@
   mergeAndSave?.addEventListener('click', mergeSelectedChunksAndSave);
   exportAll?.addEventListener('click', mergeSelectedChunksAndSave);
   silenceMs?.addEventListener('change', () => updateBatchUi());
+  ttsSpeed?.addEventListener('change', () => updateBatchUi());
+  backgroundMusic?.addEventListener('change', () => updateBatchUi());
+  musicVolume?.addEventListener('change', () => updateBatchUi());
+  loadBackgroundMusicOptions();
 
   playAll.addEventListener('click', async () => {
     const queue = chunks
@@ -995,6 +1297,8 @@
       for (const version of queue) {
         await new Promise(resolve => {
           const audio = new Audio(version.url);
+          audio.playbackRate = Math.max(0.9, Math.min(1.15, Number(ttsSpeed?.value || 1)));
+          audio.preservesPitch = true;
           audio.onended = resolve;
           audio.onerror = resolve;
           audio.play().catch(resolve);
