@@ -718,23 +718,46 @@
     });
 
     let returnFocus = openButton;
+    let parentScrollRestore = null;
 
-    const placeModalInVisibleParentViewport = () => {
+    const placeModalInVisibleParentViewport = ({ ensureSpace = false } = {}) => {
       let visibleTop = window.scrollY || 0;
       let visibleHeight = window.innerHeight;
       try {
         if (window.parent && window.parent !== window && window.frameElement) {
-          const frameRect = window.frameElement.getBoundingClientRect();
-          const parentHeight = window.parent.innerHeight;
-          const visibleStart = Math.max(0, -frameRect.top);
-          const visibleEnd = Math.min(frameRect.height, parentHeight - frameRect.top);
-          visibleTop = Math.max(0, visibleStart);
-          visibleHeight = Math.max(320, visibleEnd - visibleStart);
+          const parentWindow = window.parent;
+          const frame = window.frameElement;
+          let frameRect = frame.getBoundingClientRect();
+          const parentHeight = parentWindow.innerHeight;
+          const desiredVisibleHeight = Math.max(520, Math.min(920, parentHeight - 24));
+          let visibleStart = Math.max(0, -frameRect.top);
+          let visibleEnd = Math.min(frameRect.height, parentHeight - frameRect.top);
+          let availableHeight = Math.max(0, visibleEnd - visibleStart);
+
+          if (ensureSpace && availableHeight < desiredVisibleHeight) {
+            if (!parentScrollRestore) {
+              parentScrollRestore = {
+                x: parentWindow.scrollX || 0,
+                y: parentWindow.scrollY || 0,
+              };
+            }
+            parentWindow.scrollTo({
+              top: Math.max(0, (parentWindow.scrollY || 0) + frameRect.top - 12),
+              behavior: 'auto',
+            });
+            frameRect = frame.getBoundingClientRect();
+            visibleStart = Math.max(0, -frameRect.top);
+            visibleEnd = Math.min(frameRect.height, parentHeight - frameRect.top);
+            availableHeight = Math.max(0, visibleEnd - visibleStart);
+          }
+
+          visibleTop = (window.scrollY || 0) + visibleStart;
+          visibleHeight = Math.max(420, availableHeight);
         }
       } catch (_) {}
 
       const verticalPadding = 12;
-      const dialogHeight = Math.max(320, Math.min(980, visibleHeight - verticalPadding * 2));
+      const dialogHeight = Math.max(400, Math.min(980, visibleHeight - verticalPadding * 2));
       modal.style.position = 'absolute';
       modal.style.top = `${visibleTop}px`;
       modal.style.right = '0';
@@ -754,6 +777,16 @@
       document.documentElement.classList.remove('sf-settings-modal-open');
       document.body.classList.remove('sf-settings-modal-open');
       openButton.setAttribute('aria-expanded', 'false');
+      try {
+        if (parentScrollRestore && window.parent && window.parent !== window) {
+          window.parent.scrollTo({
+            left: parentScrollRestore.x,
+            top: parentScrollRestore.y,
+            behavior: 'auto',
+          });
+        }
+      } catch (_) {}
+      parentScrollRestore = null;
       if (state.rendering) startPreviewFocusLock();
       returnFocus?.focus?.({preventScroll:true});
     };
@@ -761,7 +794,7 @@
     const openModal = () => {
       returnFocus = document.activeElement || openButton;
       stopPreviewFocusLock();
-      placeModalInVisibleParentViewport();
+      placeModalInVisibleParentViewport({ ensureSpace: true });
       modalBody.scrollTop = 0;
       modal.hidden = false;
       document.documentElement.classList.add('sf-settings-modal-open');
