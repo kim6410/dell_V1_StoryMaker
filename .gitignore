@@ -67,6 +67,8 @@ storymaker-web/**/*.before_*
 storymaker-web/**/*.bak_*
 storymaker-web/**/*.disabled_*
 storymaker-web/**/*.root_backup
+storymaker-web/backend/storymaker.db
+storymaker-web/docker-compose.yml.bak-before-plausible-removal-*
 supertonic/.env*
 supertonic/music/
 supertonic/tts_cache/
