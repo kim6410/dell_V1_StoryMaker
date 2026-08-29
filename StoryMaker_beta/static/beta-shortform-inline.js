@@ -718,56 +718,73 @@
     });
 
     let returnFocus = openButton;
+    let popupDocument = document;
 
-    const placeModalInIframeViewport = () => {
-      const viewportHeight = Math.max(520, window.innerHeight || 720);
-      const top = (window.scrollY || 0) + 8;
-      const modalHeight = Math.max(500, Math.min(920, viewportHeight - 16));
-      const dialogHeight = Math.max(480, modalHeight - 16);
+    const popupCss = `
+      #sf-settings-modal{position:fixed!important;inset:0!important;z-index:2147483000!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:18px!important;background:rgba(1,6,16,.82)!important;backdrop-filter:blur(8px);box-sizing:border-box!important}
+      #sf-settings-modal[hidden]{display:none!important}
+      #sf-settings-modal *{box-sizing:border-box}
+      #sf-settings-modal .sf-settings-dialog{width:min(1080px,calc(100vw - 36px))!important;height:min(94vh,940px)!important;max-height:calc(100vh - 28px)!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;border:1px solid #36547e!important;border-radius:24px!important;background:#081326!important;color:#eef6ff!important;box-shadow:0 28px 90px rgba(0,0,0,.68)!important}
+      #sf-settings-modal .sf-settings-dialog-head{flex:0 0 auto!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:14px!important;padding:15px 20px 13px!important;border-bottom:1px solid #263a5e!important;background:#0b172b!important}
+      #sf-settings-modal .sf-settings-dialog-head h3{margin:2px 0 0!important;color:#fff!important;font-size:21px!important;font-weight:900!important}
+      #sf-settings-modal .badge{font-size:12px!important;letter-spacing:2px!important;color:#68e7ff!important}
+      #sf-settings-modal .sf-settings-close{flex:0 0 auto!important;width:46px!important;height:46px!important;padding:0!important;border:1px solid #3a5276!important;border-radius:14px!important;background:#111f35!important;color:#fff!important;font-size:31px!important;font-weight:900!important;line-height:1!important;cursor:pointer!important}
+      #sf-settings-modal .sf-settings-modal-body{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important;touch-action:pan-y!important;-webkit-overflow-scrolling:touch;padding:14px 20px 24px!important;scrollbar-gutter:stable!important}
+      #sf-settings-modal .sf-accordion-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:12px!important;margin:0!important}
+      #sf-settings-modal .sf-accordion{overflow:visible!important;padding:11px 12px!important;border:1px solid #263a5e!important;border-radius:14px!important;background:#0a172a!important}
+      #sf-settings-modal .sf-accordion>button{pointer-events:none!important;width:100%!important;padding:0 0 8px!important;border:0!important;border-bottom:1px solid #263a5e!important;border-radius:0!important;background:transparent!important;color:#7fe8ff!important;text-align:left!important;font-size:16px!important;font-weight:900!important}
+      #sf-settings-modal .sf-accordion-panel{display:block!important;padding:9px 0 0!important}
+      #sf-settings-modal .sf-settings-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:9px 10px!important}
+      #sf-settings-modal label{display:block!important;margin-bottom:4px!important;color:#b9c9df!important;font-size:12px!important}
+      #sf-settings-modal input,#sf-settings-modal select{width:100%!important;min-height:42px!important;height:42px!important;padding:8px 11px!important;border:1px solid #334b72!important;border-radius:10px!important;background:#081326!important;color:#fff!important;font-size:14px!important}
+      #sf-settings-modal input[type=file]{padding:5px 7px!important;font-size:12px!important}
+      #sf-settings-modal .sf-settings-dialog-foot{flex:0 0 auto!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;padding:11px 20px!important;border-top:1px solid #263a5e!important;background:#0b172b!important}
+      #sf-settings-modal .sf-settings-dialog-foot span{color:#9cb0cc!important;font-size:13px!important}
+      #sf-settings-modal .sf-settings-dialog-foot button{width:auto!important;min-width:120px!important;padding:10px 18px!important;border:0!important;border-radius:11px!important;background:#1d73f2!important;color:#fff!important;font-weight:900!important;cursor:pointer!important}
+      @media(max-width:760px){#sf-settings-modal{padding:8px!important}#sf-settings-modal .sf-settings-dialog{width:100%!important;height:calc(100vh - 16px)!important;max-height:none!important;border-radius:16px!important}#sf-settings-modal .sf-accordion-grid,#sf-settings-modal .sf-settings-grid{grid-template-columns:1fr!important}#sf-settings-modal .sf-settings-dialog-foot{align-items:stretch!important;flex-direction:column!important}#sf-settings-modal .sf-settings-dialog-foot button{width:100%!important}}
+    `;
 
-      modal.style.position = 'absolute';
-      modal.style.top = `${top}px`;
-      modal.style.right = '0';
-      modal.style.bottom = 'auto';
-      modal.style.left = '0';
-      modal.style.height = `${modalHeight}px`;
-      dialog.style.height = `${dialogHeight}px`;
-      dialog.style.maxHeight = `${dialogHeight}px`;
-      modalBody.style.removeProperty('height');
-      modalBody.style.removeProperty('max-height');
-      modalBody.style.removeProperty('overflow-y');
-    };
-
-    const alignIframeToParentViewport = () => {
+    const ensureParentPopupHost = () => {
       try {
-        if (window.parent && window.parent !== window && window.frameElement) {
-          window.frameElement.scrollIntoView({ behavior: 'auto', block: 'start' });
+        if (window.parent && window.parent !== window && window.parent.document?.body) {
+          popupDocument = window.parent.document;
+        } else {
+          popupDocument = document;
         }
-      } catch (_) {}
+      } catch (_) {
+        popupDocument = document;
+      }
+
+      if (!popupDocument.getElementById('storymaker-beta-settings-popup-style')) {
+        const style = popupDocument.createElement('style');
+        style.id = 'storymaker-beta-settings-popup-style';
+        style.textContent = popupCss;
+        popupDocument.head.appendChild(style);
+      }
+      const staleModal = popupDocument.getElementById('sf-settings-modal');
+      if (staleModal && staleModal !== modal) staleModal.remove();
+      if (modal.ownerDocument !== popupDocument || modal.parentElement !== popupDocument.body) {
+        popupDocument.body.appendChild(modal);
+      }
     };
 
     const closeModal = () => {
       if (modal.hidden) return;
       modal.hidden = true;
-      document.documentElement.classList.remove('sf-settings-modal-open');
-      document.body.classList.remove('sf-settings-modal-open');
       openButton.setAttribute('aria-expanded', 'false');
       if (state.rendering) startPreviewFocusLock();
-      returnFocus?.focus?.({preventScroll:true});
+      try { returnFocus?.focus?.({ preventScroll: true }); } catch (_) {}
     };
 
     const openModal = () => {
       returnFocus = document.activeElement || openButton;
       stopPreviewFocusLock();
-      modal.hidden = false;
-      document.documentElement.classList.add('sf-settings-modal-open');
-      document.body.classList.add('sf-settings-modal-open');
-      openButton.setAttribute('aria-expanded', 'true');
+      ensureParentPopupHost();
       modalBody.scrollTop = 0;
-      alignIframeToParentViewport();
+      modal.hidden = false;
+      openButton.setAttribute('aria-expanded', 'true');
       requestAnimationFrame(() => {
-        placeModalInIframeViewport();
-        dialog.focus({preventScroll:true});
+        try { dialog.focus({ preventScroll: true }); } catch (_) {}
       });
     };
 
@@ -777,12 +794,16 @@
     modal.addEventListener('pointerdown', (event) => {
       if (event.target === modal) closeModal();
     });
-    document.addEventListener('keydown', (event) => {
+    const handleEscape = (event) => {
       if (event.key === 'Escape' && !modal.hidden) {
         event.preventDefault();
         closeModal();
       }
-    });
+    };
+    document.addEventListener('keydown', handleEscape);
+    try {
+      if (window.parent && window.parent !== window) window.parent.document.addEventListener('keydown', handleEscape);
+    } catch (_) {}
   }
 
   setupSettingsModal();
