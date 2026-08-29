@@ -5,7 +5,6 @@
   window.__STORYMAKER_V1_ADMIN_VOICEBOX_ENTRY__ = true;
 
   const BUTTON_ID = 'v1-admin-voicebox-entry';
-  const TARGET_URL = '/static/v1/voicebox-studio.html';
 
   function normalize(value) {
     return String(value || '').replace(/\s+/g, ' ').trim();
@@ -76,7 +75,9 @@
       try {
         window.sessionStorage.setItem('storymaker_voicebox_admin_entry', String(Date.now()));
       } catch (_) {}
-      window.location.href = `${TARGET_URL}?from=v1-admin`;
+      window.dispatchEvent(new CustomEvent('storymaker-open-inline-lab', {
+        detail: { type: 'voicebox', trigger: button },
+      }));
     });
     document.body.appendChild(button);
     return button;
