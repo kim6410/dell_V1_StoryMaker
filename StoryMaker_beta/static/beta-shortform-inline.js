@@ -719,16 +719,30 @@
 
     let returnFocus = openButton;
 
-    const resetModalGeometry = () => {
-      modal.style.removeProperty('position');
-      modal.style.removeProperty('top');
-      modal.style.removeProperty('right');
-      modal.style.removeProperty('bottom');
-      modal.style.removeProperty('left');
-      modal.style.removeProperty('height');
-      dialog.style.removeProperty('transform');
-      dialog.style.removeProperty('height');
-      dialog.style.removeProperty('max-height');
+    const placeModalInVisibleParentViewport = () => {
+      let visibleTop = window.scrollY || 0;
+      let visibleHeight = window.innerHeight;
+      try {
+        if (window.parent && window.parent !== window && window.frameElement) {
+          const frameRect = window.frameElement.getBoundingClientRect();
+          const parentHeight = window.parent.innerHeight;
+          const visibleStart = Math.max(0, -frameRect.top);
+          const visibleEnd = Math.min(frameRect.height, parentHeight - frameRect.top);
+          visibleTop = Math.max(0, visibleStart);
+          visibleHeight = Math.max(320, visibleEnd - visibleStart);
+        }
+      } catch (_) {}
+
+      const verticalPadding = 12;
+      const dialogHeight = Math.max(320, Math.min(980, visibleHeight - verticalPadding * 2));
+      modal.style.position = 'absolute';
+      modal.style.top = `${visibleTop}px`;
+      modal.style.right = '0';
+      modal.style.bottom = 'auto';
+      modal.style.left = '0';
+      modal.style.height = `${visibleHeight}px`;
+      dialog.style.height = `${dialogHeight}px`;
+      dialog.style.maxHeight = `${dialogHeight}px`;
       modalBody.style.removeProperty('height');
       modalBody.style.removeProperty('max-height');
       modalBody.style.removeProperty('overflow-y');
@@ -747,7 +761,7 @@
     const openModal = () => {
       returnFocus = document.activeElement || openButton;
       stopPreviewFocusLock();
-      resetModalGeometry();
+      placeModalInVisibleParentViewport();
       modalBody.scrollTop = 0;
       modal.hidden = false;
       document.documentElement.classList.add('sf-settings-modal-open');
