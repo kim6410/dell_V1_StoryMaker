@@ -718,8 +718,9 @@
       modal.style.bottom = 'auto';
       modal.style.left = '0';
       modal.style.height = `${visibleHeight}px`;
-      dialog.style.transform = 'translateY(-76px)';
-      dialog.style.maxHeight = `${Math.max(280, visibleHeight - 24)}px`;
+      dialog.style.transform = 'none';
+      dialog.style.height = `${Math.max(520, visibleHeight - 12)}px`;
+      dialog.style.maxHeight = `${Math.max(520, visibleHeight - 12)}px`;
     };
 
     const closeModal = () => {
