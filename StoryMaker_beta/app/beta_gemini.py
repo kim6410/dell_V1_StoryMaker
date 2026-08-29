@@ -689,6 +689,11 @@ def beta_admin_prompt_update(payload: BetaPromptTemplateUpdate, request: Request
     prompt = str(payload.prompt or "").strip()
     if len(prompt) < 500:
         raise HTTPException(status_code=422, detail="프롬프트 내용이 너무 짧습니다.")
+    if "<!-- StoryMaker prompt:" in prompt or prompt.count("# 콘텐츠 통합 패키지 생성 프롬프트") > 1:
+        raise HTTPException(
+            status_code=422,
+            detail="원본 템플릿에 실제 전송 프롬프트가 함께 붙어 있습니다. 변수({{company}} 등)가 포함된 템플릿 한 벌만 저장해 주세요.",
+        )
     missing = [name for name in PROMPT_REQUIRED_VARIABLES if name not in prompt]
     if missing:
         raise HTTPException(status_code=422, detail="필수 변수가 누락되었습니다: " + ", ".join(missing))

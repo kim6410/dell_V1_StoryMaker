@@ -71,6 +71,10 @@ LOCAL_PROFESSIONAL_INDUSTRY_KEYS: Final[set[str]] = {
     "drain_unclog",
 }
 
+COPY_PRINT_INDUSTRY_KEYS: Final[set[str]] = {
+    "copy_print_shop",
+}
+
 MEDICAL_HEALTH_INDUSTRY_KEYS: Final[set[str]] = {
     "안경원",
     "dental_clinic",
@@ -182,10 +186,16 @@ SEED_TEMPLATES: Final[dict[str, tuple[str, str, str, str]]] = {
         "3.9",
         "local_professional_service.md",
     ),
+    "copy_print_service": (
+        "복사·출력·인쇄 전문점",
+        "copy_print",
+        "1.1",
+        "copy_print_service.md",
+    ),
     "food_service": (
         "외식·카페 업종",
         "food",
-        "4.4",
+        "4.5",
         "food_service.md",
     ),
     "medical_health": (
@@ -356,6 +366,19 @@ def ensure_prompt_database() -> Path:
                 INSERT INTO prompt_category_mappings (
                     industry_key, prompt_key, created_at, updated_at
                 ) VALUES (?, 'local_professional_service', ?, ?)
+                ON CONFLICT(industry_key) DO UPDATE SET
+                    prompt_key=excluded.prompt_key,
+                    updated_at=excluded.updated_at
+                """,
+                (industry_key, stamp, stamp),
+            )
+
+        for industry_key in sorted(COPY_PRINT_INDUSTRY_KEYS):
+            connection.execute(
+                """
+                INSERT INTO prompt_category_mappings (
+                    industry_key, prompt_key, created_at, updated_at
+                ) VALUES (?, 'copy_print_service', ?, ?)
                 ON CONFLICT(industry_key) DO UPDATE SET
                     prompt_key=excluded.prompt_key,
                     updated_at=excluded.updated_at

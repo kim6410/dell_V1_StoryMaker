@@ -726,19 +726,21 @@ ${content.podcast_80 || content.podcast_script || content.script || ''}\r\n\r\n�
     betaUi.promptEditor.readOnly = betaPromptMode === 'send';
     betaUi.promptSave.hidden = betaPromptMode === 'send';
     betaUi.promptCopy.hidden = betaPromptMode !== 'send';
-    betaUi.promptModalTitle.textContent = betaPromptMode === 'send' ? '전송 프롬프트' : '프롬프트 편집';
+    betaUi.promptModalTitle.textContent = betaPromptMode === 'send'
+      ? 'Gemini 실제 전송 프롬프트 (최종본)'
+      : '프롬프트 템플릿 편집 (변수 포함)';
     try {
       if (betaPromptMode === 'send') {
         if (!betaCurrentJobId) throw new Error('먼저 ③ 프롬프트 생성을 실행해 주세요.');
         const data = await betaRequest(`/beta-api/gemini-worker/prompt/${encodeURIComponent(betaCurrentJobId)}`);
         betaUi.promptEditor.value = String(data.prompt || '');
-        betaUi.promptMeta.textContent = `현재 작업 ${betaCurrentJobId} · ${betaUi.promptEditor.value.length.toLocaleString()}자 · 읽기 전용`;
+        betaUi.promptMeta.textContent = `현재 작업 ${betaCurrentJobId} · 최종 전송본 1벌 · ${betaUi.promptEditor.value.length.toLocaleString()}자 · 읽기 전용`;
       } else {
         const industryKey = String(betaUi.businessIndustryKey?.value || '').trim();
         const query = new URLSearchParams({ industry_key: industryKey });
         const data = await betaRequest(`/beta-api/gemini/admin/prompt?${query.toString()}`);
         betaUi.promptEditor.value = String(data.prompt || '');
-        betaUi.promptMeta.textContent = `${data.prompt_key || '프롬프트'} v${data.version || '-'} · 업종 ${industryKey || '기본'} · ${betaUi.promptEditor.value.length.toLocaleString()}자`;
+        betaUi.promptMeta.textContent = `${data.prompt_key || '프롬프트'} v${data.version || '-'} · 업종 ${industryKey || '기본'} · 템플릿 원본(전송본 아님) · ${betaUi.promptEditor.value.length.toLocaleString()}자`;
       }
       betaUi.promptMessage.textContent = '';
       betaUi.promptEditor.focus();

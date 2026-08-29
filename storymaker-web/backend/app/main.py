@@ -524,6 +524,7 @@ def read_beta_v1_profile(current_user: Optional[User] = Depends(get_optional_cur
             "cafe": "카페·디저트",
             "kids_cafe": "키즈카페",
             "logistics": "물류·3PL",
+            "copy_print_shop": "복사출력전문점",
         }
 
         profiles = []

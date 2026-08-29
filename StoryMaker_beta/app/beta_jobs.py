@@ -108,6 +108,9 @@ def get_weather_snapshot(region_raw: str) -> dict[str, Any]:
             "latitude": lat,
             "longitude": lon,
             "current": "temperature_2m,relative_humidity_2m,precipitation,weather_code",
+            "hourly": "temperature_2m,weather_code",
+            "past_days": 1,
+            "forecast_days": 1,
             "timezone": "Asia/Seoul"
         })
         url = f"https://api.open-meteo.com/v1/forecast?{params}"
@@ -115,6 +118,7 @@ def get_weather_snapshot(region_raw: str) -> dict[str, Any]:
         with urllib.request.urlopen(req, timeout=5) as response:
             payload = json.loads(response.read().decode("utf-8"))
         current = payload.get("current") or {}
+        hourly = payload.get("hourly") or {}
 
         temp = current.get("temperature_2m")
         humidity = current.get("relative_humidity_2m")
@@ -125,6 +129,22 @@ def get_weather_snapshot(region_raw: str) -> dict[str, Any]:
         condition = FOOTER_WEATHER_CODE_MAP.get(int(code) if code is not None else -1, "흐림")
         precip_status = "비 없음" if not precip or float(precip) == 0 else f"{precip}mm"
 
+        hourly_times = hourly.get("time") if isinstance(hourly.get("time"), list) else []
+        hourly_temps = hourly.get("temperature_2m") if isinstance(hourly.get("temperature_2m"), list) else []
+        hourly_codes = hourly.get("weather_code") if isinstance(hourly.get("weather_code"), list) else []
+        current_hour = str(obs_time)[:13]
+        live_hourly: list[dict[str, Any]] = []
+        for index, observed_hour in enumerate(hourly_times):
+            observed_text = str(observed_hour or "")
+            if not observed_text or observed_text[:13] > current_hour:
+                continue
+            temperature_value = hourly_temps[index] if index < len(hourly_temps) else None
+            weather_code = hourly_codes[index] if index < len(hourly_codes) else None
+            live_hourly.append({
+                "observed_hour": observed_text,
+                "weather": FOOTER_WEATHER_CODE_MAP.get(int(weather_code) if weather_code is not None else -1, "흐림"),
+                "temperature_c": float(temperature_value) if temperature_value is not None else None,
+            })
         snapshot.update({
             "condition": condition,
             "temperature_c": int(round(float(temp))) if temp is not None else None,
@@ -132,6 +152,7 @@ def get_weather_snapshot(region_raw: str) -> dict[str, Any]:
             "precipitation_status": precip_status,
             "precipitation_mm": float(precip) if precip is not None else 0,
             "observed_at": obs_time,
+            "hourly_24": live_hourly[-24:],
             "available": True,
         })
     except Exception as exc:
@@ -792,7 +813,8 @@ async def beta_create_job(
         "blog_content_length": max(300, min(int(business_blog_content_length or 1500), 5000)),
     }
     weather_snapshot = get_weather_snapshot(business_region.strip())
-    weather_snapshot["hourly_24"] = beta_weather_hourly_24(business_region.strip())
+    if not weather_snapshot.get("hourly_24"):
+        weather_snapshot["hourly_24"] = beta_weather_hourly_24(business_region.strip())
     content = beta_make_content(business, topic, len(saved_images))
     content_region = str(business.get("region_alias") or business.get("region") or "").strip()
     content["title"] = clean_beta_title(content.get("title"), f"{content_region} {topic.strip()}")

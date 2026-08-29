@@ -69,7 +69,7 @@ def clean_persona_payload(req: UserPersonaUpsert) -> tuple[str, str, str, str, s
     website_url = (req.website_url or "").strip()
     region = format_region_display(req.region)
     region_alias = re.sub(r"\s+", " ", str(getattr(req, "region_alias", "") or "").strip())
-    industry_candidates = {"general", "home_repair", "boiler_facility", "appliance_clean", "general_cleaning", "window_screen", "key_doorlock", "lighting_electric", "drain_unclog", "restaurant", "meat_korean", "bakery_dessert", "pub_bar", "mealkit_sidedish", "cafe", "workshop_class", "partyroom_studio", "beauty_wellness", "hair_salon", "nail_art", "skin_care", "fitness_pt", "body_massage", "car_repair", "car_detailing", "car_rental", "pet_beauty_hotel", "veterinary_clinic", "flower_shop", "kids_cafe", "real_estate", "education_academy", "study_cafe", "professional_service", "moving_service", "camping", "logistics"}
+    industry_candidates = {"general", "home_repair", "boiler_facility", "appliance_clean", "general_cleaning", "window_screen", "key_doorlock", "lighting_electric", "drain_unclog", "restaurant", "meat_korean", "bakery_dessert", "pub_bar", "mealkit_sidedish", "cafe", "workshop_class", "partyroom_studio", "beauty_wellness", "hair_salon", "nail_art", "skin_care", "fitness_pt", "body_massage", "car_repair", "car_detailing", "car_rental", "pet_beauty_hotel", "veterinary_clinic", "flower_shop", "kids_cafe", "real_estate", "education_academy", "study_cafe", "professional_service", "moving_service", "camping", "logistics", "copy_print_shop"}
     style_candidates = {"네이버 블로그", "티스토리", "인스타그램", "스레드", "브런치스토리", "워드프레스"}
     tone_candidates = {"따뜻함", "전문가", "친근함", "신뢰감", "현장감", "진정성", "차분함", "활기", "담백함", "순박함", "진지함"}
     industry_key = (req.industry_key or "general").strip()
