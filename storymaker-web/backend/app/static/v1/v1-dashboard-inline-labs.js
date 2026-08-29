@@ -90,9 +90,8 @@
     style.textContent = `
       .${HIDDEN_CLASS}{display:none!important}
       #${HOST_ID}{display:none;width:100%;min-width:0;margin:0;padding:0}
-      #${HOST_ID}.open{display:block}
-      #${HOST_ID} .v1-inline-shell{position:relative;width:calc(100% - 28px);min-width:0;margin:14px;border:1px solid rgba(103,232,249,.28);border-radius:24px;background:#020617;box-shadow:0 22px 55px rgba(2,6,23,.42),inset 0 0 0 1px rgba(139,92,246,.08);overflow:hidden}
-      #${HOST_ID} .v1-inline-shell::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#67e8f9,#8b5cf6);z-index:3;pointer-events:none}
+      #${HOST_ID}.open{display:block;border:1px solid #1e293b;border-radius:2rem;background:rgba(15,23,42,.80);padding:18px;box-shadow:0 24px 60px rgba(2,6,23,.30)}
+      #${HOST_ID} .v1-inline-shell{width:100%;min-width:0;margin:0;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible}
       #${HOST_ID} .v1-inline-toolbar{display:none!important}
       #${HOST_ID} .v1-inline-heading{min-width:0}
       #${HOST_ID} .v1-inline-title{font-size:16px;font-weight:900;color:#f8fbff}
@@ -100,9 +99,9 @@
       #${HOST_ID} .v1-inline-actions{display:flex;align-items:center;gap:8px}
       #${HOST_ID} .v1-inline-switch,#${HOST_ID} .v1-inline-close{border:1px solid rgba(103,232,249,.28);border-radius:999px;background:#0a1730;color:#dffbff;padding:8px 13px;font-size:12px;font-weight:900;cursor:pointer;white-space:nowrap}
       #${HOST_ID} .v1-inline-switch.active{border-color:#67e8f9;background:rgba(8,145,178,.22);color:#fff}
-      #${HOST_ID} .v1-inline-frame-wrap{display:none;width:100%;min-width:0;background:#020617}
+      #${HOST_ID} .v1-inline-frame-wrap{display:none;width:100%;min-width:0;background:transparent}
       #${HOST_ID} .v1-inline-frame-wrap.active{display:block}
-      #${HOST_ID} iframe{display:block;width:100%;height:calc(130vh - 247px);min-height:936px;border:0;background:#020617}
+      #${HOST_ID} iframe{display:block;width:100%;height:calc(130vh - 247px);min-height:936px;border:0;border-radius:0;background:transparent}
       @media(max-width:900px){
         #${HOST_ID} .v1-inline-toolbar{align-items:flex-start;flex-direction:column}
         #${HOST_ID} .v1-inline-actions{width:100%;flex-wrap:wrap}
