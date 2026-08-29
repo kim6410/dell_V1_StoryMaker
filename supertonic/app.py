@@ -845,6 +845,8 @@ async def run_slideshow(
     mm_sub_spacing: int = Form(8),
     mm_wm_lift: int = Form(0),
     mm_wm_gap: int = Form(18),
+    narration_audio: Optional[UploadFile] = File(None),
+    narration_srt: Optional[UploadFile] = File(None),
     images: List[UploadFile] = File(...),
     user_id: str = Form("default"),
     resolution: str = Form("1080x1920"),
@@ -859,8 +861,41 @@ async def run_slideshow(
     job_id = f"slideshow_{uuid.uuid4().hex[:8]}"
     input_logs = []
     
-    # mp3_path 처리
-    if mp3_path and os.path.exists(mp3_path):
+    # 외부 나레이션은 TTS + SRT 한 쌍으로만 적용합니다.
+    has_external_audio = bool(narration_audio and narration_audio.filename)
+    has_external_srt = bool(narration_srt and narration_srt.filename)
+    if has_external_audio != has_external_srt:
+        raise HTTPException(status_code=400, detail="외부 나레이션은 TTS 음성과 SRT를 함께 업로드해야 합니다.")
+
+    external_mp3_path = None
+    external_srt_path = None
+    if has_external_audio and has_external_srt:
+        audio_ext = Path(narration_audio.filename or "").suffix.lower()
+        srt_ext = Path(narration_srt.filename or "").suffix.lower()
+        if audio_ext not in {".mp3", ".wav", ".m4a"}:
+            raise HTTPException(status_code=400, detail="TTS 음성은 MP3, WAV, M4A 파일만 사용할 수 있습니다.")
+        if srt_ext != ".srt":
+            raise HTTPException(status_code=400, detail="자막은 SRT 파일만 사용할 수 있습니다.")
+
+        user_id_safe = safe_name(user_id) or "default"
+        narration_dir = USER_JOBS_DIR / user_id_safe / job_id / "input_narration"
+        narration_dir.mkdir(parents=True, exist_ok=True)
+        audio_name = f"narration{audio_ext}"
+        srt_name = "narration.srt"
+        external_audio_file = narration_dir / audio_name
+        external_srt_file = narration_dir / srt_name
+        external_audio_file.write_bytes(await narration_audio.read())
+        external_srt_file.write_bytes(await narration_srt.read())
+        external_mp3_path = str(external_audio_file)
+        external_srt_path = str(external_srt_file)
+        input_logs.append(f"외부 TTS 업로드 사용: {narration_audio.filename}")
+        input_logs.append(f"외부 SRT 업로드 사용: {narration_srt.filename}")
+
+    # mp3_path 처리: 외부 업로드가 있으면 기존 StoryMaker 음성보다 우선합니다.
+    if external_mp3_path:
+        mp3_full_path = external_mp3_path
+        input_logs.append(f"외부 나레이션 음성 선택: {mp3_full_path}")
+    elif mp3_path and os.path.exists(mp3_path):
         mp3_full_path = mp3_path
         input_logs.append(f"MP3 선택값 사용: {mp3_full_path}")
     else:
@@ -878,9 +913,12 @@ async def run_slideshow(
             mp3_full_path = str(PODCAST_DIR / mp3_filename)
             input_logs.append(f"MP3 fallback 후보 사용: {mp3_full_path}")
 
-    # srt_path 처리
+    # srt_path 처리: 외부 업로드가 있으면 기존 StoryMaker SRT보다 우선합니다.
     srt_full_path = None
-    if srt_path and os.path.exists(srt_path):
+    if external_srt_path:
+        srt_full_path = external_srt_path
+        input_logs.append(f"외부 나레이션 SRT 선택: {srt_full_path}")
+    elif srt_path and os.path.exists(srt_path):
         srt_full_path = srt_path
         input_logs.append(f"SRT 선택값 사용: {srt_full_path}")
     else:

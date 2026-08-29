@@ -12,6 +12,30 @@ let currentHistory = [];
 let currentHistoryIndex = -1;
 let selectedFiles = [];
 let externalSites = [];
+let narrationAudioFile = null;
+let narrationSrtFile = null;
+
+function updateNarrationSourceInfo() {
+    const info = document.getElementById('narrationSourceInfo');
+    if (!info) return;
+    if (!narrationAudioFile && !narrationSrtFile) {
+        info.textContent = '기본 StoryMaker 음성 + SRT 사용';
+        return;
+    }
+    const audioText = narrationAudioFile ? `음성: ${narrationAudioFile.name}` : '음성: 미선택';
+    const srtText = narrationSrtFile ? `SRT: ${narrationSrtFile.name}` : 'SRT: 미선택';
+    info.textContent = `${audioText} / ${srtText}`;
+}
+
+function resetNarrationSource() {
+    narrationAudioFile = null;
+    narrationSrtFile = null;
+    const audioInput = document.getElementById('narrationAudioInput');
+    const srtInput = document.getElementById('narrationSrtInput');
+    if (audioInput) audioInput.value = '';
+    if (srtInput) srtInput.value = '';
+    updateNarrationSourceInfo();
+}
 
 // WebSocket 연결
 let ws = null;
@@ -164,6 +188,46 @@ async function init() {
 
     if (fileInput) fileInput.addEventListener('change', handleFileSelect);
     if (folderInput) folderInput.addEventListener('change', handleFileSelect);
+
+    const narrationAudioInput = document.getElementById('narrationAudioInput');
+    const narrationSrtInput = document.getElementById('narrationSrtInput');
+    const selectNarrationAudioBtn = document.getElementById('selectNarrationAudioBtn');
+    const selectNarrationSrtBtn = document.getElementById('selectNarrationSrtBtn');
+    const resetNarrationSourceBtn = document.getElementById('resetNarrationSourceBtn');
+
+    if (selectNarrationAudioBtn && narrationAudioInput) {
+        selectNarrationAudioBtn.addEventListener('click', () => narrationAudioInput.click());
+        narrationAudioInput.addEventListener('change', () => {
+            const file = narrationAudioInput.files && narrationAudioInput.files[0];
+            if (!file) return;
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            if (!['mp3', 'wav', 'm4a'].includes(ext)) {
+                alert('TTS 음성은 MP3, WAV, M4A 파일만 사용할 수 있습니다.');
+                narrationAudioInput.value = '';
+                return;
+            }
+            narrationAudioFile = file;
+            updateNarrationSourceInfo();
+        });
+    }
+
+    if (selectNarrationSrtBtn && narrationSrtInput) {
+        selectNarrationSrtBtn.addEventListener('click', () => narrationSrtInput.click());
+        narrationSrtInput.addEventListener('change', () => {
+            const file = narrationSrtInput.files && narrationSrtInput.files[0];
+            if (!file) return;
+            if (!file.name.toLowerCase().endsWith('.srt')) {
+                alert('자막은 SRT 파일만 사용할 수 있습니다.');
+                narrationSrtInput.value = '';
+                return;
+            }
+            narrationSrtFile = file;
+            updateNarrationSourceInfo();
+        });
+    }
+
+    if (resetNarrationSourceBtn) resetNarrationSourceBtn.addEventListener('click', resetNarrationSource);
+    updateNarrationSourceInfo();
 
     // 실행 버튼 이벤트 연결
     if (runPodcastBtn) {
@@ -473,6 +537,8 @@ async function runSlideshow() {
     formData.append('project_key', projectPreview.textContent);
     formData.append('mp3_path', `/media/podcast/${projectPreview.textContent}.mp3`);
     formData.append('srt_path', `/media/podcast/${projectPreview.textContent}.srt`);
+    if (narrationAudioFile) formData.append('narration_audio', narrationAudioFile, narrationAudioFile.name);
+    if (narrationSrtFile) formData.append('narration_srt', narrationSrtFile, narrationSrtFile.name);
     formData.append('render_target', 'macmini');
     formData.append('brand_name', _el('wmBrandName')?.value || _el('brandName')?.value || '');
     formData.append('phone_number', _el('wmPhoneNumber')?.value || _el('phoneNumber')?.value || '');

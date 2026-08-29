@@ -452,6 +452,8 @@ async def run_slideshow(
     subtitle_font_size: int = Form(11),
     subtitle_margin: int = Form(40),
     mm_sub_lift: int = Form(95),
+    narration_audio: UploadFile | None = File(None),
+    narration_srt: UploadFile | None = File(None),
     images: list[UploadFile] = File(...),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -522,6 +524,19 @@ async def run_slideshow(
         if not files:
             raise HTTPException(status_code=400, detail="영상 생성에 사용할 수 있는 안전 이미지가 없습니다. JPG 또는 PNG 이미지를 다시 업로드해 주세요.")
 
+        has_external_audio = bool(narration_audio and narration_audio.filename)
+        has_external_srt = bool(narration_srt and narration_srt.filename)
+        if has_external_audio != has_external_srt:
+            raise HTTPException(status_code=400, detail="외부 나레이션은 TTS 음성과 SRT를 함께 업로드해야 합니다.")
+        if has_external_audio and has_external_srt:
+            audio_name = narration_audio.filename or "narration.mp3"
+            srt_name = narration_srt.filename or "narration.srt"
+            audio_ext = Path(audio_name).suffix.lower()
+            if audio_ext not in {".mp3", ".wav", ".m4a"} or Path(srt_name).suffix.lower() != ".srt":
+                raise HTTPException(status_code=400, detail="외부 나레이션은 MP3/WAV/M4A 음성과 SRT 파일 조합만 사용할 수 있습니다.")
+            files.append(("narration_audio", (audio_name, await narration_audio.read(), narration_audio.content_type or "application/octet-stream")))
+            files.append(("narration_srt", (srt_name, await narration_srt.read(), narration_srt.content_type or "application/x-subrip")))
+
         db.commit()
         response = httpx.post(f"{API_URL}/api/slideshow/run", data=data, files=files, headers=upstream_headers(), timeout=120)
         response.raise_for_status()
@@ -569,6 +584,8 @@ async def create_slideshow(
     subtitle_font_size: int = Form(11),
     subtitle_margin: int = Form(40),
     mm_sub_lift: int = Form(95),
+    narration_audio: UploadFile | None = File(None),
+    narration_srt: UploadFile | None = File(None),
     images: list[UploadFile] = File(...),
     content_id: str = Form(None),
     content_path: str = Form(None),
@@ -651,6 +668,19 @@ async def create_slideshow(
             project_assets.append(to_editor_asset_response(asset))
         if not files:
             raise HTTPException(status_code=400, detail="영상 생성에 사용할 수 있는 안전 이미지가 없습니다. JPG 또는 PNG 이미지를 다시 업로드해 주세요.")
+
+        has_external_audio = bool(narration_audio and narration_audio.filename)
+        has_external_srt = bool(narration_srt and narration_srt.filename)
+        if has_external_audio != has_external_srt:
+            raise HTTPException(status_code=400, detail="외부 나레이션은 TTS 음성과 SRT를 함께 업로드해야 합니다.")
+        if has_external_audio and has_external_srt:
+            audio_name = narration_audio.filename or "narration.mp3"
+            srt_name = narration_srt.filename or "narration.srt"
+            audio_ext = Path(audio_name).suffix.lower()
+            if audio_ext not in {".mp3", ".wav", ".m4a"} or Path(srt_name).suffix.lower() != ".srt":
+                raise HTTPException(status_code=400, detail="외부 나레이션은 MP3/WAV/M4A 음성과 SRT 파일 조합만 사용할 수 있습니다.")
+            files.append(("narration_audio", (audio_name, await narration_audio.read(), narration_audio.content_type or "application/octet-stream")))
+            files.append(("narration_srt", (srt_name, await narration_srt.read(), narration_srt.content_type or "application/x-subrip")))
 
         db.commit()
         response = httpx.post(f"{API_URL}/api/slideshow/run", data=data, files=files, headers=upstream_headers(), timeout=120)

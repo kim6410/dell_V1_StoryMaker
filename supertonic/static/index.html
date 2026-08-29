@@ -179,6 +179,22 @@
             <div id="selectedAudioInfo" style="margin-top: 8px; font-size: 12px; color: #94a3b8; padding: 6px; background: #0f172a; border-radius: 4px;">
                 선택된 파일: 없음
             </div>
+
+            <div style="margin-top: 10px; padding: 10px; background: #0f172a; border: 1px solid #334155; border-radius: 6px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="color:#e2e8f0; font-weight:600;">나레이션 소스</span>
+                    <button id="resetNarrationSourceBtn" type="button" class="small-btn" style="padding:4px 8px;">기본으로</button>
+                </div>
+                <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">외부 TTS와 SRT를 올리면 기존 음성/자막만 대체하고 나머지 영상 설정은 그대로 사용합니다.</div>
+                <input id="narrationAudioInput" type="file" accept="audio/mpeg,audio/wav,audio/x-wav,audio/mp4,.mp3,.wav,.m4a" style="display:none;">
+                <input id="narrationSrtInput" type="file" accept=".srt,application/x-subrip,text/plain" style="display:none;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                    <button id="selectNarrationAudioBtn" type="button" class="small-btn">TTS 음성 업로드</button>
+                    <button id="selectNarrationSrtBtn" type="button" class="small-btn">SRT 업로드</button>
+                </div>
+                <div id="narrationSourceInfo" style="margin-top:8px; font-size:12px; line-height:1.55; color:#94a3b8;">기본 StoryMaker 음성 + SRT 사용</div>
+            </div>
+
             <button id="runSlideshowBtn" class="primary-btn" style="margin-top: 10px; width: 100%;" disabled>슬라이드쇼 생성</button>
         </div>
 
