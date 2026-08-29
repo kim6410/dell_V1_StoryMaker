@@ -718,57 +718,32 @@
     });
 
     let returnFocus = openButton;
-    let parentScrollRestore = null;
 
-    const placeModalInVisibleParentViewport = ({ ensureSpace = false } = {}) => {
-      let visibleTop = window.scrollY || 0;
-      let visibleHeight = window.innerHeight;
-      try {
-        if (window.parent && window.parent !== window && window.frameElement) {
-          const parentWindow = window.parent;
-          const frame = window.frameElement;
-          let frameRect = frame.getBoundingClientRect();
-          const parentHeight = parentWindow.innerHeight;
-          const desiredVisibleHeight = Math.max(520, Math.min(920, parentHeight - 24));
-          let visibleStart = Math.max(0, -frameRect.top);
-          let visibleEnd = Math.min(frameRect.height, parentHeight - frameRect.top);
-          let availableHeight = Math.max(0, visibleEnd - visibleStart);
+    const placeModalInIframeViewport = () => {
+      const viewportHeight = Math.max(520, window.innerHeight || 720);
+      const top = (window.scrollY || 0) + 8;
+      const modalHeight = Math.max(500, Math.min(920, viewportHeight - 16));
+      const dialogHeight = Math.max(480, modalHeight - 16);
 
-          if (ensureSpace && availableHeight < desiredVisibleHeight) {
-            if (!parentScrollRestore) {
-              parentScrollRestore = {
-                x: parentWindow.scrollX || 0,
-                y: parentWindow.scrollY || 0,
-              };
-            }
-            parentWindow.scrollTo({
-              top: Math.max(0, (parentWindow.scrollY || 0) + frameRect.top - 12),
-              behavior: 'auto',
-            });
-            frameRect = frame.getBoundingClientRect();
-            visibleStart = Math.max(0, -frameRect.top);
-            visibleEnd = Math.min(frameRect.height, parentHeight - frameRect.top);
-            availableHeight = Math.max(0, visibleEnd - visibleStart);
-          }
-
-          visibleTop = (window.scrollY || 0) + visibleStart;
-          visibleHeight = Math.max(420, availableHeight);
-        }
-      } catch (_) {}
-
-      const verticalPadding = 12;
-      const dialogHeight = Math.max(400, Math.min(980, visibleHeight - verticalPadding * 2));
       modal.style.position = 'absolute';
-      modal.style.top = `${visibleTop}px`;
+      modal.style.top = `${top}px`;
       modal.style.right = '0';
       modal.style.bottom = 'auto';
       modal.style.left = '0';
-      modal.style.height = `${visibleHeight}px`;
+      modal.style.height = `${modalHeight}px`;
       dialog.style.height = `${dialogHeight}px`;
       dialog.style.maxHeight = `${dialogHeight}px`;
       modalBody.style.removeProperty('height');
       modalBody.style.removeProperty('max-height');
       modalBody.style.removeProperty('overflow-y');
+    };
+
+    const alignIframeToParentViewport = () => {
+      try {
+        if (window.parent && window.parent !== window && window.frameElement) {
+          window.frameElement.scrollIntoView({ behavior: 'auto', block: 'start' });
+        }
+      } catch (_) {}
     };
 
     const closeModal = () => {
@@ -777,16 +752,6 @@
       document.documentElement.classList.remove('sf-settings-modal-open');
       document.body.classList.remove('sf-settings-modal-open');
       openButton.setAttribute('aria-expanded', 'false');
-      try {
-        if (parentScrollRestore && window.parent && window.parent !== window) {
-          window.parent.scrollTo({
-            left: parentScrollRestore.x,
-            top: parentScrollRestore.y,
-            behavior: 'auto',
-          });
-        }
-      } catch (_) {}
-      parentScrollRestore = null;
       if (state.rendering) startPreviewFocusLock();
       returnFocus?.focus?.({preventScroll:true});
     };
@@ -794,13 +759,16 @@
     const openModal = () => {
       returnFocus = document.activeElement || openButton;
       stopPreviewFocusLock();
-      placeModalInVisibleParentViewport({ ensureSpace: true });
-      modalBody.scrollTop = 0;
       modal.hidden = false;
       document.documentElement.classList.add('sf-settings-modal-open');
       document.body.classList.add('sf-settings-modal-open');
       openButton.setAttribute('aria-expanded', 'true');
-      requestAnimationFrame(() => dialog.focus({preventScroll:true}));
+      modalBody.scrollTop = 0;
+      alignIframeToParentViewport();
+      requestAnimationFrame(() => {
+        placeModalInIframeViewport();
+        dialog.focus({preventScroll:true});
+      });
     };
 
     openButton.addEventListener('click', openModal);
