@@ -718,89 +718,42 @@
     });
 
     let returnFocus = openButton;
-    let savedScrollX = 0;
-    let savedScrollY = 0;
-    let hostWindow = window;
-    let hostDocument = document;
-    let previousHostHtmlOverflow = '';
-    let previousHostBodyOverflow = '';
 
-    const resolveHost = () => {
-      try {
-        if (window.parent && window.parent !== window && window.frameElement) {
-          hostWindow = window.parent;
-          hostDocument = window.parent.document;
-        } else {
-          hostWindow = window;
-          hostDocument = document;
-        }
-      } catch (_) {
-        hostWindow = window;
-        hostDocument = document;
-      }
-    };
-
-    const positionModalInVisibleViewport = () => {
-      let top = window.scrollY || 0;
-      let visibleHeight = window.innerHeight;
-      try {
-        if (hostWindow !== window && window.frameElement) {
-          const frameRect = window.frameElement.getBoundingClientRect();
-          top = Math.max(0, -frameRect.top);
-          visibleHeight = Math.max(320, Math.min(hostWindow.innerHeight, frameRect.bottom) - Math.max(0, frameRect.top));
-        }
-      } catch (_) {}
-      modal.style.position = 'absolute';
-      modal.style.top = `${top}px`;
-      modal.style.right = '0';
-      modal.style.bottom = 'auto';
-      modal.style.left = '0';
-      modal.style.height = `${visibleHeight}px`;
-      dialog.style.transform = 'none';
-      dialog.style.height = `${Math.max(520, visibleHeight - 12)}px`;
-      dialog.style.maxHeight = `${Math.max(520, visibleHeight - 12)}px`;
-      modalBody.style.height = `${Math.max(320, visibleHeight - 142)}px`;
-      modalBody.style.maxHeight = `${Math.max(320, visibleHeight - 142)}px`;
-      modalBody.style.overflowY = 'scroll';
+    const resetModalGeometry = () => {
+      modal.style.removeProperty('position');
+      modal.style.removeProperty('top');
+      modal.style.removeProperty('right');
+      modal.style.removeProperty('bottom');
+      modal.style.removeProperty('left');
+      modal.style.removeProperty('height');
+      dialog.style.removeProperty('transform');
+      dialog.style.removeProperty('height');
+      dialog.style.removeProperty('max-height');
+      modalBody.style.removeProperty('height');
+      modalBody.style.removeProperty('max-height');
+      modalBody.style.removeProperty('overflow-y');
     };
 
     const closeModal = () => {
       if (modal.hidden) return;
       modal.hidden = true;
-      hostWindow.removeEventListener('scroll', positionModalInVisibleViewport);
-      hostWindow.removeEventListener('resize', positionModalInVisibleViewport);
       document.documentElement.classList.remove('sf-settings-modal-open');
       document.body.classList.remove('sf-settings-modal-open');
-      hostDocument.documentElement.style.overflow = previousHostHtmlOverflow;
-      hostDocument.body.style.overflow = previousHostBodyOverflow;
       openButton.setAttribute('aria-expanded', 'false');
-      hostWindow.scrollTo(savedScrollX, savedScrollY);
       if (state.rendering) startPreviewFocusLock();
       returnFocus?.focus?.({preventScroll:true});
     };
 
     const openModal = () => {
       returnFocus = document.activeElement || openButton;
-      resolveHost();
-      savedScrollX = hostWindow.scrollX || 0;
-      savedScrollY = hostWindow.scrollY || 0;
-      previousHostHtmlOverflow = hostDocument.documentElement.style.overflow;
-      previousHostBodyOverflow = hostDocument.body.style.overflow;
       stopPreviewFocusLock();
-      positionModalInVisibleViewport();
+      resetModalGeometry();
       modalBody.scrollTop = 0;
       modal.hidden = false;
       document.documentElement.classList.add('sf-settings-modal-open');
       document.body.classList.add('sf-settings-modal-open');
-      hostDocument.documentElement.style.overflow = 'hidden';
-      hostDocument.body.style.overflow = 'hidden';
       openButton.setAttribute('aria-expanded', 'true');
-      hostWindow.addEventListener('scroll', positionModalInVisibleViewport, { passive: true });
-      hostWindow.addEventListener('resize', positionModalInVisibleViewport);
-      requestAnimationFrame(() => {
-        positionModalInVisibleViewport();
-        dialog.focus({preventScroll:true});
-      });
+      requestAnimationFrame(() => dialog.focus({preventScroll:true}));
     };
 
     openButton.addEventListener('click', openModal);
