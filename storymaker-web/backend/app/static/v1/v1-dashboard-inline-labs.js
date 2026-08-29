@@ -91,7 +91,8 @@
       .${HIDDEN_CLASS}{display:none!important}
       #${HOST_ID}{display:none;width:100%;min-width:0;margin:0;padding:0}
       #${HOST_ID}.open{display:block}
-      #${HOST_ID} .v1-inline-shell{width:100%;min-width:0;overflow:hidden;border:1px solid rgba(103,232,249,.22);border-radius:24px;background:#020617;box-shadow:0 22px 55px rgba(2,6,23,.42)}
+      #${HOST_ID} .v1-inline-shell{position:relative;width:calc(100% - 28px);min-width:0;margin:14px;border:1px solid rgba(103,232,249,.28);border-radius:24px;background:#020617;box-shadow:0 22px 55px rgba(2,6,23,.42),inset 0 0 0 1px rgba(139,92,246,.08);overflow:hidden}
+      #${HOST_ID} .v1-inline-shell::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#67e8f9,#8b5cf6);z-index:3;pointer-events:none}
       #${HOST_ID} .v1-inline-toolbar{display:none!important}
       #${HOST_ID} .v1-inline-heading{min-width:0}
       #${HOST_ID} .v1-inline-title{font-size:16px;font-weight:900;color:#f8fbff}

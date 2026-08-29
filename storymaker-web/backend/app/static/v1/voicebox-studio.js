@@ -57,7 +57,7 @@
       availableMusicTracks = Array.isArray(payload.items)
         ? payload.items.filter(item => item && item.download_url && item.name)
         : [];
-      const current = backgroundMusic.value || 'random';
+      const current = backgroundMusic.value || 'none';
       backgroundMusic.querySelectorAll('option[data-music-track]').forEach(option => option.remove());
       availableMusicTracks.forEach(item => {
         const option = document.createElement('option');
@@ -66,7 +66,7 @@
         option.dataset.musicTrack = '1';
         backgroundMusic.appendChild(option);
       });
-      backgroundMusic.value = availableMusicTracks.some(item => item.name === current) ? current : 'random';
+      backgroundMusic.value = current === 'none' || current === 'random' || availableMusicTracks.some(item => item.name === current) ? current : 'none';
     } catch (error) {
       availableMusicTracks = [];
       console.warn('VoiceBox BGM manifest load failed:', error);
@@ -99,7 +99,7 @@
   }
 
   async function mixBackgroundMusicIntoChannels(channels, sampleRate) {
-    const mode = backgroundMusic?.value || 'random';
+    const mode = backgroundMusic?.value || 'none';
     if (mode === 'none' || !availableMusicTracks.length) return { channels, trackName: '' };
     const track = mode === 'random'
       ? availableMusicTracks[Math.floor(Math.random() * availableMusicTracks.length)]
