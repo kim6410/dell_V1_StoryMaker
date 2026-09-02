@@ -1923,6 +1923,7 @@ class NoCacheStaticFiles(StaticFiles):
         ".before_",
         ".bak_",
         ".old_",
+        ".disabled_",
         "~",
     )
 

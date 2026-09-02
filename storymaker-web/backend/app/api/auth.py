@@ -45,9 +45,28 @@ security_scheme = HTTPBearer(auto_error=False)
 
 
 AUTH_COOKIE_NAME = "storymaker_token"
-AUTH_COOKIE_DOMAIN = ".mystorymaker.net"
+AUTH_COOKIE_DOMAIN = "app.mystorymaker.net"  # 2026-09-02: 전체 서브도메인 공유(.mystorymaker.net)에서 실제 V1 호스트로 축소(CONF-7)
 LOCAL_CONNECT_TTL_SECONDS = 300
 _LOCAL_CONNECT_CODES: dict[str, dict] = {}
+
+# main.py의 CORSMiddleware allow_origins와 동일하게 유지해야 한다.
+_ALLOWED_ORIGIN_HOSTS = {
+    "mystorymaker.net",
+    "app.mystorymaker.net",
+    "mystorymaker.duckdns.org",
+    "app.mystorymaker.duckdns.org",
+}
+
+
+def _verify_same_origin_request(request: Request) -> None:
+    """상태 변경 요청의 Origin/Referer가 허용된 도메인인지 확인한다(CSRF 방어)."""
+    source = request.headers.get("origin") or request.headers.get("referer")
+    if not source:
+        return
+    from urllib.parse import urlparse
+    host = urlparse(source).hostname or ""
+    if host not in _ALLOWED_ORIGIN_HOSTS:
+        raise HTTPException(status_code=403, detail="허용되지 않은 출처의 요청입니다.")
 
 LOGIN_FAILURE_LIMIT = 5
 LOGIN_FAILURE_WINDOW_SECONDS = 5 * 60
@@ -149,7 +168,7 @@ def _auth_cookie_scope(request: Request | None) -> tuple[str | None, bool]:
     hostname = str(request.url.hostname or "").strip().lower()
     forwarded_proto = str(request.headers.get("x-forwarded-proto") or "").split(",", 1)[0].strip().lower()
     scheme = forwarded_proto or str(request.url.scheme or "").lower()
-    is_public_domain = hostname == "mystorymaker.net" or hostname.endswith(".mystorymaker.net")
+    is_public_domain = hostname == "app.mystorymaker.net"
     return (AUTH_COOKIE_DOMAIN if is_public_domain else None), scheme == "https"
 
 
@@ -925,7 +944,8 @@ def logout(
     response: Response,
     credentials: HTTPAuthorizationCredentials | None = Security(security_scheme),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    _origin_ok: None = Depends(_verify_same_origin_request),
 ):
     """
     사용자 세션을 명시적으로 만료시키고 로그아웃 처리를 수행하며 사용시간을 최종 계산하여 활동 로그에 저장합니다.
@@ -1255,7 +1275,8 @@ def delete_user_persona(
 def update_settings(
     req: UserSettingsUpdateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    _origin_ok: None = Depends(_verify_same_origin_request),
 ):
     """
     현재 로그인된 사용자의 설정을 업데이트합니다 (예: 워드프레스 사용 여부 토글).
