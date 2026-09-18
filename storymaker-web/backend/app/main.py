@@ -2087,6 +2087,22 @@ def webgpu_tts_check_page():
     )
 
 
+@app.get("/v1/public-events-db", include_in_schema=False)
+@app.get("/v1/public-events-db/", include_in_schema=False)
+def public_events_db_page():
+    page_path = os.path.join(static_dir, "v1", "public-events-db.html")
+    if not os.path.exists(page_path):
+        raise HTTPException(status_code=404, detail="Public events DB page not found")
+    return FileResponse(
+        page_path,
+        media_type="text/html",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "X-Robots-Tag": "noindex, nofollow, noarchive",
+        },
+    )
+
+
 @app.get("/v1/staged")
 @app.get("/v1/staged/")
 def read_storymaker_staged_page(

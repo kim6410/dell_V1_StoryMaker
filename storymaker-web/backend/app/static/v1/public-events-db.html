@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StoryMaker 행사 DB</title>
+<style>
+:root{color-scheme:dark;--bg:#07111f;--panel:#0d1b2d;--line:#22334a;--text:#eaf2ff;--muted:#8ea2bd;--cyan:#67e8f9;--blue:#60a5fa}
+*{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#06101d,#091728 45%,#07111f);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif}
+.wrap{max-width:1480px;margin:auto;padding:28px 22px 60px}.top{display:flex;gap:20px;justify-content:space-between;align-items:end;margin-bottom:18px}
+h1{font-size:30px;margin:4px 0 6px}.eyebrow{font-size:12px;font-weight:800;letter-spacing:.16em;color:var(--cyan)}.sub{color:var(--muted);font-size:14px}
+.actions{display:flex;gap:8px}.btn{border:1px solid var(--line);background:#102239;color:#dce9fa;border-radius:12px;padding:10px 14px;font-weight:800;cursor:pointer}.btn:hover{border-color:#4b6d95}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}.stat{background:rgba(13,27,45,.92);border:1px solid var(--line);border-radius:18px;padding:18px}.stat b{display:block;font-size:26px}.stat span{font-size:12px;color:var(--muted)}
+.filters{display:grid;grid-template-columns:minmax(260px,2fr) repeat(5,minmax(120px,1fr)) auto;gap:10px;background:rgba(13,27,45,.9);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:14px}
+input,select{width:100%;border:1px solid #2a3e59;background:#091523;color:#eef6ff;border-radius:11px;padding:11px 12px;outline:none}input:focus,select:focus{border-color:var(--cyan)}
+.tablebox{overflow:auto;background:rgba(13,27,45,.94);border:1px solid var(--line);border-radius:18px}
+table{width:100%;border-collapse:collapse;min-width:1120px}th,td{padding:12px 13px;border-bottom:1px solid #1b2b40;text-align:left;font-size:13px;vertical-align:middle}th{position:sticky;top:0;background:#102039;color:#a9bdd7;font-size:12px;z-index:1}
+tr.data:hover{background:#10243a;cursor:pointer}.title{font-weight:850;color:#fff;max-width:480px}.muted{color:var(--muted)}.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#123049;color:#a5f3fc;font-size:11px;font-weight:800}.src-tourapi{background:#243057;color:#c7d2fe}.src-seoul{background:#163b42;color:#99f6e4}
+.pager{display:flex;gap:8px;justify-content:center;align-items:center;padding:18px}.pager button{min-width:38px}.pager .active{background:#67e8f9;color:#07111f;border-color:#67e8f9}.empty{padding:54px;text-align:center;color:var(--muted)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.66);display:none;align-items:center;justify-content:center;padding:22px;z-index:20}.modal.on{display:flex}.card{width:min(900px,100%);max-height:90vh;overflow:auto;background:#0b1929;border:1px solid #304762;border-radius:22px;padding:22px}.detailgrid{display:grid;grid-template-columns:260px 1fr;gap:22px}.detailimg{width:100%;aspect-ratio:4/5;object-fit:cover;background:#07111f;border-radius:16px}.row{display:grid;grid-template-columns:110px 1fr;gap:10px;padding:9px 0;border-bottom:1px solid #1d3046}.row b{color:#9fb3cb;font-size:12px}.row div{word-break:break-word}.close{float:right}.notice{display:none;margin-bottom:12px;padding:12px 14px;border-radius:12px;background:#4b1d28;color:#fecdd3;font-size:13px}
+@media(max-width:900px){.filters{grid-template-columns:1fr 1fr}.filters .wide{grid-column:1/-1}.stats{grid-template-columns:1fr}.detailgrid{grid-template-columns:1fr}.detailimg{max-width:320px}.top{align-items:start;flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><div class="eyebrow">STORYMAKER · PUBLIC EVENTS DB</div><h1>지역 행사 데이터베이스</h1><div class="sub">한국관광공사 TourAPI와 서울 문화행사 API를 한 화면에서 검색합니다.</div></div>
+    <div class="actions"><button class="btn" onclick="location.href='/v1/'">StoryMaker</button><button class="btn" id="reloadBtn">새로고침</button></div>
+  </div>
+  <div id="notice" class="notice"></div>
+  <div class="stats"><div class="stat"><b id="totalCount">-</b><span>검색 결과</span></div><div class="stat"><b id="sourceSummary">-</b><span>전체 DB 출처별 건수</span></div><div class="stat"><b id="pageSummary">-</b><span>현재 페이지</span></div></div>
+  <div class="filters">
+    <input class="wide" id="q" placeholder="행사명 · 장소 · 주소 · 행사유형 검색">
+    <select id="source"><option value="">전체 출처</option></select>
+    <select id="region"><option value="">전체 지역</option></select>
+    <input id="district" placeholder="구/군">
+    <input id="startDate" type="date" title="조회 시작일">
+    <input id="endDate" type="date" title="조회 종료일">
+    <select id="rows"><option>20</option><option>50</option><option>100</option></select>
+    <button class="btn" id="searchBtn">검색</button>
+  </div>
+  <div class="tablebox">
+    <table>
+      <thead><tr><th style="width:90px">출처</th><th>행사명</th><th style="width:160px">기간</th><th style="width:105px">지역</th><th style="width:110px">구/군</th><th style="width:150px">유형</th><th>장소/주소</th></tr></thead>
+      <tbody id="tbody"><tr><td colspan="7" class="empty">불러오는 중...</td></tr></tbody>
+    </table>
+  </div>
+  <div class="pager" id="pager"></div>
+</div>
+<div class="modal" id="modal"><div class="card"><button class="btn close" id="closeModal">닫기</button><div id="detail"></div></div></div>
+<script>
+const $=id=>document.getElementById(id); let state={page:1,pages:1,items:[]};
+const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
+const fmt=d=>{d=String(d||"");return d.length===8?d.slice(0,4)+"-"+d.slice(4,6)+"-"+d.slice(6):d||"-"};
+const srcLabel=s=>s==="tourapi"?"TourAPI":s==="seoul_cultural_event"?"서울문화":"기타";
+const token=()=>localStorage.getItem("storymaker_token")||"";
+async function load(page=1){
+  state.page=page; $("tbody").innerHTML='<tr><td colspan="7" class="empty">불러오는 중...</td></tr>';
+  const p=new URLSearchParams({page:String(page),rows:$("rows").value});
+  [["q","q"],["source","source"],["region","region"],["district","district"],["start_date","startDate"],["end_date","endDate"]].forEach(([k,id])=>{const v=$(id).value.trim();if(v)p.set(k,v)});
+  try{
+    const t=token(); if(!t) throw new Error("로그인 토큰이 없습니다. StoryMaker에 로그인한 뒤 다시 열어 주세요.");
+    const r=await fetch("/v1-api/public-events/db-search?"+p.toString(),{headers:{Authorization:"Bearer "+t},credentials:"include",cache:"no-store"});
+    const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.detail||("HTTP "+r.status));
+    const d=j.data; state.pages=d.pages; state.items=d.items;
+    $("totalCount").textContent=Number(d.total).toLocaleString()+"건";
+    $("pageSummary").textContent=d.page+" / "+d.pages;
+    $("sourceSummary").textContent=d.sources.map(x=>srcLabel(x.source)+" "+Number(x.count).toLocaleString()).join(" · ");
+    if($("source").options.length===1) d.sources.forEach(x=>{const o=new Option(srcLabel(x.source)+" ("+x.count+")",x.source);$("source").add(o)});
+    if($("region").options.length===1) d.regions.forEach(x=>$("region").add(new Option(x,x)));
+    renderRows(); renderPager(); $("notice").style.display="none";
+  }catch(e){$("tbody").innerHTML='<tr><td colspan="7" class="empty">'+esc(e.message)+'</td></tr>';$("notice").textContent=e.message;$("notice").style.display="block"}
+}
+function renderRows(){
+  if(!state.items.length){$("tbody").innerHTML='<tr><td colspan="7" class="empty">조건에 맞는 행사가 없습니다.</td></tr>';return}
+  $("tbody").innerHTML=state.items.map((x,i)=>`<tr class="data" data-i="${i}">
+    <td><span class="badge ${x.source==="tourapi"?"src-tourapi":"src-seoul"}">${esc(srcLabel(x.source))}</span></td>
+    <td class="title">${esc(x.title)}</td><td>${fmt(x.start_date)}<br><span class="muted">~ ${fmt(x.end_date)}</span></td>
+    <td>${esc(x.region_name||"-")}</td><td>${esc(x.district_name||"-")}</td><td>${esc(x.festival_type||"-")}</td><td>${esc(x.address||"-")}</td></tr>`).join("");
+  document.querySelectorAll("tr.data").forEach(tr=>tr.onclick=()=>openDetail(state.items[Number(tr.dataset.i)]));
+}
+function renderPager(){
+  const box=$("pager"); box.innerHTML=""; const cur=state.page,max=state.pages;
+  const add=(label,p,active=false,disabled=false)=>{const b=document.createElement("button");b.className="btn"+(active?" active":"");b.textContent=label;b.disabled=disabled;b.onclick=()=>load(p);box.appendChild(b)};
+  add("‹",Math.max(1,cur-1),false,cur===1); let a=Math.max(1,cur-2),b=Math.min(max,a+4);a=Math.max(1,b-4);
+  for(let p=a;p<=b;p++)add(String(p),p,p===cur); add("›",Math.min(max,cur+1),false,cur===max);
+}
+function openDetail(x){
+  const img=x.image||x.thumbnail||"";
+  $("detail").innerHTML=`<div class="eyebrow">${esc(srcLabel(x.source))} · ID ${esc(x.source_id)}</div><h2 style="font-size:25px;margin:8px 50px 20px 0">${esc(x.title)}</h2><div class="detailgrid">
+  <div>${img?`<img class="detailimg" src="${esc(img)}" alt="">`:'<div class="detailimg"></div>'}</div>
+  <div><div class="row"><b>기간</b><div>${fmt(x.start_date)} ~ ${fmt(x.end_date)}</div></div><div class="row"><b>지역</b><div>${esc([x.region_name,x.district_name].filter(Boolean).join(" ")||"-")}</div></div>
+  <div class="row"><b>유형</b><div>${esc(x.festival_type||"-")}</div></div><div class="row"><b>장소/주소</b><div>${esc(x.address||"-")}</div></div><div class="row"><b>문의</b><div>${esc(x.tel||"-")}</div></div>
+  <div class="row"><b>원본 수정일</b><div>${esc(x.source_modified_at||"-")}</div></div><div class="row"><b>DB 동기화</b><div>${esc(x.synced_at||"-")}</div></div></div></div>`;
+  $("modal").classList.add("on");
+}
+$("searchBtn").onclick=()=>load(1);$("reloadBtn").onclick=()=>load(state.page);$("closeModal").onclick=()=>$("modal").classList.remove("on");$("modal").onclick=e=>{if(e.target===$("modal"))$("modal").classList.remove("on")};
+$("q").addEventListener("keydown",e=>{if(e.key==="Enter")load(1)});$("source").onchange=$("region").onchange=$("rows").onchange=()=>load(1);
+load(1);
+</script>
+</body></html>

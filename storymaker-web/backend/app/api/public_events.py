@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+import sqlite3
+
+from app.settings import settings
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.auth import get_current_user
@@ -108,3 +111,65 @@ def festival_detail(
         return {"ok": True, "data": _client().festival_detail(clean_id, content_type_id)}
     except PublicEventsError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
+
+
+@router.get("/db-search")
+def db_search(
+    q: str = Query("", max_length=120),
+    source: str = Query("", max_length=64),
+    region: str = Query("", max_length=40),
+    district: str = Query("", max_length=40),
+    start_date: str = Query("", max_length=10),
+    end_date: str = Query("", max_length=10),
+    page: int = Query(1, ge=1, le=100000),
+    rows: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+):
+    where = []
+    params: list[object] = []
+    term = q.strip()
+    if term:
+        like = f"%{term}%"
+        where.append("(title LIKE ? OR address LIKE ? OR region_name LIKE ? OR district_name LIKE ? OR festival_type LIKE ?)")
+        params.extend([like, like, like, like, like])
+    if source.strip():
+        where.append("source = ?")
+        params.append(source.strip())
+    if region.strip():
+        where.append("region_name = ?")
+        params.append(region.strip())
+    if district.strip():
+        where.append("district_name = ?")
+        params.append(district.strip())
+    if start_date.strip():
+        where.append("end_date >= ?")
+        params.append(start_date.strip().replace('-', ''))
+    if end_date.strip():
+        where.append("start_date <= ?")
+        params.append(end_date.strip().replace('-', ''))
+    clause = (" WHERE " + " AND ".join(where)) if where else ""
+    conn = sqlite3.connect(str(settings.STORYMAKER_DB_PATH), timeout=30)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout=30000")
+    try:
+        total = int(conn.execute("SELECT COUNT(*) FROM public_events" + clause, params).fetchone()[0])
+        offset = (page - 1) * rows
+        items = [dict(r) for r in conn.execute(
+            "SELECT id,source,source_id,title,start_date,end_date,address,tel,image,thumbnail,"
+            "region_name,district_name,festival_type,source_modified_at,synced_at "
+            "FROM public_events" + clause + " ORDER BY start_date DESC, id DESC LIMIT ? OFFSET ?",
+            [*params, rows, offset],
+        ).fetchall()]
+        sources = [dict(r) for r in conn.execute(
+            "SELECT source, COUNT(*) AS count FROM public_events GROUP BY source ORDER BY count DESC"
+        ).fetchall()]
+        regions = [r[0] for r in conn.execute(
+            "SELECT DISTINCT region_name FROM public_events WHERE region_name<>'' ORDER BY region_name"
+        ).fetchall()]
+        return {"ok": True, "data": {
+            "items": items, "total": total, "page": page, "rows": rows,
+            "pages": max(1, (total + rows - 1) // rows),
+            "sources": sources, "regions": regions,
+        }}
+    finally:
+        conn.close()
