@@ -53,6 +53,10 @@ services:
     - HA_URL=${HA_URL:-https://192.168.0.81:8123}
     - HA_TOKEN=${HA_TOKEN:-}
     - HA_WEATHER_ENTITY_ID=${HA_WEATHER_ENTITY_ID:-weather.naver_weather_hanamsi_nalssi_hanamsi}
+    - TOUR_API_KEY=${TOUR_API_KEY:-}
+    - TOUR_API_BASE=${TOUR_API_BASE:-https://apis.data.go.kr/B551011/KorService2}
+    - TOUR_API_MOBILE_APP=${TOUR_API_MOBILE_APP:-StoryMaker}
+    - STORYMAKER_PUBLIC_EVENTS_CACHE_DIR=/data/public_events_cache
   storymaker-caddy:
     image: caddy:2.7-alpine
     container_name: storymaker-v1-caddy

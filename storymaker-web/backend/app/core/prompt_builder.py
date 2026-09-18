@@ -14,6 +14,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 from app.settings import settings
 from app.core.region_display import format_region_display, format_region_text
+from app.integration.public_events import fetch_public_event_context_for_prompt
 from app.core.phone_number import normalize_korean_phone_number
 from app.services.weather_cache_service import get_cached_weather, get_stale_weather
 
@@ -1207,6 +1208,9 @@ def build_prompt_markdown(company: str, persona: str, base_content: str, referen
     # 모든 업종에 공통 적용되는 감성형 생활 배경 엔진
     life_context_manifest = build_life_context_manifest(now, region_name, weather_context_text, recent_weather_trend)
 
+    # 한국관광공사 TourAPI 기반 지역 행사 컨텍스트. 키가 없거나 API 오류면 생성 흐름에 영향을 주지 않습니다.
+    public_event_context = fetch_public_event_context_for_prompt(content_region_name or region_name, now=now, limit=3)
+
     # 전화번호 추출: 인자로 전달된 phone_number가 있으면 최우선 적용
     phone_val = (phone_number or "").strip()
     if not phone_val:
@@ -1306,6 +1310,57 @@ def build_prompt_markdown(company: str, persona: str, base_content: str, referen
 
 ## SEO 강도
 {seo_guidance}
+
+## 지역 관광·축제 SEO 참고
+{public_event_context or "(현재 지역·기간에 사용할 공공 행사 데이터 없음)"}
+
+### 채널별 지역 SEO 적용 규칙
+BLOG_TITLES
+- 5개 제목 중 최소 3개는 `지역명 + 핵심 서비스/주제` 조합을 자연스럽게 포함합니다.
+- 축제/행사명이 실제 글과 자연스럽게 연결되는 경우에만 5개 중 최대 1개 제목에서 보조적으로 활용합니다.
+- 제목은 검색어 나열이 아니라 사람이 실제 검색할 문장처럼 작성합니다.
+
+BLOG_POST
+- 첫 2개 문단 안에 지역명과 핵심 서비스/주제를 자연스럽게 1회씩 배치합니다.
+- 지역 행사와 실제 주제가 연결되면 '요즘 동네 분위기' 정도의 짧은 문맥으로만 언급하고, 글의 주제는 반드시 업체의 실제 작업/서비스로 유지합니다.
+- 지역명은 제목, 첫 문단, 소제목, 본문, 마무리에 분산하되 같은 표현을 연속 반복하지 않습니다.
+- 인접 동네/생활권은 입력자료 또는 공공데이터로 확인되는 경우에만 보조 키워드로 사용합니다.
+
+NAVER_PLACE_NEWS
+- 해당 업체의 실제 현장 소식이 중심입니다.
+- 지역명 + 서비스명을 첫 문단에 포함하되 축제 정보를 광고 문구처럼 억지로 넣지 않습니다.
+- 행사와 업체가 직접 연관됐다는 오해가 생길 표현은 금지합니다.
+
+GOOGLE_BUSINESS_POST
+- 지역 + 서비스 카테고리 + 실제 해결내용을 명확히 작성합니다.
+- 관광/행사 정보는 지역 맥락 보조로만 사용하고 정확하지 않은 방문객·인기도 표현은 쓰지 않습니다.
+
+INSTAGRAM_POST
+- 첫 2줄은 실제 현장/주제 중심으로 작성합니다.
+- 행사와 주제가 어울릴 때만 '이번 주말 ○○ 일대'처럼 가벼운 지역 분위기를 1회 사용할 수 있습니다.
+- 본문보다 해시태그에서 지역 발견성을 보강합니다.
+
+INSTAGRAM_HASHTAGS
+- 업체/서비스 핵심태그 + 광역지역 + 시군구/동네 + 실제 관련 행사 태그를 섞어 구성합니다.
+- 행사와 무관하면 행사 태그를 넣지 않습니다.
+- 동일 의미의 태그를 변형해 과도하게 반복하지 않습니다.
+
+CARROT_POST / CARROT_HASHTAGS
+- '이 동네에서 실제로 일어난 일'처럼 생활권 친화적으로 작성합니다.
+- 구·동 단위 지역명을 우선하고, 가까운 행사/축제는 자연스러운 동네 배경이 될 때만 언급합니다.
+
+CAROUSEL_7
+- 지역 데이터는 1장 또는 7장의 보조 문구 정도로만 쓰고, 카드뉴스 핵심은 실제 서비스/문제해결 정보로 유지합니다.
+
+PODCAST_50 / PODCAST_80
+- 지역명은 자연스러운 도입이나 마무리에서만 사용합니다.
+- 축제/관광 데이터를 억지 대화 소재로 만들지 않습니다.
+
+공통 SEO 원칙
+- 검색 노출을 위해 `지역 + 서비스 + 실제 문제/목적` 조합을 우선합니다.
+- 지역 행사명은 검색량을 노리고 무조건 삽입하는 키워드가 아니라, 실제 문맥이 맞을 때만 사용하는 보조 키워드입니다.
+- 같은 지역명과 핵심어를 연속 반복하지 않고 제목·첫문단·소제목·해시태그에 분산합니다.
+- 존재하지 않는 연계, 협찬, 참여, 후기, 방문객, 순위, 할인, 혜택을 생성하지 않습니다.
 
 ## 브랜드 톤
 {brand_tone_guidance}

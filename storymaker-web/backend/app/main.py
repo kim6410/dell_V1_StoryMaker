@@ -72,7 +72,8 @@ from app.api import (
     industry_presets_router,
     mobile_one_shot_router,
     content_board_router,
-    local_exports_router
+    local_exports_router,
+    public_events_router
 )
 from app.api.content_board import start_content_board_retention_scheduler
 from app.api.staged.router import router as staged_router
@@ -191,6 +192,7 @@ app.include_router(staged_access_router, prefix="/api", tags=["Staged Access"])
 app.include_router(staged_router, prefix="/api/staged", tags=["Staged Generation"])
 app.include_router(content_board_router, prefix="/api", tags=["V2 Content Board"])
 app.include_router(local_exports_router, prefix="/api", tags=["Local Exports"])
+app.include_router(public_events_router, prefix="/api", tags=["Public Events"])
 app.include_router(podcast_router, prefix="/api", tags=["Podcast"])
 app.include_router(slideshow_router, prefix="/api", tags=["Slideshow"])
 app.include_router(voicebox_router, prefix="/api", tags=["VoiceBox Studio"])

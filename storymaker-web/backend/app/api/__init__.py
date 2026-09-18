@@ -27,6 +27,7 @@ from .industry_presets import router as industry_presets_router
 from .mobile_one_shot import router as mobile_one_shot_router
 from .content_board import router as content_board_router
 from .local_exports import router as local_exports_router
+from .public_events import router as public_events_router
 from .admin_deploy import router as deploy_router
 
 __all__ = [
@@ -50,5 +51,6 @@ __all__ = [
     "industry_presets_router",
     "mobile_one_shot_router",
     "content_board_router",
-    "local_exports_router"
+    "local_exports_router",
+    "public_events_router"
 ]
