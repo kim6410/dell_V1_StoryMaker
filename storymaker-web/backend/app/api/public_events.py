@@ -154,11 +154,17 @@ def db_search(
     try:
         total = int(conn.execute("SELECT COUNT(*) FROM public_events" + clause, params).fetchone()[0])
         offset = (page - 1) * rows
+        today = datetime.now().strftime("%Y%m%d")
         items = [dict(r) for r in conn.execute(
             "SELECT id,source,source_id,title,start_date,end_date,address,tel,image,thumbnail,"
             "region_name,district_name,festival_type,source_modified_at,synced_at "
-            "FROM public_events" + clause + " ORDER BY start_date DESC, id DESC LIMIT ? OFFSET ?",
-            [*params, rows, offset],
+            "FROM public_events" + clause +
+            " ORDER BY "
+            "CASE WHEN start_date<=? AND end_date>=? THEN 0 WHEN start_date>? THEN 1 ELSE 2 END, "
+            "CASE WHEN start_date>? THEN start_date END ASC, "
+            "CASE WHEN start_date<=? AND end_date>=? THEN start_date END DESC, "
+            "CASE WHEN end_date<? THEN end_date END DESC, id DESC LIMIT ? OFFSET ?",
+            [*params, today, today, today, today, today, today, today, rows, offset],
         ).fetchall()]
         sources = [dict(r) for r in conn.execute(
             "SELECT source, COUNT(*) AS count FROM public_events GROUP BY source ORDER BY count DESC"
