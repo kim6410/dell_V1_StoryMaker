@@ -42,8 +42,8 @@ tr.data:hover{background:#10243a;cursor:pointer}.title{font-weight:850;color:#ff
   </div>
   <div class="tablebox">
     <table>
-      <thead><tr><th style="width:90px">출처</th><th>행사명</th><th style="width:160px">기간</th><th style="width:105px">지역</th><th style="width:110px">구/군</th><th style="width:150px">유형</th><th>장소/주소</th></tr></thead>
-      <tbody id="tbody"><tr><td colspan="7" class="empty">불러오는 중...</td></tr></tbody>
+      <thead><tr><th style="width:90px">출처</th><th>행사명</th><th style="width:170px">기간</th><th style="width:105px">지역</th><th style="width:110px">구/군</th><th style="width:150px">유형</th><th style="width:150px">입장료/비용</th><th>장소/주소</th></tr></thead>
+      <tbody id="tbody"><tr><td colspan="8" class="empty">불러오는 중...</td></tr></tbody>
     </table>
   </div>
   <div class="pager" id="pager"></div>
@@ -59,7 +59,7 @@ const fmtStamp=v=>{const s=String(v||"");const m=s.match(/(20\d{2})[-.]?(\d{2})[
 const srcLabel=s=>s==="tourapi"?"TourAPI":s==="seoul_cultural_event"?"서울문화":s==="sgtt"?"SGTT":"기타";
 const token=()=>localStorage.getItem("storymaker_token")||"";
 async function load(page=1){
-  state.page=page; $("tbody").innerHTML='<tr><td colspan="7" class="empty">불러오는 중...</td></tr>';
+  state.page=page; $("tbody").innerHTML='<tr><td colspan="8" class="empty">불러오는 중...</td></tr>';
   const p=new URLSearchParams({page:String(page),rows:$("rows").value});
   [["q","q"],["source","source"],["region","region"],["festival_type","festivalType"],["district","district"],["start_date","startDate"],["end_date","endDate"]].forEach(([k,id])=>{const v=$(id).value.trim();if(v)p.set(k,v)});
   try{
@@ -74,14 +74,14 @@ async function load(page=1){
     if($("region").options.length===1) d.regions.forEach(x=>$("region").add(new Option(x,x)));
     if($("festivalType").options.length===1) d.types.forEach(x=>$("festivalType").add(new Option(x.festival_type+" ("+x.count+")",x.festival_type)));
     renderRows(); renderPager(); $("notice").style.display="none";
-  }catch(e){$("tbody").innerHTML='<tr><td colspan="7" class="empty">'+esc(e.message)+'</td></tr>';$("notice").textContent=e.message;$("notice").style.display="block"}
+  }catch(e){$("tbody").innerHTML='<tr><td colspan="8" class="empty">'+esc(e.message)+'</td></tr>';$("notice").textContent=e.message;$("notice").style.display="block"}
 }
 function renderRows(){
-  if(!state.items.length){$("tbody").innerHTML='<tr><td colspan="7" class="empty">조건에 맞는 행사가 없습니다.</td></tr>';return}
+  if(!state.items.length){$("tbody").innerHTML='<tr><td colspan="8" class="empty">조건에 맞는 행사가 없습니다.</td></tr>';return}
   $("tbody").innerHTML=state.items.map((x,i)=>`<tr class="data" data-i="${i}">
     <td><span class="badge ${x.source==="tourapi"?"src-tourapi":x.source==="sgtt"?"src-sgtt":"src-seoul"}">${esc(srcLabel(x.source))}</span></td>
     <td class="title">${esc(x.title)}</td><td>${esc(fmtRange(x))}</td>
-    <td>${esc(x.region_name||"-")}</td><td>${esc(x.district_name||"-")}</td><td>${x.festival_type?`<button class="typebtn" data-type="${esc(x.festival_type)}">${esc(x.festival_type)}</button>`:"-"}</td><td>${esc(x.address||"-")}</td></tr>`).join("");
+    <td>${esc(x.region_name||"-")}</td><td>${esc(x.district_name||"-")}</td><td>${x.festival_type?`<button class="typebtn" data-type="${esc(x.festival_type)}">${esc(x.festival_type)}</button>`:"-"}</td><td>${esc(x.price_text||"-")}</td><td>${esc(x.address||"-")}</td></tr>`).join("");
   document.querySelectorAll("tr.data").forEach(tr=>tr.onclick=()=>openDetail(state.items[Number(tr.dataset.i)]));
   document.querySelectorAll(".typebtn").forEach(b=>b.onclick=e=>{e.stopPropagation();$("festivalType").value=b.dataset.type;load(1)});
 }
@@ -97,9 +97,11 @@ function openDetail(x){
   <div>${img?`<img class="detailimg" src="${esc(img)}" alt="">`:'<div class="detailimg"></div>'}</div>
   <div><div class="row"><b>일정</b><div>${esc(fmtRange(x))}${x.schedule_text?`<br><span class="muted">${esc(x.schedule_text)}</span>`:""}</div></div><div class="row"><b>지역</b><div>${esc([x.region_name,x.district_name].filter(Boolean).join(" ")||"-")}</div></div>
   <div class="row"><b>유형</b><div>${esc(x.festival_type||"-")}</div></div><div class="row"><b>장소/주소</b><div>${esc(x.address||"-")}</div></div><div class="row"><b>문의</b><div>${esc(x.tel||"-")}</div></div>
-  ${x.duration_text?`<div class="row"><b>소요시간</b><div>${esc(x.duration_text)}</div></div>`:""}${x.age_text?`<div class="row"><b>관람연령</b><div>${esc(x.age_text)}</div></div>`:""}${x.price_text?`<div class="row"><b>가격</b><div>${esc(x.price_text)}</div></div>`:""}
+  ${x.duration_text?`<div class="row"><b>소요시간</b><div>${esc(x.duration_text)}</div></div>`:""}${x.age_text?`<div class="row"><b>관람연령</b><div>${esc(x.age_text)}</div></div>`:""}<div class="row"><b>입장료/비용</b><div>${esc(x.price_text||"정보 없음")}</div></div>
   ${x.detail_url?`<div class="row"><b>원본</b><div><a href="${esc(x.detail_url)}" target="_blank" rel="noopener" style="color:#67e8f9">행사 상세 페이지</a></div></div>`:""}
-  <div class="row"><b>원본 수정일</b><div>${esc(fmtStamp(x.source_modified_at))}</div></div><div class="row"><b>DB 동기화</b><div>${esc(fmtStamp(x.synced_at))}</div></div></div></div>`;
+  <div class="row"><b>원본 수정일</b><div>${esc(fmtStamp(x.source_modified_at))}</div></div>
+  <div class="row"><b>웹 검색</b><div><button class="btn" id="googleSearchBtn" type="button">Google에서 “${esc(x.title)}” 검색</button></div></div></div></div>`;
+  const gb=$("googleSearchBtn"); if(gb) gb.onclick=()=>window.open("https://www.google.com/search?q="+encodeURIComponent(x.title),"_blank","noopener,noreferrer,width=1180,height=820");
   $("modal").classList.add("on");
 }
 $("searchBtn").onclick=()=>load(1);$("reloadBtn").onclick=()=>load(state.page);$("closeModal").onclick=()=>$("modal").classList.remove("on");$("modal").onclick=e=>{if(e.target===$("modal"))$("modal").classList.remove("on")};

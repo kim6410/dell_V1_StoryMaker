@@ -139,21 +139,23 @@ def main():
                 mapx = clean(row.get("LOT"))
                 mapy = clean(row.get("LAT"))
                 festival_type = clean(row.get("CODENAME"))
+                price_text = clean(row.get("USE_FEE"))
                 modified = clean(row.get("RGSTDATE"))
                 conn.execute(
                     """INSERT INTO public_events
                     (source,source_id,content_type_id,title,start_date,end_date,address,tel,image,thumbnail,
                      mapx,mapy,region_code,district_code,region_name,district_name,festival_type,
-                     progress_type,copyright_code,source_modified_at,synced_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                     progress_type,copyright_code,source_modified_at,synced_at,price_text)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                     ON CONFLICT(source,source_id) DO UPDATE SET
                      title=excluded.title,start_date=excluded.start_date,end_date=excluded.end_date,
                      address=excluded.address,tel=excluded.tel,image=excluded.image,thumbnail=excluded.thumbnail,
                      mapx=excluded.mapx,mapy=excluded.mapy,region_name=excluded.region_name,
                      district_name=excluded.district_name,festival_type=excluded.festival_type,
-                     source_modified_at=excluded.source_modified_at,synced_at=excluded.synced_at""",
+                     source_modified_at=excluded.source_modified_at,synced_at=excluded.synced_at,
+                     price_text=excluded.price_text""",
                     (SOURCE,sid,"15",title,start_date,end_date,place,tel,image,image,mapx,mapy,
-                     "1","", "서울",gu,festival_type,"","",modified,now),
+                     "1","", "서울",gu,festival_type,"","",modified,now,price_text),
                 )
                 conn.execute(
                     """INSERT INTO public_event_source_raw

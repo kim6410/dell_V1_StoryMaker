@@ -105,6 +105,9 @@ def migrate_public_events_tables() -> None:
         );
         CREATE INDEX IF NOT EXISTS ix_public_event_sync_runs_date ON public_event_sync_runs(sync_date, status);
         """)
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(public_events)")}
+        if "price_text" not in cols:
+            conn.execute("ALTER TABLE public_events ADD COLUMN price_text TEXT NOT NULL DEFAULT ''")
         conn.commit()
     finally:
         conn.close()
@@ -225,6 +228,37 @@ def _sync_festivals(client: TourAPIClient, conn: sqlite3.Connection, stamp: str)
             str(item.get("festival_type") or ""), str(item.get("progress_type") or ""),
             str(item.get("copyright_code") or ""), str(item.get("modified_time") or ""), stamp,
         ))
+
+    # TourAPI 목록 응답에는 입장료가 없으므로, DB에 비용이 없는 행사만 detailIntro2에서 1회 보강합니다.
+    for item in rows:
+        content_id = str(item.get("content_id") or "")
+        content_type_id = str(item.get("content_type_id") or "15")
+        if not content_id:
+            continue
+        current = conn.execute(
+            "SELECT price_text FROM public_events WHERE source='tourapi' AND source_id=?",
+            (content_id,),
+        ).fetchone()
+        if current and str(current[0] or "").strip():
+            continue
+        try:
+            payload = client.request("detailIntro2", {
+                "contentId": content_id, "contentTypeId": content_type_id,
+            }, ttl=21600)
+            body = payload.get("response", {}).get("body", {}) if isinstance(payload, dict) else {}
+            items_raw = body.get("items", {}).get("item", []) if isinstance(body, dict) else []
+            if isinstance(items_raw, dict):
+                items_raw = [items_raw]
+            intro = items_raw[0] if items_raw else {}
+            price = str(intro.get("usetimefestival") or "").strip()
+            if price:
+                conn.execute(
+                    "UPDATE public_events SET price_text=? WHERE source='tourapi' AND source_id=?",
+                    (price, content_id),
+                )
+                api_calls += 1
+        except Exception:
+            continue
     # 오래 전에 끝난 행사는 DB 비대화를 막되 최근 1년은 보존합니다.
     cutoff = (today - timedelta(days=365)).isoformat()
     conn.execute("DELETE FROM public_events WHERE end_date <> '' AND end_date < ?", (cutoff,))
