@@ -119,6 +119,7 @@ def db_search(
     source: str = Query("", max_length=64),
     region: str = Query("", max_length=40),
     district: str = Query("", max_length=40),
+    festival_type: str = Query("", max_length=80),
     start_date: str = Query("", max_length=10),
     end_date: str = Query("", max_length=10),
     page: int = Query(1, ge=1, le=100000),
@@ -141,6 +142,14 @@ def db_search(
     if district.strip():
         where.append("district_name = ?")
         params.append(district.strip())
+    if festival_type.strip():
+        where.append("festival_type = ?")
+        params.append(festival_type.strip())
+    today = datetime.now().strftime("%Y%m%d")
+    # 기본 화면은 오늘 이후 행사만 표시한다. 과거 행사는 검색어 또는 날짜 범위 검색 시 조회된다.
+    if not term and not start_date.strip() and not end_date.strip():
+        where.append("end_date >= ?")
+        params.append(today)
     if start_date.strip():
         where.append("end_date >= ?")
         params.append(start_date.strip().replace('-', ''))
@@ -154,10 +163,10 @@ def db_search(
     try:
         total = int(conn.execute("SELECT COUNT(*) FROM public_events" + clause, params).fetchone()[0])
         offset = (page - 1) * rows
-        today = datetime.now().strftime("%Y%m%d")
         items = [dict(r) for r in conn.execute(
             "SELECT id,source,source_id,title,start_date,end_date,address,tel,image,thumbnail,"
-            "region_name,district_name,festival_type,source_modified_at,synced_at "
+            "region_name,district_name,festival_type,source_modified_at,synced_at,"
+            "start_time,schedule_text,duration_text,venue_group,category,age_text,price_text,booking_url,detail_url,description_text "
             "FROM public_events" + clause +
             " ORDER BY "
             "CASE WHEN start_date<=? AND end_date>=? THEN 0 WHEN start_date>? THEN 1 ELSE 2 END, "
@@ -172,10 +181,14 @@ def db_search(
         regions = [r[0] for r in conn.execute(
             "SELECT DISTINCT region_name FROM public_events WHERE region_name<>'' ORDER BY region_name"
         ).fetchall()]
+        types = [dict(r) for r in conn.execute(
+            "SELECT festival_type, COUNT(*) AS count FROM public_events WHERE festival_type<>'' "
+            "GROUP BY festival_type ORDER BY count DESC, festival_type"
+        ).fetchall()]
         return {"ok": True, "data": {
             "items": items, "total": total, "page": page, "rows": rows,
             "pages": max(1, (total + rows - 1) // rows),
-            "sources": sources, "regions": regions,
+            "sources": sources, "regions": regions, "types": types,
         }}
     finally:
         conn.close()
