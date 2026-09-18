@@ -84,6 +84,7 @@ from app.integration.staged_access import read_runtime_stage_flags, staged_acces
 from app.services.pattern_knowledge_service import start_learning_scheduler
 from app.services.performance_intelligence_service import start_performance_scheduler
 from app.services.intelligence_service import start_brain_scheduler
+from app.integration.public_events_store import migrate_public_events_tables, start_public_events_scheduler
 from app.services.copy_studio_asset_service import group_copy_studio_assets, resolve_copy_studio_channel, resolve_copy_studio_tokens
 from app.services.project_asset_service import backfill_project_output_assets
 from app.services.content_integrity_service import restore_orphan_document_parents, backfill_missing_checksums, audit_missing_orphan_assets, normalize_completed_jobs
@@ -101,6 +102,7 @@ migrate_intelligence_tables()
 migrate_mobile_one_shot_jobs_table()
 migrate_content_archive_assets_table()
 migrate_billing_credit_tables(engine)
+migrate_public_events_tables()
 ensure_content_storage_schema()
 try:
     restore_orphan_document_parents()
@@ -393,6 +395,7 @@ def start_weather_collector() -> None:
     start_performance_scheduler()
     start_brain_scheduler()
     start_content_board_retention_scheduler()
+    start_public_events_scheduler()
 
 
 @app.get("/api/weather/collect-now")

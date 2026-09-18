@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.api.auth import get_current_user
 from app.db.models import User
 from app.integration.public_events import PublicEventsError, TourAPIClient
+from app.integration.public_events_store import latest_sync_status, sync_public_events_once
 
 router = APIRouter(prefix="/public-events")
 
@@ -24,8 +25,19 @@ def status(current_user: User = Depends(get_current_user)):
             "configured": client.configured,
             "source": "한국관광공사 TourAPI",
             "base_url": client.base_url,
+            "sync": latest_sync_status(),
         },
     }
+
+
+@router.post("/sync-now")
+def sync_now(current_user: User = Depends(get_current_user)):
+    if str(getattr(current_user, "role", "") or "").lower() != "admin":
+        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+    result = sync_public_events_once(force=True)
+    if not result.get("ok"):
+        raise HTTPException(status_code=502, detail=result.get("error") or "동기화 실패")
+    return {"ok": True, "data": result}
 
 
 @router.get("/regions")

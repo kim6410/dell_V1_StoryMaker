@@ -14,7 +14,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 from app.settings import settings
 from app.core.region_display import format_region_display, format_region_text
-from app.integration.public_events import fetch_public_event_context_for_prompt
+from app.integration.public_events_store import build_public_event_context_from_db
 from app.core.phone_number import normalize_korean_phone_number
 from app.services.weather_cache_service import get_cached_weather, get_stale_weather
 
@@ -1209,7 +1209,7 @@ def build_prompt_markdown(company: str, persona: str, base_content: str, referen
     life_context_manifest = build_life_context_manifest(now, region_name, weather_context_text, recent_weather_trend)
 
     # 한국관광공사 TourAPI 기반 지역 행사 컨텍스트. 키가 없거나 API 오류면 생성 흐름에 영향을 주지 않습니다.
-    public_event_context = fetch_public_event_context_for_prompt(content_region_name or region_name, now=now, limit=3)
+    public_event_context = build_public_event_context_from_db(content_region_name or region_name, limit=3)
 
     # 전화번호 추출: 인자로 전달된 phone_number가 있으면 최우선 적용
     phone_val = (phone_number or "").strip()
