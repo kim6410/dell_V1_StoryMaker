@@ -152,7 +152,7 @@ class TourAPIClient:
         out: list[dict[str, str]] = []
         seen: set[str] = set()
         for row in rows:
-            code = str(row.get("lDongRegnCd") or row.get("ldongregncd") or "").strip()
+            code = str(row.get("lDongRegnCd") or row.get("ldongregncd") or row.get("code") or "").strip()
             name = _clean_text(row.get("lDongRegnNm") or row.get("ldongregnnm") or row.get("name"))
             signgu = str(row.get("lDongSignguCd") or row.get("ldongsigngucd") or "").strip()
             if code and name and not signgu and code not in seen:
@@ -169,7 +169,7 @@ class TourAPIClient:
         out: list[dict[str, str]] = []
         seen: set[str] = set()
         for row in rows:
-            code = str(row.get("lDongSignguCd") or row.get("ldongsigngucd") or "").strip()
+            code = str(row.get("lDongSignguCd") or row.get("ldongsigngucd") or row.get("code") or "").strip()
             name = _clean_text(row.get("lDongSignguNm") or row.get("ldongsigngunm") or row.get("name"))
             if code and name and code not in seen:
                 out.append({"code": code, "name": name})
